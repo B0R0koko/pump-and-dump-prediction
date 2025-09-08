@@ -9,3 +9,5 @@
 **/__pycache__/
 /not-so-secret/
 /.env
+/catboost_info/
+/.ipynb_checkpoints/

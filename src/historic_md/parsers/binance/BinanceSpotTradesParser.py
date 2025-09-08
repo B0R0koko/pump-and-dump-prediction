@@ -30,8 +30,8 @@ class BinanceSpotTradesParser(BinanceBaseParser):
 def run_main():
     configure_logging()
     bounds: Bounds = Bounds.for_days(
-        date(2018, 1, 1),
-        date(2019, 1, 1)
+        date(2022, 1, 1),
+        date(2023, 1, 1)
     )
     process: CrawlerProcess = CrawlerProcess(settings=SETTINGS)
 

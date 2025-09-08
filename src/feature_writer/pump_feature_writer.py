@@ -2,7 +2,7 @@ import logging
 import os
 from datetime import datetime
 from functools import partial
-from multiprocessing import Pool, freeze_support, RLock
+from multiprocessing import Pool, RLock
 from multiprocessing.pool import AsyncResult
 from pathlib import Path
 from typing import List, Dict, Optional, Any
@@ -66,7 +66,7 @@ class PumpsFeatureWriter:
     @staticmethod
     def side_expr() -> pl.Expr:
         """
-        Overwrite the way we compute side sign. For Binance we do it with IS_BUYER_MAKER
+        Overwrite the way we compute side sign. For Binance, we do it with IS_BUYER_MAKER
         """
         return 1 - 2 * pl.col(IS_BUYER_MAKER)
 
@@ -221,7 +221,6 @@ class PumpsFeatureWriter:
             self._write_cross_section(pump_event=pump_event)
 
     def run_parallel(self, pump_events: List[PumpEvent], cpu_count: int) -> None:
-        freeze_support()  # for Windows support
         tqdm.set_lock(RLock())  # for managing output contention
 
         with Pool(

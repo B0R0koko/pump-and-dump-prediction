@@ -8,7 +8,7 @@ def get_root_dir() -> Path:
     return directory
 
 
-DATA_DIR: Path = Path("D:/data")
+DATA_DIR: Path = Path("/var/lib/pumps/data")
 RAW_DATA_DIR: Path = DATA_DIR / "raw"
 TRANSFORMED_DATA_DIR: Path = DATA_DIR / "transformed"
 
