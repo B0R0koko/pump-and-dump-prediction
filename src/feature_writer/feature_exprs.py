@@ -34,6 +34,9 @@ def compute_slippage_imbalance() -> pl.Expr:
 
 
 def compute_powerlaw_alpha() -> pl.Expr:
+    """
+    1 + N / Sum(ln(Q_abs / Q_abs.min()))
+    """
     return (
         (1 + pl.len() / (pl.col("quote_abs") / pl.col("quote_abs").min()).log().sum())
         .alias(FeatureType.POWERLAW_ALPHA.name)
@@ -48,8 +51,8 @@ def compute_asset_return_zscore(asset_return_std: float) -> pl.Expr:
     return pl.col("asset_return_pips").mean() / asset_return_std
 
 
-def compute_quote_abs_zscore(quote_abs_std: float) -> pl.Expr:
-    return pl.col("quote_abs").mean() / quote_abs_std
+def compute_quote_abs_zscore(quote_abs_mean: float, quote_abs_std: float) -> pl.Expr:
+    return (pl.col("quote_abs").mean() - quote_abs_mean) / quote_abs_std
 
 
 def compute_return_adj(window: timedelta) -> pl.Expr:

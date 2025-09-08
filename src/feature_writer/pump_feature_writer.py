@@ -108,6 +108,7 @@ class PumpsFeatureWriter:
             )
             .select(SYMBOL).unique().collect()
         ).to_list()
+
         return [
             CurrencyPair.from_string(symbol=symbol) for symbol in unique_symbols
         ]
@@ -129,6 +130,8 @@ class PumpsFeatureWriter:
             )
         )
         asset_return_std: float = df_hourly.select(pl.col("asset_return_pips").std()).item()
+
+        quote_abs_mean: float = df_hourly.select(pl.col("quote_abs").mean()).item()
         quote_abs_std: float = df_hourly.select(pl.col("quote_abs").std()).item()
 
         rb: datetime = pump_event.time - timedelta(hours=1)
@@ -147,7 +150,7 @@ class PumpsFeatureWriter:
                 ).item(),
                 # Quote abs zscore
                 FeatureType.QUOTE_ABS_ZSCORE.col_name(offset=window): df_hourly_filtered.select(
-                    compute_quote_abs_zscore(quote_abs_std=quote_abs_std)
+                    compute_quote_abs_zscore(quote_abs_mean=quote_abs_mean, quote_abs_std=quote_abs_std)
                 ).item(),
                 # Share of long trades
                 FeatureType.SHARE_OF_LONG_TRADES.col_name(offset=window): df_filtered.select(
