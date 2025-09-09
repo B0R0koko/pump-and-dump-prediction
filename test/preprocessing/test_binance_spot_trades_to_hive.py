@@ -19,16 +19,16 @@ def test_binance_spot_trades_to_hive() -> None:
     and reading it with pandas, we simply compare shapes of two dataframes
     """
     configure_logging()
-    day: date = date(2025, 5, 1)
+    day: date = date(2021, 6, 16)
     bounds: Bounds = Bounds.for_day(day)
-    currency_pair: CurrencyPair = CurrencyPair.from_string("ADA-USDT")
-    zip_file_name: str = "trades@2025-05-01.zip"
+    currency_pair: CurrencyPair = CurrencyPair.from_string("THETA-BTC")
+    zip_file_name: str = "trades@2021-06-16.zip"
 
     with (tempfile.TemporaryDirectory() as temp_dir):
         # Create a hive structure in the test folder
         output_dir: Path = Path(temp_dir)
         pipe: BinanceSpotTrades2Hive = BinanceSpotTrades2Hive(
-            bounds=bounds, output_dir=output_dir
+            bounds=bounds, output_dir=output_dir, raw_data_dir=BINANCE_SPOT_RAW_TRADES
         )
 
         pipe.unzip_and_save_to_hive(currency_pair=currency_pair, day=day)

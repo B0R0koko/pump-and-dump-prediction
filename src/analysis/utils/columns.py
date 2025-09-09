@@ -1,0 +1,5 @@
+COL_TARGET: str = "is_pumped"
+COL_PUMP_HASH: str = "pump_hash"
+COL_PUMP_TIME: str = "pump_time"
+COL_PUMPED_CURRENCY_PAIR: str = "pumped_currency_pair"
+COl_PROBAS_PRED: str = "probas_pred"
