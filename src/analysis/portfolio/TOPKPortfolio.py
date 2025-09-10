@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 
 from analysis.models.BaseModel import ImplementsRank
-from analysis.portfolio.Portfolio import ImplementsPortfolio, Portfolio, Transaction
+from analysis.portfolio.BasePortfolio import ImplementsPortfolio, Portfolio, Transaction
 from analysis.utils.columns import COl_PROBAS_PRED, COL_CURRENCY_PAIR
 from core.currency_pair import CurrencyPair
 from core.pump_event import PumpEvent

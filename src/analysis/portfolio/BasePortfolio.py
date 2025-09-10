@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import timedelta, datetime
-from typing import List
+from typing import List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -63,7 +63,7 @@ class ImplementsPortfolio(ABC):
             .select([TRADE_TIME, PRICE])
             .to_pandas()
         )
-        return pd.Series(data=data[PRICE], index=data[TRADE_TIME])
+        return pd.Series(data=data[PRICE].values, index=data[TRADE_TIME])
 
     @abstractmethod
     def regular_transaction(self, ts_price: pd.Series, pump: PumpEvent, cp: CurrencyPair) -> Transaction:
@@ -108,8 +108,13 @@ class ImplementsPortfolio(ABC):
 
         return portfolio_return
 
-    def evaluate_cross_section(self, cross_section: pd.DataFrame, pump: PumpEvent) -> float:
+    def evaluate_cross_section(self, cross_section: pd.DataFrame, pump: PumpEvent) -> Tuple[float, Portfolio]:
+        """
+        :params cross_section: cross-section dataframe containing all features needed for model to make predictions
+        :params pump: pump event of the current cross-section
+        :returns: return of the portfolio selected by the model and corresponding portfolio
+        """
         portfolio: Portfolio = self.create_portfolio(cross_section=cross_section)
         txs: List[Transaction] = self._create_cross_section_transactions(pump=pump, portfolio=portfolio)
         portfolio_return: float = self.calculate_return(txs=txs, portfolio=portfolio)
-        return portfolio_return
+        return portfolio_return, portfolio
