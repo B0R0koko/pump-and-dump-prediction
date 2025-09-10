@@ -1,19 +1,14 @@
 import json
-import logging
 from datetime import datetime
 from pathlib import Path
 from typing import List
 
-import pandas as pd
 import polars as pl
 
 from core.columns import TRADE_TIME, PRICE
 from core.currency_pair import CurrencyPair
 from core.exchange import Exchange
-from core.paths import FEATURE_DIR
-from core.paths import get_root_dir
 from core.pump_event import PumpEvent
-from core.utils import configure_logging
 
 
 def aggregate_into_trades(df_ticks: pl.DataFrame) -> pl.DataFrame:
@@ -53,41 +48,3 @@ def load_pumps(path: Path) -> List[PumpEvent]:
                 )
             )
     return pump_events
-
-
-def create_dataset() -> pd.DataFrame:
-    configure_logging()
-    path: Path = get_root_dir() / "src/resources/pumps.json"
-    pump_events: List[PumpEvent] = load_pumps(path=path)
-
-    dfs: List[pd.DataFrame] = []
-
-    for pump in pump_events:
-        cross_section_path: Path = FEATURE_DIR / "pumps" / f"{str(pump)}.parquet"
-
-        if not cross_section_path.exists():
-            logging.info("No cross section found for pump %s", pump)
-            continue
-
-        df_cross_section: pd.DataFrame = pd.read_parquet(cross_section_path)
-
-        # Add additional columns
-        df_cross_section["pump_hash"] = str(pump)
-        df_cross_section["pump_time"] = pump.time
-        df_cross_section["pumped_currency_pair"] = pump.currency_pair.name
-
-        dfs.append(df_cross_section)
-
-    df: pd.DataFrame = pd.concat(dfs)
-    df = df.reset_index(drop=True)
-    return df
-
-
-def main():
-    configure_logging()
-    df: pd.DataFrame = create_dataset()
-    logging.info("%s", df["pump_hash"].nunique())
-
-
-if __name__ == "__main__":
-    main()
