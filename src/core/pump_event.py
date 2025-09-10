@@ -22,3 +22,6 @@ class PumpEvent:
             "time": self.time.isoformat(),
             "exchange": self.exchange.name,
         }
+
+    def is_manipulated(self, cp: CurrencyPair) -> bool:
+        return self.currency_pair == cp

@@ -23,7 +23,7 @@ def _objective(
         "max_samples": trial.suggest_float("max_samples", 0.5, 1),
         "n_jobs": -1,  # use all 24 cpu cores
         "max_depth": trial.suggest_int("max_depth", 2, 10),
-        "n_estimators": trial.suggest_int("n_estimators", 100, 2000),
+        "n_estimators": trial.suggest_int("n_estimators", 100, 500),
     }
     model = RandomForestModel(params=params)
     # Check that feature sets are the same
