@@ -15,7 +15,7 @@ def calculate_topk(model: ImplementsRank, dataset: Dataset, bins: Iterable[float
     of size K
     """
     probas_pred: pd.Series = model.rank(dataset=dataset)
-    _df: pd.DataFrame = dataset.all_data(deepcopy=True)
+    _df: pd.DataFrame = dataset.all_data()
     _df[COl_PROBAS_PRED] = probas_pred
 
     count_by_bins: Dict[float, int] = {}
@@ -40,7 +40,7 @@ def calculate_topk_percent(model: ImplementsRank, dataset: Dataset, bins: Iterab
     of size of K% of the whole cross-section
     """
     probas_pred: pd.Series = model.rank(dataset=dataset)
-    _df: pd.DataFrame = dataset.all_data(deepcopy=True)
+    _df: pd.DataFrame = dataset.all_data()
     _df[COl_PROBAS_PRED] = probas_pred
 
     count_by_bins: Dict[float, int] = {}
