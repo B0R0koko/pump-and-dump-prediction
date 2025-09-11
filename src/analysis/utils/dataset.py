@@ -63,6 +63,15 @@ class Sample:
         self._datasets: Dict[DatasetType, Dataset] = datasets
         self._pools: Optional[Dict[DatasetType, Pool]] = None
 
+    @classmethod
+    def from_pandas(cls, datasets: Dict[DatasetType, pd.DataFrame], feature_set: FeatureSet) -> "Sample":
+        return cls(
+            datasets={
+                ds_type: Dataset(data=dataset, feature_set=feature_set, ds_type=ds_type)
+                for ds_type, dataset in datasets.items()
+            },
+        )
+
     def get_dataset(self, ds_type: DatasetType) -> Dataset:
         assert ds_type in self._datasets
         return self._datasets[ds_type]
