@@ -7,6 +7,7 @@ import pandas as pd
 from analysis.models.BaseModel import ImplementsRank
 from analysis.portfolio.BasePortfolio import ImplementsPortfolio, Portfolio, Transaction
 from analysis.utils.columns import COl_PROBAS_PRED, COL_CURRENCY_PAIR
+from analysis.utils.dataset import Dataset
 from core.currency_pair import CurrencyPair
 from core.pump_event import PumpEvent
 
@@ -17,15 +18,17 @@ class TOPKPortfolio(ImplementsPortfolio):
         super().__init__(model=model)
         self.portfolio_size: int = portfolio_size
 
-    def create_portfolio(self, cross_section: pd.DataFrame) -> Portfolio:
-        ords: pd.Series = self.model.rank(X=cross_section)
-        _data = cross_section.copy()
+    def create_portfolio(self, cross_section: Dataset) -> Portfolio:
+        ords: pd.Series = self.model.rank(dataset=cross_section)
+
+        _data = cross_section.all_data()
         _data[COl_PROBAS_PRED] = ords
 
         df_portfolio: pd.DataFrame = (
             _data.sort_values(by=[COl_PROBAS_PRED], ascending=False)
             .iloc[:self.portfolio_size]  # type:ignore
         )
+
         weights: np.ndarray = np.full(shape=(self.portfolio_size,), fill_value=1 / self.portfolio_size)
         currency_pairs: List[CurrencyPair] = [
             CurrencyPair.from_string(symbol=symbol) for symbol in df_portfolio[COL_CURRENCY_PAIR]

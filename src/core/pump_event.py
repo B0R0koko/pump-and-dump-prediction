@@ -25,3 +25,6 @@ class PumpEvent:
 
     def is_manipulated(self, cp: CurrencyPair) -> bool:
         return self.currency_pair == cp
+
+    def as_pump_hash(self) -> str:
+        return str(self)

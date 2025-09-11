@@ -3,6 +3,8 @@ from typing import Protocol
 
 import pandas as pd
 
+from analysis.utils.dataset import Dataset
+
 
 class BaseModelTrait(Protocol):
 
@@ -16,7 +18,7 @@ class BaseModelTrait(Protocol):
 class ImplementsRank(ABC):
 
     @abstractmethod
-    def rank(self, X: pd.DataFrame) -> pd.Series:
+    def rank(self, dataset: Dataset) -> pd.Series:
         """
         Given data as pd.DataFrame returns Series with corresponding ranking or any values that can be sorted into ranking
         """

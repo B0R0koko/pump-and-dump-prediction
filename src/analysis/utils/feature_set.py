@@ -12,10 +12,14 @@ from feature_writer.FeatureWriter import REGRESSOR_OFFSETS
 class FeatureSet:
 
     def __init__(
-            self, numeric_features: List[str], target: str, categorical_features: Optional[List[str]] = None,
+            self, numeric_features: List[str],
+            target: str,
+            categorical_features: Optional[List[str]] = None,
+            eval_fields: Optional[List[str]] = None,
     ):
         self.numeric_features: List[str] = numeric_features
         self.categorical_features: Optional[List[str]] = categorical_features
+        self.eval_fields: Optional[List[str]] = eval_fields
         self.target: str = target
 
     def check_against(self, df: pd.DataFrame) -> None:
@@ -44,3 +48,7 @@ class FeatureSet:
             target=COL_TARGET,
             categorical_features=None
         )
+
+    @classmethod
+    def empty(cls) -> "FeatureSet":
+        return cls(numeric_features=[], target=COL_TARGET, categorical_features=None)

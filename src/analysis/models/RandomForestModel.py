@@ -7,14 +7,12 @@ import pandas as pd
 from optuna import Trial, Study
 from sklearn.ensemble import RandomForestClassifier
 
-from analysis.models.BaseModel import BaseModelTrait
-from analysis.utils.feature_set import FeatureSet
+from analysis.models.BaseModel import BaseModelTrait, ImplementsRank
+from analysis.utils.dataset import Sample, DatasetType, Dataset
 from analysis.utils.metrics import calculate_topk_percent_auc
 
 
-def _objective(
-        trial: Trial, df_train: pd.DataFrame, df_val: pd.DataFrame, feature_set: FeatureSet
-) -> float:
+def _objective(trial: Trial, sample: Sample) -> float:
     """Define objective function for searching optimal hyperparameters for RandomForestClassifier."""
     params: Dict[str, Any] = {
         "criterion": "gini",
@@ -25,18 +23,15 @@ def _objective(
         "max_depth": trial.suggest_int("max_depth", 2, 10),
         "n_estimators": trial.suggest_int("n_estimators", 100, 500),
     }
+    val: Dataset = sample.get_dataset(DatasetType.VALIDATION)
+
     model = RandomForestModel(params=params)
-    # Check that feature sets are the same
-    feature_set.check_against(df=df_train)
-    feature_set.check_against(df=df_val)
+    model.train(sample=sample)
 
-    model.train(X=df_train[feature_set.regressors], y=df_train[feature_set.target])
-    probas_pred: np.ndarray = model.predict_proba(df_val[feature_set.regressors])[:, 1]
-
-    return calculate_topk_percent_auc(df=df_val, probas_pred=probas_pred)
+    return calculate_topk_percent_auc(model=model, dataset=val)
 
 
-class RandomForestModel(BaseModelTrait):
+class RandomForestModel(BaseModelTrait, ImplementsRank):
 
     def __init__(self, params: Dict[str, Any]):
         self.params: Dict[str, Any] = params
@@ -47,25 +42,32 @@ class RandomForestModel(BaseModelTrait):
         assert self._model is not None, "Model must be fitted first"
         return self._model
 
-    def train(self, X: pd.DataFrame, y: pd.Series):
-        self._model = RandomForestClassifier(**self.params).fit(X=X, y=y)
+    def train(self, sample: Sample) -> "RandomForestModel":
+        self._model = RandomForestClassifier(**self.params)
+        self._model.fit(
+            X=sample.get_data(ds_type=DatasetType.TRAIN),
+            y=sample.get_label(ds_type=DatasetType.TRAIN),
+        )
+        return self
 
-    def predict(self, X: pd.DataFrame, *args, **kwargs) -> pd.Series:
+    def predict(self, dataset: Dataset, *args, **kwargs) -> pd.Series:
         assert self._model is not None, "Model must be fitted first"
-        return self._model.predict(X)
+        return self._model.predict(X=dataset.get_data())
 
-    def predict_proba(self, X: pd.DataFrame, *args, **kwargs) -> np.ndarray:
+    def predict_proba(self, dataset: Dataset, *args, **kwargs) -> np.ndarray:
         assert self._model is not None, "Model must be fitted first"
-        return self._model.predict_proba(X)
+        return self._model.predict_proba(X=dataset.get_data())
 
     @staticmethod
-    def optimize_hyperparameters(
-            df_train: pd.DataFrame, df_val: pd.DataFrame, feature_set: FeatureSet, n_trials: int = 5
-    ) -> Study:
+    def optimize_hyperparameters(sample: Sample, n_trials: int = 5) -> Study:
         # run optuna study to maximize top_k over hyperparams
         study = optuna.create_study(direction="maximize")
         study.optimize(
-            partial(_objective, df_train=df_train, df_val=df_val, feature_set=feature_set),
+            partial(_objective, sample=sample),
             n_trials=n_trials
         )
         return study
+
+    def rank(self, dataset: Dataset) -> pd.Series:
+        assert self._model is not None, "Model must be fitted first"
+        return pd.Series(self._model.predict_proba(X=dataset.get_data())[:, 1])

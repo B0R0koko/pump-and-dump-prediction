@@ -3,8 +3,11 @@ from typing import List
 import numpy as np
 import pandas as pd
 
+from analysis.models.BaseModel import ImplementsRank
 from analysis.utils.columns import COl_PROBAS_PRED, COL_PUMP_HASH, COL_TARGET
-from analysis.utils.metrics import calculate_topk, calculate_topk_percent
+from analysis.utils.dataset import Dataset, DatasetType
+from analysis.utils.feature_set import FeatureSet
+from analysis.utils.metrics import calculate_topk_percent, calculate_topk
 from core.utils import configure_logging
 
 _test_data: pd.DataFrame = pd.DataFrame(
@@ -27,7 +30,18 @@ _test_data: pd.DataFrame = pd.DataFrame(
     columns=[COl_PROBAS_PRED, COL_PUMP_HASH, COL_TARGET]
 )
 
-_probas_pred: np.ndarray = _test_data[COl_PROBAS_PRED].values
+feature_set: FeatureSet = FeatureSet(
+    numeric_features=[],
+    target=COL_TARGET,
+    categorical_features=None,
+    eval_fields=[COL_PUMP_HASH],
+)
+
+
+class DummyModel(ImplementsRank):
+
+    def rank(self, dataset: Dataset) -> pd.Series:
+        return _test_data[COl_PROBAS_PRED].values
 
 
 def test_calculate_topk():
@@ -37,7 +51,11 @@ def test_calculate_topk():
     """
     configure_logging()
     topk_bins: List[int] = [1, 2, 5]
-    topks: pd.Series = calculate_topk(df=_test_data, probas_pred=_probas_pred, bins=topk_bins)
+
+    dataset: Dataset = Dataset(data=_test_data, ds_type=DatasetType.TEST, feature_set=feature_set)
+    model: DummyModel = DummyModel()
+    topks: pd.Series = calculate_topk(model=model, dataset=dataset, bins=topk_bins)
+
     assert np.allclose(topks.values, [0, 0.5, 1], atol=1e-5)
 
 
@@ -49,5 +67,9 @@ def test_calculate_topk_percent():
     TOP50% = 50% of the data is 3 elements  => TOP50% = 1
     """
     topk_bins: List[float] = [0.1, 0.2, 0.5]
-    topks: pd.Series = calculate_topk_percent(df=_test_data, probas_pred=_probas_pred, bins=topk_bins)
+
+    dataset: Dataset = Dataset(data=_test_data, ds_type=DatasetType.TEST, feature_set=feature_set)
+    model: DummyModel = DummyModel()
+    topks: pd.Series = calculate_topk_percent(model=model, dataset=dataset, bins=topk_bins)
+
     assert np.allclose(topks.values, [0, 0.5, 1], atol=1e-5)
