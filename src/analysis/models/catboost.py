@@ -13,20 +13,17 @@ from analysis.utils.dataset import Sample, DatasetType, Dataset
 from analysis.utils.metrics import calculate_topk_percent_auc
 
 
-def _objective(trial: Trial, sample: Sample) -> float:
+def _objective(trial: Trial, params: Dict[str, Any], sample: Sample) -> float:
     """Define objective function for searching optimal hyperparameters for RandomForestClassifier."""
-    params: Dict[str, Any] = {
-        "objective": "Logloss",
-        "num_boost_round": 1000,
+    optimized_params: Dict[str, Any] = {
         "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.2, log=True),
         "colsample_bylevel": trial.suggest_float("colsample_bylevel", 0.7, 1),
         "subsample": trial.suggest_float("subsample", 0.7, 1),
         "max_depth": trial.suggest_int("max_depth", 2, 10),
-        "auto_class_weights": "Balanced",
     }
     val: Dataset = sample.get_dataset(DatasetType.VALIDATION)
 
-    model: CatboostClassifierModel = CatboostClassifierModel(params=params)
+    model: CatboostClassifierModel = CatboostClassifierModel(params=params | optimized_params)
     model.train(sample=sample)
 
     return calculate_topk_percent_auc(model=model, dataset=val)
@@ -39,12 +36,20 @@ class CatboostClassifierModel(BaseModelTrait, ImplementsRank):
         self._model: Optional[RandomForestClassifier] = None
         self._study: Optional[Study] = None
 
+    def get_params(self) -> Dict[str, Any]:
+        """
+        If the model has been optimized using optimize_hyperparameters, then get_params will return
+        the optimized hyperparameters.
+        """
+        model_params: Dict[str, Any] = self.params | self._study.best_params if self._study else self.params
+        return model_params
+
     def model(self) -> RandomForestClassifier:
         assert self._model is not None, "Model must be fitted first"
         return self._model
 
     def train(self, sample: Sample) -> "CatboostClassifierModel":
-        self._model = CatBoostClassifier(**self.params, verbose=False)
+        self._model = CatBoostClassifier(**self.get_params(), verbose=False)
         ptrain: Pool = sample.get_pool(DatasetType.TRAIN)
         pval: Pool = sample.get_pool(DatasetType.VALIDATION)
         self._model.fit(X=ptrain, eval_set=pval, early_stopping_rounds=50, use_best_model=True)
@@ -58,16 +63,11 @@ class CatboostClassifierModel(BaseModelTrait, ImplementsRank):
         assert self._model is not None, "Model must be fitted first"
         return self._model.predict_proba(X=dataset.as_pool())
 
-    @staticmethod
-    def optimize_hyperparameters(sample: Sample, n_trials: int = 5) -> Study:
+    def optimize_hyperparameters(self, sample: Sample, n_trials: int = 5) -> None:
         # run optuna study to maximize top_k over hyperparams
-        study = optuna.create_study(direction="maximize")
-        study.optimize(
-            partial(_objective, sample=sample),
-            n_trials=n_trials
-        )
-        return study
+        self._study = optuna.create_study(direction="maximize")
+        self._study.optimize(partial(_objective, params=self.params, sample=sample), n_trials=n_trials)
 
-    def rank(self, dataset: Dataset) -> pd.Series:
+    def rank(self, dataset: Dataset) -> np.ndarray:
         assert self._model is not None, "Model must be fitted first"
-        return pd.Series(self._model.predict_proba(X=dataset.as_pool())[:, 1])
+        return self._model.predict_proba(X=dataset.as_pool())[:, 1]

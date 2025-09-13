@@ -1,4 +1,3 @@
-import logging
 import os
 from datetime import datetime
 from functools import partial
@@ -181,7 +180,6 @@ class PumpsFeatureWriter:
         return features
 
     def create_cross_section(self, pump_event: PumpEvent, position: int) -> Optional[pl.DataFrame]:
-        logging.info("Creating cross section")
         bounds: Bounds = Bounds(
             start_inclusive=pump_event.time - timedelta(days=30),
             end_exclusive=pump_event.time + timedelta(hours=1),

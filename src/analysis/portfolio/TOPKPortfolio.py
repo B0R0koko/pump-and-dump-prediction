@@ -1,3 +1,4 @@
+import logging
 from datetime import timedelta
 from typing import List
 
@@ -19,7 +20,7 @@ class TOPKPortfolio(ImplementsPortfolio):
         self.portfolio_size: int = portfolio_size
 
     def create_portfolio(self, cross_section: Dataset) -> Portfolio:
-        ords: pd.Series = self.model.rank(dataset=cross_section)
+        ords: np.ndarray = self.model.rank(dataset=cross_section)
 
         _data = cross_section.all_data()
         _data[COl_PROBAS_PRED] = ords
@@ -38,9 +39,13 @@ class TOPKPortfolio(ImplementsPortfolio):
     def regular_transaction(self, ts_price: pd.Series, pump: PumpEvent, cp: CurrencyPair) -> Transaction:
         assert ts_price.index.is_monotonic_increasing
         entry: pd.Series = ts_price[ts_price.index <= pump.time - timedelta(minutes=15)]
-        entry_price, entry_ts = entry.iloc[-1], entry.index[-1]
-
         exit: pd.Series = ts_price[ts_price.index >= pump.time]
+
+        if entry.empty or exit.empty:
+            logging.info("No data to get prices for %s", cp.name)
+            return Transaction.empty(currency_pair=cp)
+
+        entry_price, entry_ts = entry.iloc[-1], entry.index[-1]
         exit_price, exit_ts = exit.iloc[0], exit.index[0]
 
         return Transaction(
@@ -54,9 +59,13 @@ class TOPKPortfolio(ImplementsPortfolio):
     def pumped_transaction(self, ts_price: pd.Series, pump: PumpEvent, cp: CurrencyPair) -> Transaction:
         assert ts_price.index.is_monotonic_increasing
         entry: pd.Series = ts_price[ts_price.index <= pump.time - timedelta(minutes=15)]
-        entry_price, entry_ts = entry.iloc[-1], entry.index[-1]
-
         exit: pd.Series = ts_price[ts_price.index >= pump.time + timedelta(minutes=5)]
+
+        if entry.empty or exit.empty:
+            logging.info("No data to get prices for %s", cp.name)
+            return Transaction.empty(currency_pair=cp)
+
+        entry_price, entry_ts = entry.iloc[-1], entry.index[-1]
         exit_price, exit_ts = exit.iloc[0], exit.index[0]
 
         return Transaction(

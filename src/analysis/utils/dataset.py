@@ -1,5 +1,5 @@
 from enum import Enum, auto
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 
 import pandas as pd
 from catboost import Pool
@@ -55,6 +55,10 @@ class Dataset:
 
     def as_pool(self) -> Pool:
         return self._pool
+
+    def get_pumps(self) -> List[PumpEvent]:
+        unique_pump_hashes = self._data[COL_PUMP_HASH].unique()
+        return [PumpEvent.from_pump_hash(pump_hash=pump_hash) for pump_hash in unique_pump_hashes]
 
 
 class Sample:

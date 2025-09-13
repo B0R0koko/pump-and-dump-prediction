@@ -14,7 +14,7 @@ def calculate_topk(model: ImplementsRank, dataset: Dataset, bins: Iterable[float
     :return: pd.Series with topk values. Which measures the chance of predicting the actual pump given we take a portfolio
     of size K
     """
-    probas_pred: pd.Series = model.rank(dataset=dataset)
+    probas_pred: np.ndarray = model.rank(dataset=dataset)
     _df: pd.DataFrame = dataset.all_data()
     _df[COl_PROBAS_PRED] = probas_pred
 
@@ -39,7 +39,7 @@ def calculate_topk_percent(model: ImplementsRank, dataset: Dataset, bins: Iterab
     :return: pd.Series with topk% values. Which measures the chance of predicting the actual pump given we take a portfolio
     of size of K% of the whole cross-section
     """
-    probas_pred: pd.Series = model.rank(dataset=dataset)
+    probas_pred: np.ndarray = model.rank(dataset=dataset)
     _df: pd.DataFrame = dataset.all_data()
     _df[COl_PROBAS_PRED] = probas_pred
 
