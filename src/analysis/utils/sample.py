@@ -49,8 +49,8 @@ class Dataset:
     def to_pool(self) -> Pool:
         self._pool = Pool(
             data=self.get_data(),
-            label=self.get_label(),
             cat_features=self.feature_set.categorical_features,
+            label=self.get_label(),
         )
         return self._pool
 
@@ -70,13 +70,8 @@ class Sample:
 
     @classmethod
     def split_by_time(
-            cls,
-            df: pd.DataFrame,
-            time_bins: List[datetime],
-            names: List[DatasetType],
-            time_col: str,
-            feature_set: FeatureSet,
-    ) -> "Sample":
+            cls, df: pd.DataFrame, time_bins: List[datetime], names: List[DatasetType], time_col: str
+    ) -> Dict[DatasetType, pd.DataFrame]:
         """Split df: pd.DataFrame by time_col and return Sample"""
         assert len(names) - 1 == len(time_bins), "There should be one name more than time_bins"
         df = df.sort_values(by=time_col)
@@ -92,7 +87,7 @@ class Sample:
         # last slice: >= last bin
         datasets[names[-1]] = df[df[time_col] >= time_bins[-1]]
 
-        return cls.from_pandas(datasets=datasets, feature_set=feature_set)
+        return datasets
 
     @classmethod
     def from_pandas(cls, datasets: Dict[DatasetType, pd.DataFrame], feature_set: FeatureSet) -> "Sample":

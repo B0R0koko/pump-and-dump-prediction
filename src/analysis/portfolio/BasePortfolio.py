@@ -40,7 +40,7 @@ class Transaction:
     @property
     def transaction_return(self) -> float:
         assert self.entry_price is not None and self.exit_price is not None
-        return self.exit_price / self.entry_price - 1
+        return self.exit_price / self.entry_price - 1 - 0.002
 
     @classmethod
     def empty(cls, currency_pair: CurrencyPair) -> "Transaction":

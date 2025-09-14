@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 
 from analysis.models.BaseModel import ImplementsRank
-from analysis.utils.columns import COl_PROBAS_PRED, COL_PUMP_HASH, COL_TARGET
+from analysis.utils.columns import COL_PROBAS_PRED, COL_PUMP_HASH, COL_TARGET
 from analysis.utils.sample import Dataset
 
 
@@ -16,12 +16,12 @@ def calculate_topk(model: ImplementsRank, dataset: Dataset, bins: Iterable[float
     """
     probas_pred: np.ndarray = model.rank(dataset=dataset)
     _df: pd.DataFrame = dataset.all_data()
-    _df[COl_PROBAS_PRED] = probas_pred
+    _df[COL_PROBAS_PRED] = probas_pred
 
     count_by_bins: Dict[float, int] = {}
 
     for pump_hash, df_cross_section in _df.groupby(COL_PUMP_HASH):
-        df_cross_section = df_cross_section.sort_values(by=COl_PROBAS_PRED, ascending=False).reset_index(drop=True)
+        df_cross_section = df_cross_section.sort_values(by=COL_PROBAS_PRED, ascending=False).reset_index(drop=True)
         for K in bins:
             contains_pump: bool = df_cross_section.iloc[:K][COL_TARGET].any()
             count_by_bins[K] = count_by_bins.get(K, 0) + contains_pump
@@ -41,12 +41,12 @@ def calculate_topk_percent(model: ImplementsRank, dataset: Dataset, bins: Iterab
     """
     probas_pred: np.ndarray = model.rank(dataset=dataset)
     _df: pd.DataFrame = dataset.all_data()
-    _df[COl_PROBAS_PRED] = probas_pred
+    _df[COL_PROBAS_PRED] = probas_pred
 
     count_by_bins: Dict[float, int] = {}
 
     for pump_hash, df_cross_section in _df.groupby(COL_PUMP_HASH):
-        df_cross_section = df_cross_section.sort_values(by=COl_PROBAS_PRED, ascending=False)
+        df_cross_section = df_cross_section.sort_values(by=COL_PROBAS_PRED, ascending=False)
         n_rows = len(df_cross_section)
 
         for pct_bin in bins:

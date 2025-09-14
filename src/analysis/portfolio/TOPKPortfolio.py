@@ -7,7 +7,7 @@ import pandas as pd
 
 from analysis.models.BaseModel import ImplementsRank
 from analysis.portfolio.BasePortfolio import ImplementsPortfolio, Portfolio, Transaction
-from analysis.utils.columns import COl_PROBAS_PRED, COL_CURRENCY_PAIR
+from analysis.utils.columns import COL_PROBAS_PRED, COL_CURRENCY_PAIR
 from analysis.utils.sample import Dataset
 from core.currency_pair import CurrencyPair
 from core.pump_event import PumpEvent
@@ -23,10 +23,10 @@ class TOPKPortfolio(ImplementsPortfolio):
         ords: np.ndarray = self.model.rank(dataset=cross_section)
 
         _data = cross_section.all_data()
-        _data[COl_PROBAS_PRED] = ords
+        _data[COL_PROBAS_PRED] = ords
 
         df_portfolio: pd.DataFrame = (
-            _data.sort_values(by=[COl_PROBAS_PRED], ascending=False)
+            _data.sort_values(by=[COL_PROBAS_PRED], ascending=False)
             .iloc[:self.portfolio_size]  # type:ignore
         )
 
