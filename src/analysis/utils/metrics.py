@@ -5,7 +5,7 @@ import pandas as pd
 
 from analysis.models.BaseModel import ImplementsRank
 from analysis.utils.columns import COl_PROBAS_PRED, COL_PUMP_HASH, COL_TARGET
-from analysis.utils.dataset import Dataset
+from analysis.utils.sample import Dataset
 
 
 def calculate_topk(model: ImplementsRank, dataset: Dataset, bins: Iterable[float]) -> pd.Series:

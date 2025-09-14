@@ -8,7 +8,7 @@ import pandas as pd
 from analysis.models.BaseModel import ImplementsRank
 from analysis.portfolio.BasePortfolio import ImplementsPortfolio, Portfolio, Transaction
 from analysis.utils.columns import COl_PROBAS_PRED, COL_CURRENCY_PAIR
-from analysis.utils.dataset import Dataset
+from analysis.utils.sample import Dataset
 from core.currency_pair import CurrencyPair
 from core.pump_event import PumpEvent
 

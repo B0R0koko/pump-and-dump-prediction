@@ -5,7 +5,7 @@ import pandas as pd
 
 from analysis.models.BaseModel import ImplementsRank
 from analysis.utils.columns import COl_PROBAS_PRED, COL_PUMP_HASH, COL_TARGET
-from analysis.utils.dataset import Dataset, DatasetType
+from analysis.utils.sample import Dataset, DatasetType
 from analysis.utils.feature_set import FeatureSet
 from analysis.utils.metrics import calculate_topk_percent, calculate_topk
 from core.utils import configure_logging

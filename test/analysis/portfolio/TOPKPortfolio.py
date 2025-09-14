@@ -7,7 +7,7 @@ from analysis.models.BaseModel import ImplementsRank
 from analysis.portfolio.BasePortfolio import Portfolio
 from analysis.portfolio.TOPKPortfolio import TOPKPortfolio
 from analysis.utils.columns import COL_CURRENCY_PAIR, COL_PUMP_HASH
-from analysis.utils.dataset import Dataset, DatasetType
+from analysis.utils.sample import Dataset, DatasetType
 from analysis.utils.feature_set import FeatureSet
 from core.currency_pair import CurrencyPair
 from core.exchange import Exchange

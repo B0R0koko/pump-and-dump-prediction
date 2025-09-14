@@ -1,5 +1,6 @@
+from datetime import datetime
 from enum import Enum, auto
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Iterator, Tuple
 
 import pandas as pd
 from catboost import Pool
@@ -68,13 +69,44 @@ class Sample:
         self._pools: Optional[Dict[DatasetType, Pool]] = None
 
     @classmethod
+    def split_by_time(
+            cls,
+            df: pd.DataFrame,
+            time_bins: List[datetime],
+            names: List[DatasetType],
+            time_col: str,
+            feature_set: FeatureSet,
+    ) -> "Sample":
+        """Split df: pd.DataFrame by time_col and return Sample"""
+        assert len(names) - 1 == len(time_bins), "There should be one name more than time_bins"
+        df = df.sort_values(by=time_col)
+        # first slice: < first bin
+        datasets: Dict[DatasetType, pd.DataFrame] = {names[0]: df[df[time_col] < time_bins[0]]}
+
+        # middle slices: between bins
+        for i in range(1, len(time_bins)):
+            start = time_bins[i - 1]
+            end = time_bins[i]
+            datasets[names[i]] = df[(df[time_col] >= start) & (df[time_col] < end)]
+
+        # last slice: >= last bin
+        datasets[names[-1]] = df[df[time_col] >= time_bins[-1]]
+
+        return cls.from_pandas(datasets=datasets, feature_set=feature_set)
+
+    @classmethod
     def from_pandas(cls, datasets: Dict[DatasetType, pd.DataFrame], feature_set: FeatureSet) -> "Sample":
+        """Use this method if you have already split up data into train/val/test sets"""
         return cls(
             datasets={
                 ds_type: Dataset(data=dataset, feature_set=feature_set, ds_type=ds_type)
                 for ds_type, dataset in datasets.items()
             },
         )
+
+    def iter_datasets(self) -> Iterator[Tuple[DatasetType, Dataset]]:
+        for ds_type, dataset in self._datasets.items():
+            yield ds_type, dataset
 
     def get_dataset(self, ds_type: DatasetType) -> Dataset:
         assert ds_type in self._datasets

@@ -3,17 +3,13 @@ from typing import Protocol
 
 import numpy as np
 
-from analysis.utils.dataset import Dataset
+from analysis.utils.sample import Dataset
 
 
 class BaseModelTrait(Protocol):
 
     def predict(self, *args, **kwargs):
         ...
-
-    def predict_proba(self, *args, **kwargs):
-        ...
-
 
 class ImplementsRank(ABC):
 
