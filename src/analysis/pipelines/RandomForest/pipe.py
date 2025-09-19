@@ -68,4 +68,4 @@ class RandomForestPipeline(BasePipeline):
 if __name__ == "__main__":
     configure_logging()
     pipeline = RandomForestPipeline()
-    pipeline.optimize_parameters()
+    pipeline.build_model()
