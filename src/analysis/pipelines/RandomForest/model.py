@@ -1,5 +1,5 @@
 import logging
-from typing import Optional
+from typing import Optional, Dict, Any
 
 import numpy as np
 import pandas as pd
@@ -11,12 +11,13 @@ from analysis.utils.sample import Dataset, Sample, DatasetType
 
 class RandomForestModel(BaseModel):
 
-    def __init__(self):
+    def __init__(self, params: Dict[str, Any]):
+        self.params: Dict[str, Any] = params
         self._model: Optional[RandomForestClassifier] = None
 
     def train(self, sample: Sample) -> "RandomForestModel":
         logging.info("Training model")
-        self._model = RandomForestClassifier()
+        self._model = RandomForestClassifier(**self.params)
         self._model.fit(
             X=sample.get_data(ds_type=DatasetType.TRAIN),
             y=sample.get_label(ds_type=DatasetType.TRAIN),

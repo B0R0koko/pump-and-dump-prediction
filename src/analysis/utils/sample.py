@@ -5,7 +5,9 @@ from typing import Optional, Dict, List, Iterator, Tuple
 import pandas as pd
 from catboost import Pool
 
+from analysis.utils.columns import COL_PUMP_HASH
 from analysis.utils.feature_set import FeatureSet
+from core.pump_event import PumpEvent
 
 
 class DatasetType(Enum):
@@ -55,12 +57,33 @@ class Dataset:
     def get_eval_data(self) -> pd.DataFrame:
         return self._data[self.feature_set.eval_fields]
 
+    def add_pool(self):
+        """Adds simple Pool, use set_pool if Pool has any complex logic or requires a lot of additional configuration"""
+        self._pool = Pool(
+            data=self.get_data(),
+            label=self.get_label(),
+            cat_features=self.feature_set.categorical_features,
+        )
+
     def set_pool(self, pool: Pool) -> None:
         self._pool = pool
 
     def get_pool(self) -> Pool:
         assert self._pool is not None, "You must set pool first"
         return self._pool
+
+    def get_cross_section(self, pump: PumpEvent) -> "Dataset":
+        df: pd.DataFrame = self.all_data()
+        df_pump = df[df[COL_PUMP_HASH] == pump.as_pump_hash()].copy().reset_index(drop=True)
+        dataset: Dataset = Dataset(data=df_pump, feature_set=self.feature_set, ds_type=self.ds_type)
+        dataset.add_pool()
+        return dataset
+
+    def get_pumps(self) -> List[PumpEvent]:
+        return [
+            PumpEvent.from_pump_hash(pump_hash=pump_hash)
+            for pump_hash in self.all_data()[COL_PUMP_HASH].unique()
+        ]
 
 
 class Sample:

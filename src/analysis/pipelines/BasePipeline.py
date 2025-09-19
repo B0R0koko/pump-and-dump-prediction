@@ -6,6 +6,7 @@ from typing import List, Dict
 import pandas as pd
 from tqdm import tqdm
 
+from analysis.pipelines.BaseModel import BaseModel
 from analysis.utils.build_dataset import create_dataset
 from analysis.utils.columns import COL_IS_PUMPED, COL_CURRENCY_PAIR, COL_PUMPED_CURRENCY_PAIR, COL_PUMP_TIME, \
     COL_PUMP_HASH, COL_PUMP_ID
@@ -69,5 +70,5 @@ class BasePipeline(ABC):
         return datasets
 
     @abstractmethod
-    def build_model(self) -> None:
+    def build_model(self) -> BaseModel:
         ...
