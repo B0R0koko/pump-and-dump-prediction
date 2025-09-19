@@ -3,7 +3,7 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 
-from analysis.models.BaseModel import ImplementsRank
+from analysis.pipelines.BaseModel import ImplementsRank
 from analysis.portfolio.BasePortfolio import Portfolio
 from analysis.portfolio.TOPKPortfolio import TOPKPortfolio
 from analysis.utils.columns import COL_CURRENCY_PAIR, COL_PUMP_HASH

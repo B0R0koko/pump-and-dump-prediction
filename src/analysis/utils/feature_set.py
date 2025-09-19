@@ -32,6 +32,10 @@ class FeatureSet:
     def regressors(self) -> List[str]:
         return self.numeric_features + [] if self.categorical_features is None else self.categorical_features
 
+    @property
+    def all_columns(self) -> List[str]:
+        return self.numeric_features + self.categorical_features + self.eval_fields or []
+
     @classmethod
     def auto(cls) -> "FeatureSet":
         """

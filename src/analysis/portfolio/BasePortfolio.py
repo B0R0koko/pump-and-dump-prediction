@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import polars as pl
 
-from analysis.models.BaseModel import ImplementsRank
+from analysis.pipelines.BaseModel import ImplementsRank
 from analysis.utils.sample import Dataset
 from core.columns import SYMBOL, DATE, TRADE_TIME, PRICE
 from core.currency_pair import CurrencyPair

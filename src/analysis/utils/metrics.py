@@ -3,7 +3,7 @@ from typing import Dict, Iterable
 import numpy as np
 import pandas as pd
 
-from analysis.models.BaseModel import ImplementsRank
+from analysis.pipelines.BaseModel import ImplementsRank
 from analysis.utils.columns import COL_PROBAS_PRED, COL_PUMP_HASH, COL_TARGET
 from analysis.utils.sample import Dataset
 

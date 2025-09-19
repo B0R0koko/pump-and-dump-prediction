@@ -11,6 +11,10 @@ class BaseModelTrait(Protocol):
     def predict(self, *args, **kwargs):
         ...
 
+    def train(self, *args, **kwargs):
+        ...
+
+
 class ImplementsRank(ABC):
 
     @abstractmethod
@@ -19,3 +23,7 @@ class ImplementsRank(ABC):
         Given data as pd.DataFrame returns Series with corresponding ranking or any values that can be sorted into ranking
         """
         ...
+
+
+class BaseModel(BaseModelTrait, ImplementsRank, ABC):
+    ...

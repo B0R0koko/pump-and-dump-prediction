@@ -5,7 +5,7 @@ from typing import List
 import numpy as np
 import pandas as pd
 
-from analysis.models.BaseModel import ImplementsRank
+from analysis.pipelines.BaseModel import ImplementsRank
 from analysis.portfolio.BasePortfolio import ImplementsPortfolio, Portfolio, Transaction
 from analysis.utils.columns import COL_PROBAS_PRED, COL_CURRENCY_PAIR
 from analysis.utils.sample import Dataset
