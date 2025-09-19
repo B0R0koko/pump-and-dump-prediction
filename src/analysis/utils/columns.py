@@ -1,4 +1,4 @@
-COL_TARGET: str = "is_pumped"
+COL_IS_PUMPED: str = "is_pumped"
 COL_PUMP_HASH: str = "pump_hash"
 COL_PUMP_ID: str = "pump_id"
 COL_PUMP_TIME: str = "pump_time"

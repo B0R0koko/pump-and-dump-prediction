@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 
 from analysis.pipelines.BaseModel import ImplementsRank
-from analysis.utils.columns import COL_PROBAS_PRED, COL_PUMP_HASH, COL_TARGET
+from analysis.utils.columns import COL_PROBAS_PRED, COL_PUMP_HASH, COL_IS_PUMPED
 from analysis.utils.sample import Dataset
 
 
@@ -23,10 +23,10 @@ def calculate_topk(model: ImplementsRank, dataset: Dataset, bins: Iterable[float
     for pump_hash, df_cross_section in _df.groupby(COL_PUMP_HASH):
         df_cross_section = df_cross_section.sort_values(by=COL_PROBAS_PRED, ascending=False).reset_index(drop=True)
         for K in bins:
-            contains_pump: bool = df_cross_section.iloc[:K][COL_TARGET].any()
+            contains_pump: bool = df_cross_section.iloc[:K][COL_IS_PUMPED].any()
             count_by_bins[K] = count_by_bins.get(K, 0) + contains_pump
 
-    num_pumped: int = _df[_df[COL_TARGET] == True].shape[0]
+    num_pumped: int = _df[_df[COL_IS_PUMPED] == True].shape[0]
 
     counts = np.array(list(count_by_bins.values()))
 
@@ -51,10 +51,10 @@ def calculate_topk_percent(model: ImplementsRank, dataset: Dataset, bins: Iterab
 
         for pct_bin in bins:
             k: int = max(1, int(np.ceil(n_rows * pct_bin)))
-            contains_pump: bool = df_cross_section.iloc[:k][COL_TARGET].any()
+            contains_pump: bool = df_cross_section.iloc[:k][COL_IS_PUMPED].any()
             count_by_bins[pct_bin] = count_by_bins.get(pct_bin, 0) + contains_pump
 
-    num_pumped: int = _df[_df[COL_TARGET] == True].shape[0]
+    num_pumped: int = _df[_df[COL_IS_PUMPED] == True].shape[0]
     counts = np.array(list(count_by_bins.values()))
 
     return pd.Series(data=counts / num_pumped, index=bins)

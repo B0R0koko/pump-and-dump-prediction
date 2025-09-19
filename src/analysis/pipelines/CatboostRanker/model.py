@@ -26,4 +26,5 @@ class CatboostRankerModel(BaseModel):
 
     def rank(self, dataset: Dataset) -> np.ndarray:
         assert self._model is not None, "Model must be fitted first"
-        return self._model.predict(X=dataset.get_pool())
+        relevance_score: np.ndarray = self._model.predict(X=dataset.get_pool())
+        return relevance_score

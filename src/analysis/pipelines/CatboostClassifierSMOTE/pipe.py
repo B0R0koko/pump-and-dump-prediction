@@ -10,8 +10,10 @@ from analysis.pipelines.BasePipeline import BasePipeline, cross_section_standard
 from analysis.pipelines.CatboostClassifier.model import CatboostClassifierModel
 from analysis.utils.columns import *
 from analysis.utils.feature_set import FeatureSet
+from analysis.utils.metrics import calculate_topk_percent
 from analysis.utils.sample import DatasetType, Sample
 from core.feature_type import FeatureType
+from core.utils import configure_logging
 from feature_writer.FeatureWriter import REGRESSOR_OFFSETS
 
 
@@ -23,7 +25,7 @@ class CatboostClassifierSMOTEPipeline(BasePipeline):
     @overrides
     def preprocess_data(self, df: pd.DataFrame) -> pd.DataFrame:
         """Define all data preprocessing steps here"""
-        df[COL_TARGET] = df[COL_CURRENCY_PAIR] == df[COL_PUMPED_CURRENCY_PAIR]  # attach binary target
+        df[COL_IS_PUMPED] = df[COL_CURRENCY_PAIR] == df[COL_PUMPED_CURRENCY_PAIR]  # attach binary target
         powerlaw_cols: List[str] = FeatureType.POWERLAW_ALPHA.col_names(offsets=REGRESSOR_OFFSETS)
         df[powerlaw_cols] = df[powerlaw_cols].clip(1, 2)
         df_scaled: pd.DataFrame = cross_section_standardisation(df=df)
@@ -61,8 +63,16 @@ class CatboostClassifierSMOTEPipeline(BasePipeline):
         model: CatboostClassifierModel = CatboostClassifierModel()
         model.train(sample=sample)
 
+        topk_vals: pd.Series = calculate_topk_percent(
+            model=model,
+            dataset=sample.get_dataset(ds_type=DatasetType.TEST),
+            bins=[0.01, 0.02, 0.05, 0.1, 0.2]
+        )
+        logging.info(f"TopK Accuracy:\n%s", topk_vals)
+
 
 def main():
+    configure_logging()
     pipe = CatboostClassifierSMOTEPipeline()
     pipe.build_model()
 

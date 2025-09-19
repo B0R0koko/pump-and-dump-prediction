@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 
 from analysis.pipelines.BaseModel import ImplementsRank
-from analysis.utils.columns import COl_PROBAS_PRED, COL_PUMP_HASH, COL_TARGET
+from analysis.utils.columns import COl_PROBAS_PRED, COL_PUMP_HASH, COL_IS_PUMPED
 from analysis.utils.sample import Dataset, DatasetType
 from analysis.utils.feature_set import FeatureSet
 from analysis.utils.metrics import calculate_topk_percent, calculate_topk
@@ -27,12 +27,12 @@ _test_data: pd.DataFrame = pd.DataFrame(
         (0.8, "pump#2", 1),
         (0.9, "pump#2", 0),
     ],
-    columns=[COl_PROBAS_PRED, COL_PUMP_HASH, COL_TARGET]
+    columns=[COl_PROBAS_PRED, COL_PUMP_HASH, COL_IS_PUMPED]
 )
 
 feature_set: FeatureSet = FeatureSet(
     numeric_features=[],
-    target=COL_TARGET,
+    target=COL_IS_PUMPED,
     categorical_features=None,
     eval_fields=[COL_PUMP_HASH],
 )

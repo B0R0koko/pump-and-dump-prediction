@@ -9,8 +9,10 @@ from analysis.pipelines.BasePipeline import BasePipeline, cross_section_standard
 from analysis.pipelines.CatboostRanker.model import CatboostRankerModel
 from analysis.utils.columns import *
 from analysis.utils.feature_set import FeatureSet
+from analysis.utils.metrics import calculate_topk_percent
 from analysis.utils.sample import DatasetType, Sample
 from core.feature_type import FeatureType
+from core.utils import configure_logging
 from feature_writer.FeatureWriter import REGRESSOR_OFFSETS
 
 
@@ -18,15 +20,26 @@ class CatboostRankerPipeline(BasePipeline):
 
     def __init__(self):
         self.feature_set: FeatureSet = FeatureSet.auto()
-        self.feature_set.target = "target_return@5MIN"
+        self.feature_set.target = "asset_return_rank"  # from 1...N, first has the highest return within cross-section
 
     @overrides
     def preprocess_data(self, df: pd.DataFrame) -> pd.DataFrame:
         """Define all data preprocessing steps here"""
+        df = df.sort_values(by=COL_PUMP_TIME, ascending=True).reset_index(drop=True)
+        # Clip powerlaw alpha features to (1, 2)
         powerlaw_cols: List[str] = FeatureType.POWERLAW_ALPHA.col_names(offsets=REGRESSOR_OFFSETS)
         df[powerlaw_cols] = df[powerlaw_cols].clip(1, 2)
+
+        # Fillna target for ranker which is target_return@5MIN
+        df["target_return@5MIN"] = df["target_return@5MIN"].fillna(0)
         df_scaled: pd.DataFrame = cross_section_standardisation(df=df)
-        df_scaled[COL_PUMP_ID] = df_scaled.groupby(COL_PUMP_HASH).ngroup()
+        # Create rankings
+        df_scaled[self.feature_set.target] = (
+            df_scaled.groupby(COL_PUMP_ID)["target_return@5MIN"].rank(pct=True, ascending=False)
+            # False for ranks by high (1) to low (N).
+        )
+
+        assert df_scaled[COL_PUMP_ID].is_monotonic_increasing, "GroupId must be monotonic increasing"
         return df_scaled
 
     def build_model(self) -> None:
@@ -48,8 +61,16 @@ class CatboostRankerPipeline(BasePipeline):
         model: CatboostRankerModel = CatboostRankerModel()
         model.train(sample=sample)
 
+        topk_vals: pd.Series = calculate_topk_percent(
+            model=model,
+            dataset=sample.get_dataset(ds_type=DatasetType.TEST),
+            bins=[0.01, 0.02, 0.05, 0.1, 0.2]
+        )
+        logging.info(f"TopK Accuracy:\n%s", topk_vals)
+
 
 def main():
+    configure_logging()
     pipe = CatboostRankerPipeline()
     pipe.build_model()
 

@@ -3,7 +3,7 @@ from typing import List, Optional
 
 import pandas as pd
 
-from analysis.utils.columns import COL_TARGET
+from analysis.utils.columns import COL_IS_PUMPED
 from core.feature_type import FeatureType
 from feature_writer.FeatureWriter import REGRESSOR_OFFSETS
 
@@ -49,10 +49,10 @@ class FeatureSet:
 
         return cls(
             numeric_features=numeric_features,
-            target=COL_TARGET,
+            target=COL_IS_PUMPED,
             categorical_features=None
         )
 
     @classmethod
     def empty(cls) -> "FeatureSet":
-        return cls(numeric_features=[], target=COL_TARGET, categorical_features=None)
+        return cls(numeric_features=[], target=COL_IS_PUMPED, categorical_features=None)
