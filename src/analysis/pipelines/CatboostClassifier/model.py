@@ -15,7 +15,7 @@ class CatboostClassifierModel(BaseModel):
         self._model: Optional[CatBoostClassifier] = None
 
     def train(self, sample: Sample) -> "CatboostClassifierModel":
-        self._model = CatBoostClassifier(verbose=False)
+        self._model = CatBoostClassifier(**self.params)
         ptrain: Pool = sample.get_pool(DatasetType.TRAIN)
         pval: Pool = sample.get_pool(DatasetType.VALIDATION)
         self._model.fit(X=ptrain, eval_set=pval, early_stopping_rounds=50, use_best_model=True)

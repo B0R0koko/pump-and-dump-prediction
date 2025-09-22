@@ -2,7 +2,6 @@ import logging
 from functools import partial
 from typing import Dict, List, Any
 
-import optuna
 import pandas as pd
 from catboost import Pool
 from optuna import Study, Trial
@@ -10,6 +9,7 @@ from overrides import overrides
 
 from analysis.pipelines.BasePipeline import BasePipeline, cross_section_standardisation
 from analysis.pipelines.CatboostRanker.model import CatboostRankerModel
+from analysis.pipelines.study import create_study
 from analysis.utils.columns import *
 from analysis.utils.feature_set import FeatureSet
 from analysis.utils.metrics import calculate_topk_percent, calculate_topk_percent_auc
@@ -68,18 +68,8 @@ class CatboostRankerPipeline(BasePipeline):
         assert df_scaled[COL_PUMP_ID].is_monotonic_increasing, "GroupId must be monotonic increasing"
         return df_scaled
 
-    def optimize_parameters(self):
-        logging.info("Running <optimize_parameters> for CatboostRankerPipeline")
+    def _create_sample(self) -> Sample:
         datasets: Dict[DatasetType, pd.DataFrame] = self.build_datasets()
-        sample: Sample = Sample.from_pandas(datasets=datasets, feature_set=self.feature_set)
-
-        study: Study = optuna.create_study(direction="maximize", study_name="CatboostRankerPipelineStudy")
-        study.optimize(partial(_objective, sample=sample), n_trials=10)
-
-    def build_model(self) -> None:
-        logging.info("Building Random Forest Model")
-        datasets: Dict[DatasetType, pd.DataFrame] = self.build_datasets()
-
         sample: Sample = Sample.from_pandas(datasets=datasets, feature_set=self.feature_set)
         # we also need to set_pools as Catboost uses Pool under the hood
         for ds_type, dataset in sample.iter_datasets():
@@ -91,7 +81,17 @@ class CatboostRankerPipeline(BasePipeline):
                     group_id=dataset.all_data()[COL_PUMP_ID]
                 )
             )
+        return sample
 
+    def optimize_parameters(self):
+        logging.info("Running <optimize_parameters> for CatboostRankerPipeline")
+        sample: Sample = self._create_sample()
+        study: Study = create_study(study_name="CatboostRankerPipelineStudy")
+        study.optimize(partial(_objective, sample=sample), n_trials=10)
+
+    def build_model(self) -> None:
+        logging.info("Building Random Forest Model")
+        sample: Sample = self._create_sample()
         model_params: Dict[str, Any] = self.get_model_params(
             base_params=_BASE_PARAMS, study_name="CatboostRankerPipelineStudy"
         )

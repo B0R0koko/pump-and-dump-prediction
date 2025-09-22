@@ -11,11 +11,13 @@ from overrides import overrides
 
 from analysis.pipelines.BasePipeline import BasePipeline, cross_section_standardisation, fillna_with_median
 from analysis.pipelines.CatboostClassifier.model import CatboostClassifierModel
+from analysis.pipelines.study import create_study
 from analysis.utils.columns import *
 from analysis.utils.feature_set import FeatureSet
 from analysis.utils.metrics import calculate_topk_percent, calculate_topk_percent_auc
 from analysis.utils.sample import DatasetType, Sample, Dataset
 from core.feature_type import FeatureType
+from core.paths import SQLITE_URL
 from core.utils import configure_logging
 from feature_writer.FeatureWriter import REGRESSOR_OFFSETS
 
@@ -24,6 +26,7 @@ _BASE_PARAMS: Dict[str, Any] = {
     "sampling_frequency": "PerTree",
     "num_boost_round": 1000,
     "auto_class_weights": "Balanced",
+    "verbose": False
 }
 
 
@@ -70,26 +73,15 @@ class CatboostClassifierSMOTEPipeline(BasePipeline):
 
     @overrides
     def get_model_params(self, base_params: Dict[str, Any], study_name: str) -> Dict[str, Any]:
-        study: Study = optuna.load_study(study_name=study_name, storage="sqlite:///my_study.db")
+        study: Study = optuna.load_study(study_name=study_name, storage=SQLITE_URL)
         model_params: Dict[str, Any] = base_params | study.best_params
         model_params["class_weight"] = {0: 1, 1: model_params["class_weight"]}
         return model_params
 
-    def optimize_parameters(self):
-        logging.info("Running <optimize_parameters> for CatboostRankerPipeline")
+    def _create_sample(self) -> Sample:
         datasets: Dict[DatasetType, pd.DataFrame] = self.build_datasets()
-        sample: Sample = Sample.from_pandas(datasets=datasets, feature_set=self.feature_set)
-
-        study: Study = optuna.create_study(direction="maximize", study_name="CatboostClassifierSMOTEPipelineStudy")
-        study.optimize(partial(_objective, sample=sample), n_trials=10)
-
-    def build_model(self) -> None:
-        logging.info("Building Random Forest Model")
-        datasets: Dict[DatasetType, pd.DataFrame] = self.build_datasets()
-
         df_train: pd.DataFrame = self.apply_smote(df=datasets.get(DatasetType.TRAIN))
         datasets[DatasetType.TRAIN] = df_train
-
         sample: Sample = Sample.from_pandas(datasets=datasets, feature_set=self.feature_set)
         # we also need to set_pools as Catboost uses Pool under the hood
         for ds_type, dataset in sample.iter_datasets():
@@ -100,7 +92,17 @@ class CatboostClassifierSMOTEPipeline(BasePipeline):
                     cat_features=self.feature_set.categorical_features
                 )
             )
+        return sample
 
+    def optimize_parameters(self):
+        logging.info("Running <optimize_parameters> for CatboostRankerPipeline")
+        sample: Sample = self._create_sample()
+        study: Study = create_study(study_name="CatboostClassifierSMOTEPipelineStudy")
+        study.optimize(partial(_objective, sample=sample), n_trials=10)
+
+    def build_model(self) -> None:
+        logging.info("Building Random Forest Model")
+        sample: Sample = self._create_sample()
         model_params: Dict[str, Any] = self.get_model_params(
             base_params=_BASE_PARAMS, study_name="CatboostClassifierSMOTEPipelineStudy"
         )
@@ -118,7 +120,7 @@ class CatboostClassifierSMOTEPipeline(BasePipeline):
 def main():
     configure_logging()
     pipe = CatboostClassifierSMOTEPipeline()
-    pipe.build_model()
+    pipe.optimize_parameters()
 
 
 if __name__ == "__main__":

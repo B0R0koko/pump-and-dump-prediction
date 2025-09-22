@@ -9,9 +9,11 @@ from overrides import overrides
 
 from analysis.pipelines.BasePipeline import BasePipeline
 from analysis.pipelines.RandomForest.model import RandomForestModel
+from analysis.pipelines.study import create_study
 from analysis.utils.feature_set import FeatureSet
 from analysis.utils.metrics import calculate_topk_percent, calculate_topk_percent_auc
 from analysis.utils.sample import DatasetType, Sample, Dataset
+from core.paths import SQLITE_URL
 from core.utils import configure_logging
 
 _BASE_PARAMS: Dict[str, Any] = {
@@ -45,7 +47,7 @@ class RandomForestPipeline(BasePipeline):
 
     @overrides
     def get_model_params(self, base_params: Dict[str, Any], study_name: str) -> Dict[str, Any]:
-        study: Study = optuna.load_study(study_name=study_name, storage="sqlite:///my_study.db")
+        study: Study = optuna.load_study(study_name=study_name, storage=SQLITE_URL)
         model_params: Dict[str, Any] = base_params | study.best_params
         model_params["class_weight"] = {0: 1, 1: model_params["class_weight"]}
         return model_params
@@ -54,8 +56,7 @@ class RandomForestPipeline(BasePipeline):
         logging.info("Running <optimize_parameters> for RandomForestPipeline")
         datasets: Dict[DatasetType, pd.DataFrame] = self.build_datasets()
         sample: Sample = Sample.from_pandas(datasets=datasets, feature_set=self.feature_set)
-
-        study: Study = optuna.create_study(direction="maximize", study_name="RandomForestPipelineStudy")
+        study: Study = create_study(study_name="RandomForestPipelineStudy")
         study.optimize(partial(_objective, sample=sample), n_trials=10)
 
     def build_model(self) -> None:

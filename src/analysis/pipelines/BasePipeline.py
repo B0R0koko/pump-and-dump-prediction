@@ -15,6 +15,7 @@ from analysis.utils.columns import COL_IS_PUMPED, COL_CURRENCY_PAIR, COL_PUMPED_
 from analysis.utils.feature_set import FeatureSet
 from analysis.utils.sample import split_by_time, DatasetType
 from core.feature_type import FeatureType
+from core.paths import SQLITE_URL
 from feature_writer.FeatureWriter import REGRESSOR_OFFSETS
 
 
@@ -73,7 +74,7 @@ class BasePipeline(ABC):
 
     def get_model_params(self, base_params: Dict[str, Any], study_name: str) -> Dict[str, Any]:
         logging.info("Loading parameters from %s", study_name)
-        study: Study = optuna.load_study(study_name=study_name, storage="sqlite:///my_study.db")
+        study: Study = optuna.load_study(study_name=study_name, storage=SQLITE_URL)
         return base_params | study.best_params
 
     @abstractmethod
