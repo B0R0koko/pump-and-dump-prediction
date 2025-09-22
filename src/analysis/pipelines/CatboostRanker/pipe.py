@@ -1,19 +1,45 @@
 import logging
-from typing import Dict, List
+from functools import partial
+from typing import Dict, List, Any
 
+import optuna
 import pandas as pd
 from catboost import Pool
+from optuna import Study, Trial
 from overrides import overrides
 
 from analysis.pipelines.BasePipeline import BasePipeline, cross_section_standardisation
 from analysis.pipelines.CatboostRanker.model import CatboostRankerModel
 from analysis.utils.columns import *
 from analysis.utils.feature_set import FeatureSet
-from analysis.utils.metrics import calculate_topk_percent
-from analysis.utils.sample import DatasetType, Sample
+from analysis.utils.metrics import calculate_topk_percent, calculate_topk_percent_auc
+from analysis.utils.sample import DatasetType, Sample, Dataset
 from core.feature_type import FeatureType
 from core.utils import configure_logging
 from feature_writer.FeatureWriter import REGRESSOR_OFFSETS
+
+_BASE_PARAMS: Dict[str, Any] = {
+    "objective": "YetiRank:mode=NDCG",
+    "border_count": 255,
+    "verbose": False,
+}
+
+
+def _objective(trial: Trial, sample: Sample) -> float:
+    tuned_params: Dict[str, Any] = {
+        "class_weight": {0: 1, 1: trial.suggest_float("class_weight", 10, 300)},
+        "max_features": trial.suggest_float("max_features", 0.5, 1),
+        "max_samples": trial.suggest_float("max_samples", 0.5, 1),
+        "max_depth": trial.suggest_int("max_depth", 2, 10),
+        "n_estimators": trial.suggest_int("n_estimators", 100, 2000),
+    }
+
+    model: CatboostRankerModel = CatboostRankerModel(params=_BASE_PARAMS | tuned_params)
+    model.train(sample=sample)
+
+    val: Dataset = sample.get_dataset(ds_type=DatasetType.VALIDATION)
+    topkauc: float = calculate_topk_percent_auc(model=model, dataset=val)
+    return topkauc
 
 
 class CatboostRankerPipeline(BasePipeline):
@@ -42,6 +68,14 @@ class CatboostRankerPipeline(BasePipeline):
         assert df_scaled[COL_PUMP_ID].is_monotonic_increasing, "GroupId must be monotonic increasing"
         return df_scaled
 
+    def optimize_parameters(self):
+        logging.info("Running <optimize_parameters> for CatboostRankerPipeline")
+        datasets: Dict[DatasetType, pd.DataFrame] = self.build_datasets()
+        sample: Sample = Sample.from_pandas(datasets=datasets, feature_set=self.feature_set)
+
+        study: Study = optuna.create_study(direction="maximize", study_name="CatboostRankerPipelineStudy")
+        study.optimize(partial(_objective, sample=sample), n_trials=10)
+
     def build_model(self) -> None:
         logging.info("Building Random Forest Model")
         datasets: Dict[DatasetType, pd.DataFrame] = self.build_datasets()
@@ -58,7 +92,10 @@ class CatboostRankerPipeline(BasePipeline):
                 )
             )
 
-        model: CatboostRankerModel = CatboostRankerModel()
+        model_params: Dict[str, Any] = self.get_model_params(
+            base_params=_BASE_PARAMS, study_name="CatboostRankerPipelineStudy"
+        )
+        model: CatboostRankerModel = CatboostRankerModel(params=model_params)
         model.train(sample=sample)
 
         topk_vals: pd.Series = calculate_topk_percent(

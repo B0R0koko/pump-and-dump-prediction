@@ -1,9 +1,11 @@
 import logging
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import List, Dict
+from typing import List, Dict, Any
 
+import optuna
 import pandas as pd
+from optuna import Study
 from tqdm import tqdm
 
 from analysis.pipelines.BaseModel import BaseModel
@@ -69,6 +71,15 @@ class BasePipeline(ABC):
         )
         return datasets
 
+    def get_model_params(self, base_params: Dict[str, Any], study_name: str) -> Dict[str, Any]:
+        logging.info("Loading parameters from %s", study_name)
+        study: Study = optuna.load_study(study_name=study_name, storage="sqlite:///my_study.db")
+        return base_params | study.best_params
+
     @abstractmethod
     def build_model(self) -> BaseModel:
+        ...
+
+    @abstractmethod
+    def optimize_parameters(self):
         ...

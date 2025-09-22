@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Dict, Any
 
 import numpy as np
 import pandas as pd
@@ -10,11 +10,12 @@ from analysis.utils.sample import Sample, DatasetType, Dataset
 
 class CatboostRankerModel(BaseModel):
 
-    def __init__(self):
+    def __init__(self, params: Dict[str, Any]):
+        self.params: Dict[str, Any] = params
         self._model: Optional[CatBoostRanker] = None
 
     def train(self, sample: Sample) -> "CatboostRankerModel":
-        self._model = CatBoostRanker(verbose=False)
+        self._model = CatBoostRanker(**self.params)
         ptrain: Pool = sample.get_pool(DatasetType.TRAIN)
         pval: Pool = sample.get_pool(DatasetType.VALIDATION)
         self._model.fit(X=ptrain, eval_set=pval, early_stopping_rounds=50, use_best_model=True)

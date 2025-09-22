@@ -5,6 +5,7 @@ from typing import Dict, Any
 import optuna
 import pandas as pd
 from optuna import Trial, Study
+from overrides import overrides
 
 from analysis.pipelines.BasePipeline import BasePipeline
 from analysis.pipelines.RandomForest.model import RandomForestModel
@@ -42,19 +43,30 @@ class RandomForestPipeline(BasePipeline):
     def __init__(self):
         self.feature_set: FeatureSet = FeatureSet.auto()
 
+    @overrides
+    def get_model_params(self, base_params: Dict[str, Any], study_name: str) -> Dict[str, Any]:
+        study: Study = optuna.load_study(study_name=study_name, storage="sqlite:///my_study.db")
+        model_params: Dict[str, Any] = base_params | study.best_params
+        model_params["class_weight"] = {0: 1, 1: model_params["class_weight"]}
+        return model_params
+
     def optimize_parameters(self):
         logging.info("Running <optimize_parameters> for RandomForestPipeline")
         datasets: Dict[DatasetType, pd.DataFrame] = self.build_datasets()
         sample: Sample = Sample.from_pandas(datasets=datasets, feature_set=self.feature_set)
 
-        study: Study = optuna.create_study(direction="maximize")
+        study: Study = optuna.create_study(direction="maximize", study_name="RandomForestPipelineStudy")
         study.optimize(partial(_objective, sample=sample), n_trials=10)
 
     def build_model(self) -> None:
         logging.info("Running <build_model> for RandomForestPipeline")
         datasets: Dict[DatasetType, pd.DataFrame] = self.build_datasets()
         sample: Sample = Sample.from_pandas(datasets=datasets, feature_set=self.feature_set)
-        model: RandomForestModel = RandomForestModel(_BASE_PARAMS)
+        # Read optimal parameters from optuna.RDBStorage
+        model_params: Dict[str, Any] = self.get_model_params(
+            base_params=_BASE_PARAMS, study_name="RandomForestPipelineStudy"
+        )
+        model: RandomForestModel = RandomForestModel(params=model_params)
         model.train(sample=sample)
 
         topk_vals: pd.Series = calculate_topk_percent(

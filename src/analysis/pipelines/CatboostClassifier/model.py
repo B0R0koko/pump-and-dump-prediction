@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Dict, Any
 
 import numpy as np
 import pandas as pd
@@ -10,7 +10,8 @@ from analysis.utils.sample import Sample, DatasetType, Dataset
 
 class CatboostClassifierModel(BaseModel):
 
-    def __init__(self):
+    def __init__(self, params: Dict[str, Any]):
+        self.params: Dict[str, Any] = params
         self._model: Optional[CatBoostClassifier] = None
 
     def train(self, sample: Sample) -> "CatboostClassifierModel":
