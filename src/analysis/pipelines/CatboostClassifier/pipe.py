@@ -74,7 +74,7 @@ class CatboostClassifierPipeline(BasePipeline):
         logging.info("Running <optimize_parameters> for CatboostRankerPipeline")
         sample: Sample = self._create_sample()
         study: Study = create_study(study_name="CatboostClassifierPipelineStudy")
-        study.optimize(partial(_objective, sample=sample), n_trials=10)
+        study.optimize(partial(_objective, sample=sample), n_trials=25)
 
     def build_model(self) -> BaseModel:
         logging.info("Building Random Forest Model")

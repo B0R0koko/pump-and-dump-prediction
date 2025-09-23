@@ -27,11 +27,10 @@ _BASE_PARAMS: Dict[str, Any] = {
 
 def _objective(trial: Trial, sample: Sample) -> float:
     tuned_params: Dict[str, Any] = {
-        "class_weight": {0: 1, 1: trial.suggest_float("class_weight", 10, 300)},
-        "max_features": trial.suggest_float("max_features", 0.5, 1),
-        "max_samples": trial.suggest_float("max_samples", 0.5, 1),
-        "max_depth": trial.suggest_int("max_depth", 2, 10),
-        "n_estimators": trial.suggest_int("n_estimators", 100, 2000),
+        "iterations": trial.suggest_int("iterations", 10, 1000),
+        "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.2),
+        "max_depth": trial.suggest_int("max_depth", 2, 5),
+        "colsample_bylevel": trial.suggest_float("colsample_bylevel", 0.7, 1),
     }
 
     model: CatboostRankerModel = CatboostRankerModel(params=_BASE_PARAMS | tuned_params)
@@ -87,7 +86,7 @@ class CatboostRankerPipeline(BasePipeline):
         logging.info("Running <optimize_parameters> for CatboostRankerPipeline")
         sample: Sample = self._create_sample()
         study: Study = create_study(study_name="CatboostRankerPipelineStudy")
-        study.optimize(partial(_objective, sample=sample), n_trials=10)
+        study.optimize(partial(_objective, sample=sample), n_trials=50)
 
     def build_model(self) -> None:
         logging.info("Building Random Forest Model")
@@ -109,7 +108,7 @@ class CatboostRankerPipeline(BasePipeline):
 def main():
     configure_logging()
     pipe = CatboostRankerPipeline()
-    pipe.build_model()
+    pipe.optimize_parameters()
 
 
 if __name__ == "__main__":

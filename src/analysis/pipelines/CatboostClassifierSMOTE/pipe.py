@@ -9,7 +9,7 @@ from imblearn.over_sampling import SMOTE
 from optuna import Trial, Study
 from overrides import overrides
 
-from analysis.pipelines.BasePipeline import BasePipeline, cross_section_standardisation, fillna_with_median
+from analysis.pipelines.BasePipeline import BasePipeline, cross_section_standardisation, fillna_with_median_by_cross_section
 from analysis.pipelines.CatboostClassifier.model import CatboostClassifierModel
 from analysis.pipelines.study import create_study
 from analysis.utils.columns import *
@@ -58,7 +58,7 @@ class CatboostClassifierSMOTEPipeline(BasePipeline):
         powerlaw_cols: List[str] = FeatureType.POWERLAW_ALPHA.col_names(offsets=REGRESSOR_OFFSETS)
         df[powerlaw_cols] = df[powerlaw_cols].clip(1, 2)
         df_scaled: pd.DataFrame = cross_section_standardisation(df=df)
-        df_scaled = fillna_with_median(df=df_scaled, feature_set=self.feature_set)
+        df_scaled = fillna_with_median_by_cross_section(df=df_scaled, feature_set=self.feature_set)
         return df_scaled
 
     def apply_smote(self, df: pd.DataFrame) -> pd.DataFrame:

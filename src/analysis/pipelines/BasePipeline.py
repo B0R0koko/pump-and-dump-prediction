@@ -36,6 +36,9 @@ def cross_section_standardisation(df: pd.DataFrame) -> pd.DataFrame:
         df_cross_section = df_cross_section.reset_index(drop=True)
         # Apply cross-sectional standardisation
         for col in cols_to_scale:
+            # check that X is not const, otherwise we will have nans in our data
+            if df_cross_section[col].nunique() == 1:
+                continue
             df_cross_section[col] = (df_cross_section[col] - df_cross_section[col].mean()) / df_cross_section[col].std()
         df_cross_section[COL_PUMP_ID] = i
         dfs.append(df_cross_section)
@@ -43,10 +46,33 @@ def cross_section_standardisation(df: pd.DataFrame) -> pd.DataFrame:
     return pd.concat(dfs).reset_index(drop=True)
 
 
-def fillna_with_median(df: pd.DataFrame, feature_set: FeatureSet) -> pd.DataFrame:
-    for col in feature_set.regressors:
-        df[col] = df[col].fillna(value=df[col].median())
-    return df
+def fillna_with_median_by_cross_section(df: pd.DataFrame, feature_set: FeatureSet) -> pd.DataFrame:
+    """Group by PUMP_HASH and fill missing values with cross-section median values"""
+    dfs: List[pd.DataFrame] = []
+    global_medians: pd.Series = df[feature_set.regressors].median()  # -> median values for the features
+
+    for pump_hash, df_cross_section in tqdm(
+            df.groupby(COL_PUMP_HASH),
+            desc="Filling mssing values with cross-sectional medians"
+    ):
+        # Fill regressors and numeric target with median value
+        for col in feature_set.regressors:
+            # if we don't have any data for the feature within the current cross-section, then fill missing values
+            # with global median
+            if df_cross_section[col].isna().all():
+                df_cross_section[col] = df_cross_section[col].fillna(global_medians.loc[col])
+            # Otherwise fill with cross-sectional median
+            else:
+                df_cross_section[col] = df_cross_section[col].fillna(df_cross_section[col].median())
+
+        dfs.append(df_cross_section)
+
+    df_nonans: pd.DataFrame = pd.concat(dfs).reset_index(drop=True)
+    logging.info(
+        "Nans\n%s",
+        df_nonans[feature_set.regressors].isna().sum().sort_values(ascending=False)
+    )
+    return df_nonans
 
 
 class BasePipeline(ABC):
