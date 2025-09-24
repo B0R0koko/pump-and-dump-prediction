@@ -80,9 +80,7 @@ class LogisticRegressionPipeline(BasePipeline):
         study.optimize(partial(_objective, sample=sample), n_trials=10)
         return study
 
-    def build_model(self, tuned: bool = True) -> BaseModel:
-        logging.info("Running <build_model> for LogisticRegressionPipeline")
-        sample: Sample = self.create_sample()
+    def train(self, sample: Sample, tuned: bool = True) -> LogisticRegressionModel:
         model_params: Dict[str, Any] = _BASE_PARAMS
         if tuned:
             # Read optimal parameters from optuna.RDBStorage
@@ -91,6 +89,12 @@ class LogisticRegressionPipeline(BasePipeline):
             )
         model: LogisticRegressionModel = LogisticRegressionModel(params=model_params)
         model.train(sample=sample)
+        return model
+
+    def build_model(self, tuned: bool = True) -> BaseModel:
+        logging.info("Running <build_model> for LogisticRegressionPipeline")
+        sample: Sample = self.create_sample()
+        model: LogisticRegressionModel = self.train(sample=sample, tuned=tuned)
 
         topk_vals: pd.Series = calculate_topk_percent(
             model=model,

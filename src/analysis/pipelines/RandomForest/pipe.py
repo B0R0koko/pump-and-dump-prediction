@@ -63,20 +63,19 @@ class RandomForestPipeline(BasePipeline):
         study: Study = create_study(study_name="RandomForestPipelineStudy")
         study.optimize(partial(_objective, sample=sample), n_trials=10)
 
-    def build_model(self, tuned: bool = True) -> None:
-        logging.info("Running <build_model> for RandomForestPipeline")
-        sample: Sample = self.create_sample()
-
+    def train(self, sample: Sample, tuned: bool = True) -> RandomForestModel:
         model_params: Dict[str, Any] = _BASE_PARAMS
         if tuned:
             # Read optimal parameters from optuna.RDBStorage
-            model_params = self.get_model_params(
-                base_params=_BASE_PARAMS, study_name="RandomForestPipelineStudy"
-            )
-
+            model_params = self.get_model_params(base_params=_BASE_PARAMS, study_name="RandomForestPipelineStudy")
         model: RandomForestModel = RandomForestModel(params=model_params)
         model.train(sample=sample)
+        return model
 
+    def build_model(self, tuned: bool = True) -> None:
+        logging.info("Running <build_model> for RandomForestPipeline")
+        sample: Sample = self.create_sample()
+        model: RandomForestModel = self.train(sample=sample, tuned=tuned)
         topk_vals: pd.Series = calculate_topk_percent(
             model=model,
             dataset=sample.get_dataset(ds_type=DatasetType.VALIDATION),

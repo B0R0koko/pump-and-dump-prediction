@@ -90,10 +90,7 @@ class CatboostRankerPipeline(BasePipeline):
         study.optimize(partial(_objective, sample=sample), n_trials=10)
         return study
 
-    def build_model(self, tuned: bool = True) -> BaseModel:
-        logging.info("Running <build_model> for CatboostRankerPipeline")
-        sample: Sample = self.create_sample()
-
+    def train(self, sample: Sample, tuned: bool = True) -> CatboostRankerModel:
         model_params: Dict[str, Any] = _BASE_PARAMS
         if tuned:
             model_params = self.get_model_params(
@@ -102,6 +99,12 @@ class CatboostRankerPipeline(BasePipeline):
 
         model: CatboostRankerModel = CatboostRankerModel(params=model_params)
         model.train(sample=sample)
+        return model
+
+    def build_model(self, tuned: bool = True) -> BaseModel:
+        logging.info("Running <build_model> for CatboostRankerPipeline")
+        sample: Sample = self.create_sample()
+        model: CatboostRankerModel = self.train(sample=sample, tuned=tuned)
 
         topk_vals: pd.Series = calculate_topk_percent(
             model=model,
