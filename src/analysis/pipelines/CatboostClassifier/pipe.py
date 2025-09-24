@@ -13,7 +13,7 @@ from analysis.pipelines.BasePipeline import BasePipeline
 from analysis.pipelines.CatboostClassifier.model import CatboostClassifierModel
 from analysis.pipelines.study import create_study
 from analysis.utils.feature_set import FeatureSet
-from analysis.utils.metrics import calculate_topk_percent_auc
+from analysis.utils.metrics import calculate_topk_percent_auc, calculate_topk_percent
 from analysis.utils.sample import DatasetType, Sample, Dataset
 from core.paths import SQLITE_URL
 from core.utils import configure_logging
@@ -52,10 +52,9 @@ class CatboostClassifierPipeline(BasePipeline):
     def get_model_params(self, base_params: Dict[str, Any], study_name: str) -> Dict[str, Any]:
         study: Study = optuna.load_study(study_name=study_name, storage=SQLITE_URL)
         model_params: Dict[str, Any] = base_params | study.best_params
-        model_params["class_weight"] = {0: 1, 1: model_params["class_weight"]}
         return model_params
 
-    def _create_sample(self) -> Sample:
+    def create_sample(self) -> Sample:
         # we also need to set_pools as Catboost uses Pool under the hood
         datasets: Dict[DatasetType, pd.DataFrame] = self.build_datasets()
         sample: Sample = Sample.from_pandas(datasets=datasets, feature_set=self.feature_set)
@@ -70,27 +69,40 @@ class CatboostClassifierPipeline(BasePipeline):
 
         return sample
 
-    def optimize_parameters(self):
-        logging.info("Running <optimize_parameters> for CatboostRankerPipeline")
-        sample: Sample = self._create_sample()
+    def optimize_parameters(self) -> Study:
+        logging.info("Running <optimize_parameters> for CatboostClassifierPipeline")
+        sample: Sample = self.create_sample()
         study: Study = create_study(study_name="CatboostClassifierPipelineStudy")
         study.optimize(partial(_objective, sample=sample), n_trials=25)
+        return study
 
-    def build_model(self) -> BaseModel:
-        logging.info("Building Random Forest Model")
-        sample: Sample = self._create_sample()
-        model_params: Dict[str, Any] = self.get_model_params(
-            base_params=_BASE_PARAMS, study_name="CatboostRankerPipelineStudy"
-        )
+    def build_model(self, tuned: bool = True) -> BaseModel:
+        logging.info("Running<build_model> for CatboostClassifierPipeline")
+        sample: Sample = self.create_sample()
+
+        model_params: Dict[str, Any] = _BASE_PARAMS
+        if tuned:
+            model_params = self.get_model_params(
+                base_params=_BASE_PARAMS, study_name="CatboostClassifierPipelineStudy"
+            )
+
         model: CatboostClassifierModel = CatboostClassifierModel(params=model_params)
         model.train(sample=sample)
+
+        topk_vals: pd.Series = calculate_topk_percent(
+            model=model,
+            dataset=sample.get_dataset(ds_type=DatasetType.VALIDATION),
+            bins=[0.01, 0.02, 0.05, 0.1, 0.2]
+        )
+        logging.info(f"TopK Accuracy:\n%s", topk_vals)
+
         return model
 
 
 def main():
     configure_logging()
     pipe = CatboostClassifierPipeline()
-    pipe.optimize_parameters()
+    pipe.build_model()
 
 
 if __name__ == "__main__":

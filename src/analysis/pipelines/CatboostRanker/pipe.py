@@ -7,6 +7,7 @@ from catboost import Pool
 from optuna import Study, Trial
 from overrides import overrides
 
+from analysis.pipelines.BaseModel import BaseModel
 from analysis.pipelines.BasePipeline import BasePipeline, cross_section_standardisation
 from analysis.pipelines.CatboostRanker.model import CatboostRankerModel
 from analysis.pipelines.study import create_study
@@ -67,7 +68,7 @@ class CatboostRankerPipeline(BasePipeline):
         assert df_scaled[COL_PUMP_ID].is_monotonic_increasing, "GroupId must be monotonic increasing"
         return df_scaled
 
-    def _create_sample(self) -> Sample:
+    def create_sample(self) -> Sample:
         datasets: Dict[DatasetType, pd.DataFrame] = self.build_datasets()
         sample: Sample = Sample.from_pandas(datasets=datasets, feature_set=self.feature_set)
         # we also need to set_pools as Catboost uses Pool under the hood
@@ -82,18 +83,23 @@ class CatboostRankerPipeline(BasePipeline):
             )
         return sample
 
-    def optimize_parameters(self):
+    def optimize_parameters(self) -> Study:
         logging.info("Running <optimize_parameters> for CatboostRankerPipeline")
-        sample: Sample = self._create_sample()
+        sample: Sample = self.create_sample()
         study: Study = create_study(study_name="CatboostRankerPipelineStudy")
-        study.optimize(partial(_objective, sample=sample), n_trials=50)
+        study.optimize(partial(_objective, sample=sample), n_trials=10)
+        return study
 
-    def build_model(self) -> None:
-        logging.info("Building Random Forest Model")
-        sample: Sample = self._create_sample()
-        model_params: Dict[str, Any] = self.get_model_params(
-            base_params=_BASE_PARAMS, study_name="CatboostRankerPipelineStudy"
-        )
+    def build_model(self, tuned: bool = True) -> BaseModel:
+        logging.info("Running <build_model> for CatboostRankerPipeline")
+        sample: Sample = self.create_sample()
+
+        model_params: Dict[str, Any] = _BASE_PARAMS
+        if tuned:
+            model_params = self.get_model_params(
+                base_params=_BASE_PARAMS, study_name="CatboostRankerPipelineStudy"
+            )
+
         model: CatboostRankerModel = CatboostRankerModel(params=model_params)
         model.train(sample=sample)
 
@@ -103,12 +109,13 @@ class CatboostRankerPipeline(BasePipeline):
             bins=[0.01, 0.02, 0.05, 0.1, 0.2]
         )
         logging.info(f"TopK Accuracy:\n%s", topk_vals)
+        return model
 
 
 def main():
     configure_logging()
     pipe = CatboostRankerPipeline()
-    pipe.optimize_parameters()
+    pipe.build_model()
 
 
 if __name__ == "__main__":

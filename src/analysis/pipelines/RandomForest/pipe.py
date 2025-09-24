@@ -29,7 +29,7 @@ def _objective(trial: Trial, sample: Sample) -> float:
         "max_features": trial.suggest_float("max_features", 0.5, 1),
         "max_samples": trial.suggest_float("max_samples", 0.5, 1),
         "max_depth": trial.suggest_int("max_depth", 2, 10),
-        "n_estimators": trial.suggest_int("n_estimators", 100, 2000),
+        "n_estimators": trial.suggest_int("n_estimators", 100, 1000),
     }
 
     model: RandomForestModel = RandomForestModel(_BASE_PARAMS | tuned_params)
@@ -45,6 +45,11 @@ class RandomForestPipeline(BasePipeline):
     def __init__(self):
         self.feature_set: FeatureSet = FeatureSet.auto()
 
+    def create_sample(self) -> Sample:
+        datasets: Dict[DatasetType, pd.DataFrame] = self.build_datasets()
+        sample: Sample = Sample.from_pandas(datasets=datasets, feature_set=self.feature_set)
+        return sample
+
     @overrides
     def get_model_params(self, base_params: Dict[str, Any], study_name: str) -> Dict[str, Any]:
         study: Study = optuna.load_study(study_name=study_name, storage=SQLITE_URL)
@@ -54,19 +59,21 @@ class RandomForestPipeline(BasePipeline):
 
     def optimize_parameters(self):
         logging.info("Running <optimize_parameters> for RandomForestPipeline")
-        datasets: Dict[DatasetType, pd.DataFrame] = self.build_datasets()
-        sample: Sample = Sample.from_pandas(datasets=datasets, feature_set=self.feature_set)
+        sample: Sample = self.create_sample()
         study: Study = create_study(study_name="RandomForestPipelineStudy")
         study.optimize(partial(_objective, sample=sample), n_trials=10)
 
-    def build_model(self) -> None:
+    def build_model(self, tuned: bool = True) -> None:
         logging.info("Running <build_model> for RandomForestPipeline")
-        datasets: Dict[DatasetType, pd.DataFrame] = self.build_datasets()
-        sample: Sample = Sample.from_pandas(datasets=datasets, feature_set=self.feature_set)
-        # Read optimal parameters from optuna.RDBStorage
-        model_params: Dict[str, Any] = self.get_model_params(
-            base_params=_BASE_PARAMS, study_name="RandomForestPipelineStudy"
-        )
+        sample: Sample = self.create_sample()
+
+        model_params: Dict[str, Any] = _BASE_PARAMS
+        if tuned:
+            # Read optimal parameters from optuna.RDBStorage
+            model_params = self.get_model_params(
+                base_params=_BASE_PARAMS, study_name="RandomForestPipelineStudy"
+            )
+
         model: RandomForestModel = RandomForestModel(params=model_params)
         model.train(sample=sample)
 

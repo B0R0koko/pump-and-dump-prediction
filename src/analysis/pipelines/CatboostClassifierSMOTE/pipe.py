@@ -9,7 +9,9 @@ from imblearn.over_sampling import SMOTE
 from optuna import Trial, Study
 from overrides import overrides
 
-from analysis.pipelines.BasePipeline import BasePipeline, cross_section_standardisation, fillna_with_median_by_cross_section
+from analysis.pipelines.BaseModel import BaseModel
+from analysis.pipelines.BasePipeline import BasePipeline, cross_section_standardisation, \
+    fillna_with_median_by_cross_section
 from analysis.pipelines.CatboostClassifier.model import CatboostClassifierModel
 from analysis.pipelines.study import create_study
 from analysis.utils.columns import *
@@ -25,7 +27,6 @@ _BASE_PARAMS: Dict[str, Any] = {
     "objective": "Logloss",
     "sampling_frequency": "PerTree",
     "num_boost_round": 1000,
-    "auto_class_weights": "Balanced",
     "verbose": False
 }
 
@@ -75,10 +76,9 @@ class CatboostClassifierSMOTEPipeline(BasePipeline):
     def get_model_params(self, base_params: Dict[str, Any], study_name: str) -> Dict[str, Any]:
         study: Study = optuna.load_study(study_name=study_name, storage=SQLITE_URL)
         model_params: Dict[str, Any] = base_params | study.best_params
-        model_params["class_weight"] = {0: 1, 1: model_params["class_weight"]}
         return model_params
 
-    def _create_sample(self) -> Sample:
+    def create_sample(self) -> Sample:
         datasets: Dict[DatasetType, pd.DataFrame] = self.build_datasets()
         df_train: pd.DataFrame = self.apply_smote(df=datasets.get(DatasetType.TRAIN))
         datasets[DatasetType.TRAIN] = df_train
@@ -94,33 +94,39 @@ class CatboostClassifierSMOTEPipeline(BasePipeline):
             )
         return sample
 
-    def optimize_parameters(self):
-        logging.info("Running <optimize_parameters> for CatboostRankerPipeline")
-        sample: Sample = self._create_sample()
+    def optimize_parameters(self) -> Study:
+        logging.info("Running <optimize_parameters> for CatboostClassifierSMOTEPipeline")
+        sample: Sample = self.create_sample()
         study: Study = create_study(study_name="CatboostClassifierSMOTEPipelineStudy")
         study.optimize(partial(_objective, sample=sample), n_trials=10)
+        return study
 
-    def build_model(self) -> None:
-        logging.info("Building Random Forest Model")
-        sample: Sample = self._create_sample()
-        model_params: Dict[str, Any] = self.get_model_params(
-            base_params=_BASE_PARAMS, study_name="CatboostClassifierSMOTEPipelineStudy"
-        )
+    def build_model(self, tuned: bool = True) -> BaseModel:
+        logging.info("Running <build_model> for CatboostClassifierSMOTEPipeline")
+        sample: Sample = self.create_sample()
+
+        model_params: Dict[str, Any] = _BASE_PARAMS
+        if tuned:
+            model_params = self.get_model_params(
+                base_params=_BASE_PARAMS, study_name="CatboostClassifierSMOTEPipelineStudy"
+            )
+
         model: CatboostClassifierModel = CatboostClassifierModel(params=model_params)
         model.train(sample=sample)
 
         topk_vals: pd.Series = calculate_topk_percent(
             model=model,
-            dataset=sample.get_dataset(ds_type=DatasetType.TEST),
+            dataset=sample.get_dataset(ds_type=DatasetType.VALIDATION),
             bins=[0.01, 0.02, 0.05, 0.1, 0.2]
         )
         logging.info(f"TopK Accuracy:\n%s", topk_vals)
+        return model
 
 
 def main():
     configure_logging()
     pipe = CatboostClassifierSMOTEPipeline()
-    pipe.optimize_parameters()
+    pipe.build_model()
 
 
 if __name__ == "__main__":

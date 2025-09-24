@@ -7,10 +7,10 @@ import pandas as pd
 from optuna import Trial, Study
 from overrides import overrides
 
+from analysis.pipelines.BaseModel import BaseModel
 from analysis.pipelines.BasePipeline import BasePipeline, cross_section_standardisation, \
     fillna_with_median_by_cross_section
 from analysis.pipelines.LogisticRegression.model import LogisticRegressionModel
-from analysis.pipelines.RandomForest.model import RandomForestModel
 from analysis.pipelines.study import create_study
 from analysis.utils.feature_set import FeatureSet
 from analysis.utils.metrics import calculate_topk_percent, calculate_topk_percent_auc
@@ -22,7 +22,7 @@ from feature_writer.FeatureWriter import REGRESSOR_OFFSETS
 
 _BASE_PARAMS: Dict[str, Any] = {
     "penalty": "l1",
-    "max_iter": 10000,
+    "max_iter": 500,
     "verbose": False,
     "solver": "liblinear",
 }
@@ -58,29 +58,38 @@ class LogisticRegressionPipeline(BasePipeline):
     @overrides
     def get_model_params(self, base_params: Dict[str, Any], study_name: str) -> Dict[str, Any]:
         study: Study = optuna.load_study(study_name=study_name, storage=SQLITE_URL)
-        model_params: Dict[str, Any] = base_params | study.best_params
-        model_params["class_weight"] = {0: 1, 1: model_params["class_weight"]}
+        # Change some parameters to the way LogisticRegression expects them to be
+        tuned_params: Dict[str, Any] = study.best_params
+        lambd: float = tuned_params.pop("lambda")
+        class_weight: float = tuned_params.pop("class_weight")
+        model_params: Dict[str, Any] = base_params | tuned_params
+        model_params["class_weight"] = {0: 1, 1: class_weight}
+        model_params["C"] = 1 / lambd
+
         return model_params
 
-    def _create_sample(self) -> Sample:
+    def create_sample(self) -> Sample:
         datasets: Dict[DatasetType, pd.DataFrame] = self.build_datasets()
         sample: Sample = Sample.from_pandas(datasets=datasets, feature_set=self.feature_set)
         return sample
 
-    def optimize_parameters(self):
-        logging.info("Running <optimize_parameters> for RandomForestPipeline")
-        sample: Sample = self._create_sample()
+    def optimize_parameters(self) -> Study:
+        logging.info("Running <optimize_parameters> for LogisticRegressionPipeline")
+        sample: Sample = self.create_sample()
         study: Study = create_study(study_name="LogisticRegressionPipelineStudy")
         study.optimize(partial(_objective, sample=sample), n_trials=10)
+        return study
 
-    def build_model(self) -> None:
-        logging.info("Running <build_model> for RandomForestPipeline")
-        sample: Sample = self._create_sample()
-        # Read optimal parameters from optuna.RDBStorage
-        model_params: Dict[str, Any] = self.get_model_params(
-            base_params=_BASE_PARAMS, study_name="LogisticRegressionPipelineStudy"
-        )
-        model: RandomForestModel = RandomForestModel(params=model_params)
+    def build_model(self, tuned: bool = True) -> BaseModel:
+        logging.info("Running <build_model> for LogisticRegressionPipeline")
+        sample: Sample = self.create_sample()
+        model_params: Dict[str, Any] = _BASE_PARAMS
+        if tuned:
+            # Read optimal parameters from optuna.RDBStorage
+            model_params = self.get_model_params(
+                base_params=_BASE_PARAMS, study_name="LogisticRegressionPipelineStudy"
+            )
+        model: LogisticRegressionModel = LogisticRegressionModel(params=model_params)
         model.train(sample=sample)
 
         topk_vals: pd.Series = calculate_topk_percent(
@@ -89,9 +98,10 @@ class LogisticRegressionPipeline(BasePipeline):
             bins=[0.01, 0.02, 0.05, 0.1, 0.2]
         )
         logging.info(f"TopK Accuracy:\n%s", topk_vals)
+        return model
 
 
 if __name__ == "__main__":
     configure_logging()
     pipeline = LogisticRegressionPipeline()
-    pipeline.optimize_parameters()
+    pipeline.build_model()
