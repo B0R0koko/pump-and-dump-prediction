@@ -108,4 +108,4 @@ class LogisticRegressionPipeline(BasePipeline):
 if __name__ == "__main__":
     configure_logging()
     pipeline = LogisticRegressionPipeline()
-    pipeline.build_model()
+    pipeline.optimize_parameters()
