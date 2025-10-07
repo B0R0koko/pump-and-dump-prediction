@@ -59,7 +59,7 @@ class TOPKPortfolio(ImplementsPortfolio):
     def pumped_transaction(self, ts_price: pd.Series, pump: PumpEvent, cp: CurrencyPair) -> Transaction:
         assert ts_price.index.is_monotonic_increasing
         entry: pd.Series = ts_price[ts_price.index <= pump.time - timedelta(minutes=15)]
-        exit: pd.Series = ts_price[ts_price.index >= pump.time + timedelta(minutes=5)]
+        exit: pd.Series = ts_price[ts_price.index >= pump.time + timedelta(minutes=1)]
 
         if entry.empty or exit.empty:
             logging.info("No data to get prices for %s", cp.name)

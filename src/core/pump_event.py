@@ -1,3 +1,4 @@
+import functools
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict
@@ -6,6 +7,7 @@ from core.currency_pair import CurrencyPair
 from core.exchange import Exchange
 
 
+@functools.total_ordering
 @dataclass
 class PumpEvent:
     currency_pair: CurrencyPair
@@ -38,3 +40,6 @@ class PumpEvent:
             exchange=Exchange[exchange_str.upper()],
             time=datetime.strptime(time_str, "%Y-%m-%dT%H-%M-%S"),
         )
+
+    def __lt__(self, other) -> bool:
+        return self.time < other.time
