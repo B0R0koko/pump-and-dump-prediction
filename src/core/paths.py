@@ -9,6 +9,7 @@ def get_root_dir() -> Path:
 
 
 DATA_DIR: Path = Path("/var/lib/pumps/data")
+SQLITE_URL: str = "sqlite:////var/lib/pumps/data/studies.db"
 RAW_DATA_DIR: Path = DATA_DIR / "raw"
 TRANSFORMED_DATA_DIR: Path = DATA_DIR / "transformed"
 

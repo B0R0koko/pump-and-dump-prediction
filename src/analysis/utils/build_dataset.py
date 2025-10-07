@@ -21,12 +21,13 @@ def create_dataset() -> pd.DataFrame:
     pump_events: List[PumpEvent] = load_pumps(path=path)
 
     dfs: List[pd.DataFrame] = []
+    skipped_pumps: List[PumpEvent] = []
 
     for pump in tqdm(pump_events, desc="Building dataset"):
         cross_section_path: Path = FEATURE_DIR / "pumps" / f"{str(pump)}.parquet"
 
         if not cross_section_path.exists():
-            logging.info("No cross section found for pump %s", pump)
+            skipped_pumps.append(pump)
             continue
 
         df_cross_section: pd.DataFrame = pd.read_parquet(cross_section_path)
@@ -40,6 +41,7 @@ def create_dataset() -> pd.DataFrame:
 
     df: pd.DataFrame = pd.concat(dfs)
     df = df.reset_index(drop=True)
+    logging.warn("No data present for %s pumps", len(skipped_pumps))
     return df
 
 

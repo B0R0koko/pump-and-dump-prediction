@@ -1,13 +1,14 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import timedelta, datetime
-from typing import List, Tuple
+from typing import List, Optional
 
 import numpy as np
 import pandas as pd
 import polars as pl
 
-from analysis.models.BaseModel import ImplementsRank
+from analysis.pipelines.BaseModel import ImplementsRank
+from analysis.utils.sample import Dataset
 from core.columns import SYMBOL, DATE, TRADE_TIME, PRICE
 from core.currency_pair import CurrencyPair
 from core.exchange import Exchange
@@ -30,23 +31,69 @@ class Portfolio:
 
 @dataclass
 class Transaction:
-    entry_price: float
-    exit_price: float
     currency_pair: CurrencyPair
-    entry_ts: datetime
-    exit_ts: datetime
+    entry_price: Optional[float] = None
+    exit_price: Optional[float] = None
+    entry_ts: Optional[datetime] = None
+    exit_ts: Optional[datetime] = None
+
+    @property
+    def transaction_return(self) -> float:
+        assert self.entry_price is not None and self.exit_price is not None
+        return self.exit_price / self.entry_price - 1 - 0.002
+
+    @classmethod
+    def empty(cls, currency_pair: CurrencyPair) -> "Transaction":
+        return Transaction(currency_pair=currency_pair)
+
+    def is_empty(self) -> bool:
+        return self.entry_price is None and self.exit_price is None
+
+
+class PortfolioStats:
+
+    def __init__(
+            self,
+            portfolio: Portfolio,
+            txs: List[Transaction],
+            pump: PumpEvent,
+    ):
+        self.portfolio: Portfolio = portfolio
+        self.txs: List[Transaction] = txs
+        self.pump: PumpEvent = pump
+
+    @property
+    def pnl(self) -> float:
+        """
+        :return: Pnl of the portfolio. Skips assets with no price data
+        """
+        pnl: float = 0
+        for tx in self.txs:
+            if tx.is_empty():
+                continue
+            pnl += tx.transaction_return * self.portfolio.get_weight(tx.currency_pair)
+        return pnl
+
+    def has_pump(self) -> bool:
+        """
+        :return: True if the portfolio has a pump
+        """
+        return self.pump.currency_pair in self.portfolio.currency_pairs
+
+    def __repr__(self) -> str:
+        return f"PortfolioStats:\nCorresponding pump:{self.pump.as_pump_hash()}\nPnL:{self.pnl}\nHasPump:{self.has_pump()}"
 
 
 class ImplementsPortfolio(ABC):
 
     def __init__(self, model: ImplementsRank):
-        self.model = model
+        self.model: ImplementsRank = model
         self._hive: pl.LazyFrame = pl.scan_parquet(
             Exchange.BINANCE_SPOT.get_hive_location(), hive_partitioning=True
         )
 
     @abstractmethod
-    def create_portfolio(self, cross_section: pd.DataFrame) -> Portfolio:
+    def create_portfolio(self, cross_section: Dataset) -> Portfolio:
         ...
 
     def load_price_ts(self, bounds: Bounds, currency_pair: CurrencyPair) -> pd.Series:
@@ -86,35 +133,22 @@ class ImplementsPortfolio(ABC):
 
         for cp in portfolio.currency_pairs:
             ts_price: pd.Series = self.load_price_ts(bounds=bounds, currency_pair=cp)
-
             tx: Transaction
             if not pump.is_manipulated(cp):
                 tx = self.regular_transaction(ts_price=ts_price, pump=pump, cp=cp)
             else:
                 tx = self.pumped_transaction(ts_price=ts_price, pump=pump, cp=cp)
             txs.append(tx)
+
         return txs
 
-    def calculate_return(self, txs: List[Transaction], portfolio: Portfolio) -> float:
-        """
-        Define the return of the portfolio
-        """
-        portfolio_return: float = 0
-        tx: Transaction
-
-        for tx in txs:
-            asset_return: float = (tx.exit_price - tx.entry_price) / tx.entry_price
-            portfolio_return += asset_return * portfolio.get_weight(tx.currency_pair)
-
-        return portfolio_return
-
-    def evaluate_cross_section(self, cross_section: pd.DataFrame, pump: PumpEvent) -> Tuple[float, Portfolio]:
+    def evaluate_for_pump(self, dataset: Dataset, pump: PumpEvent) -> PortfolioStats:
         """
         :params cross_section: cross-section dataframe containing all features needed for model to make predictions
         :params pump: pump event of the current cross-section
         :returns: return of the portfolio selected by the model and corresponding portfolio
         """
+        cross_section: Dataset = dataset.get_cross_section(pump=pump)
         portfolio: Portfolio = self.create_portfolio(cross_section=cross_section)
         txs: List[Transaction] = self._create_cross_section_transactions(pump=pump, portfolio=portfolio)
-        portfolio_return: float = self.calculate_return(txs=txs, portfolio=portfolio)
-        return portfolio_return, portfolio
+        return PortfolioStats(portfolio=portfolio, txs=txs, pump=pump)

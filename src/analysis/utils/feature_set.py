@@ -3,7 +3,7 @@ from typing import List, Optional
 
 import pandas as pd
 
-from analysis.utils.columns import COL_TARGET
+from analysis.utils.columns import COL_IS_PUMPED
 from core.feature_type import FeatureType
 from feature_writer.FeatureWriter import REGRESSOR_OFFSETS
 
@@ -12,10 +12,14 @@ from feature_writer.FeatureWriter import REGRESSOR_OFFSETS
 class FeatureSet:
 
     def __init__(
-            self, numeric_features: List[str], target: str, categorical_features: Optional[List[str]] = None,
+            self, numeric_features: List[str],
+            target: str,
+            categorical_features: Optional[List[str]] = None,
+            eval_fields: Optional[List[str]] = None,
     ):
         self.numeric_features: List[str] = numeric_features
         self.categorical_features: Optional[List[str]] = categorical_features
+        self.eval_fields: Optional[List[str]] = eval_fields
         self.target: str = target
 
     def check_against(self, df: pd.DataFrame) -> None:
@@ -27,6 +31,10 @@ class FeatureSet:
     @property
     def regressors(self) -> List[str]:
         return self.numeric_features + [] if self.categorical_features is None else self.categorical_features
+
+    @property
+    def all_columns(self) -> List[str]:
+        return self.numeric_features + self.categorical_features + self.eval_fields or []
 
     @classmethod
     def auto(cls) -> "FeatureSet":
@@ -41,6 +49,10 @@ class FeatureSet:
 
         return cls(
             numeric_features=numeric_features,
-            target=COL_TARGET,
+            target=COL_IS_PUMPED,
             categorical_features=None
         )
+
+    @classmethod
+    def empty(cls) -> "FeatureSet":
+        return cls(numeric_features=[], target=COL_IS_PUMPED, categorical_features=None)

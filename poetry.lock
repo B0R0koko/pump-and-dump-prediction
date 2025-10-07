@@ -1106,6 +1106,34 @@ files = [
 all = ["flake8 (>=7.1.1)", "mypy (>=1.11.2)", "pytest (>=8.3.2)", "ruff (>=0.6.2)"]
 
 [[package]]
+name = "imbalanced-learn"
+version = "0.14.0"
+description = "Toolbox for imbalanced dataset in machine learning"
+optional = false
+python-versions = ">=3.10"
+groups = ["main"]
+files = [
+    {file = "imbalanced_learn-0.14.0-py3-none-any.whl", hash = "sha256:8a8700c02ca185e113064815513f990fbf84eb4e7701f1d4e944ce67fb259a60"},
+    {file = "imbalanced_learn-0.14.0.tar.gz", hash = "sha256:22b9ba6dbd681a9ec613cd6e08c21d39639fb5ccbf2a3c991f9c36415b70522c"},
+]
+
+[package.dependencies]
+joblib = ">=1.2.0,<2"
+numpy = ">=1.25.2,<3"
+scikit-learn = ">=1.4.2,<2"
+scipy = ">=1.11.4,<2"
+threadpoolctl = ">=2.0.0,<4"
+
+[package.extras]
+dev = ["ipykernel", "ipython", "jupyterlab"]
+docs = ["matplotlib (>=3.7.3,<4)", "memory_profiler (>=0.61.0,<1)", "numpydoc (>=1.5.0,<2)", "pandas (>=2.0.3,<3)", "pydata-sphinx-theme (>=0.15.4,<1)", "seaborn (>=0.12.2,<1)", "sphinx (>=8.0.2,<9)", "sphinx-copybutton (>=0.5.2,<1)", "sphinx-design (>=0.6.1,<1)", "sphinx-gallery (>=0.13.0,<1)", "sphinxcontrib-bibtex (>=2.6.3,<3)", "tensorflow (>=2.16.1,<3)"]
+keras = ["keras (>=3.3.3,<4)"]
+linters = ["black (==23.3.0)", "pre-commit", "ruff (==0.4.8)"]
+optional = ["pandas (>=2.0.3,<3)"]
+tensorflow = ["tensorflow (>=2.16.1,<3)"]
+tests = ["packaging (>=23.2,<25)", "pytest (>=7.2.2,<9)", "pytest-cov (>=4.1.0,<6)", "pytest-xdist (>=3.5.0,<4)"]
+
+[[package]]
 name = "incremental"
 version = "24.7.2"
 description = "A small library that versions your Python projects."
@@ -4348,4 +4376,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "32dd9a1bea43f6191cfdffe9d1e20b4ff5d498c3316eb821c09b0e9c1cc89233"
+content-hash = "b28820f514fd651620a80ad964f27d202632a585a9b10fb8e4ef87e81b4256a5"

@@ -22,6 +22,7 @@ catboost = "^1.2.8"
 optuna = "^4.5.0"
 ipywidgets = "^8.1.7"
 pytest = "^8.4.2"
+imbalanced-learn = "^0.14.0"
 
 
 [build-system]

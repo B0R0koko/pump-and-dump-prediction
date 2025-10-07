@@ -32,6 +32,9 @@ class CurrencyPair:
     def binance_name(self) -> str:
         return f"{self.base}{self.term}"
 
+    def __hash__(self) -> int:
+        return hash(self.name)
+
 
 def collect_all_spot_currency_pairs() -> List[CurrencyPair]:
     """Collect a set of all CurrencyPairs traded on Binance"""
