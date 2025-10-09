@@ -32,6 +32,10 @@ def create_dataset() -> pd.DataFrame:
 
         df_cross_section: pd.DataFrame = pd.read_parquet(cross_section_path)
 
+        if not (df_cross_section[COL_CURRENCY_PAIR] == pump.currency_pair.name).any():
+            skipped_pumps.append(pump)
+            continue
+
         # Add additional columns
         df_cross_section[COL_PUMP_HASH] = str(pump)
         df_cross_section[COL_PUMP_TIME] = pump.time

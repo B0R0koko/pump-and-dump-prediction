@@ -26,7 +26,7 @@ _BASE_PARAMS: Dict[str, Any] = {
     "sampling_frequency": "PerTree",
     "num_boost_round": 1000,
     "auto_class_weights": "Balanced",
-    "verbose": True
+    "verbose": 10
 }
 
 
@@ -53,6 +53,33 @@ def _compute_topk_percent_auc(probas_pred: np.ndarray, df_val: pd.DataFrame) -> 
 
 
 class TOPKPAUCMetric:
+    """
+    Custom CatBoost evaluation metric that computes the Top-K Percent AUC score.
+
+    This metric measures how well the model ranks "pumped" samples (positive class)
+    within each pump cross-section. For each pump (identified by `COL_PUMP_HASH`),
+    the method:
+      - Sorts predictions in descending order by predicted probability (`COL_PROBAS_PRED`).
+      - Iterates over percentile bins (0%, 1%, 2%, ..., 99%) to determine how often
+        a "pumped" sample appears within the top-K fraction of predictions.
+      - Computes the normalized AUC (area under the curve) of that cumulative detection
+        curve to produce a single scalar value.
+
+    The metric is designed such that **higher is better** (is_max_optimal → True).
+
+    Notes:
+    ------
+    - Compatible with CatBoost's Python API for custom metrics.
+    - CatBoost expects the `evaluate` method to return a tuple: (metric_value, weight_sum).
+    - Logs the metric value every 10 evaluation iterations for monitoring.
+
+    Parameters
+    ----------
+    df_train : pd.DataFrame
+        Training dataset (used when evaluate() is called on training predictions).
+    df_val : pd.DataFrame
+        Validation dataset (used when evaluate() is called on validation predictions).
+    """
 
     def __init__(self, df_train: pd.DataFrame, df_val: pd.DataFrame):
         self.df_train: pd.DataFrame = df_train
@@ -81,8 +108,12 @@ def _objective(trial: Trial, sample: Sample) -> float:
         "subsample": trial.suggest_float("subsample", 0.7, 1),
         "max_depth": trial.suggest_int("max_depth", 2, 10),
     }
+    df_train: pd.DataFrame = sample.get_dataset(ds_type=DatasetType.TRAIN).all_data()
+    df_val: pd.DataFrame = sample.get_dataset(ds_type=DatasetType.VALIDATION).all_data()
+    # Add custom evaluation metric that maximizes TOPKAUC
+    base_params: Dict[str, Any] = _BASE_PARAMS | {"eval_metric": TOPKPAUCMetric(df_train=df_train, df_val=df_val)}
 
-    model: CatboostClassifierModel = CatboostClassifierModel(params=_BASE_PARAMS | tuned_params)
+    model: CatboostClassifierModel = CatboostClassifierModel(params=base_params | tuned_params)
     model.train(sample=sample)
 
     val: Dataset = sample.get_dataset(ds_type=DatasetType.VALIDATION)
@@ -138,7 +169,7 @@ class CatboostClassifierTOPKAUCPipeline(BasePipeline):
         return model
 
     def build_model(self, tuned: bool = True) -> BaseModel:
-        logging.info("Running<build_model> for CatboostClassifierTOPKAUCPipeline")
+        logging.info("Running <build_model> for CatboostClassifierTOPKAUCPipeline")
         sample: Sample = self.create_sample()
         model: CatboostClassifierModel = self.train(sample=sample, tuned=tuned)
 
@@ -155,7 +186,7 @@ class CatboostClassifierTOPKAUCPipeline(BasePipeline):
 def main():
     configure_logging()
     pipe = CatboostClassifierTOPKAUCPipeline()
-    pipe.build_model(tuned=False)
+    pipe.optimize_parameters()
 
 
 if __name__ == "__main__":
