@@ -9,7 +9,7 @@ from overrides import overrides
 
 from analysis.pipelines.BaseModel import BaseModel
 from analysis.pipelines.BasePipeline import BasePipeline, cross_section_standardisation, \
-    fillna_with_median_by_cross_section
+    fillna_with_median_by_cross_section, remove_failed_pump_cross_sections, add_col_pump_id
 from analysis.pipelines.LogisticRegression.model import LogisticRegressionModel
 from analysis.pipelines.study import create_study
 from analysis.utils.feature_set import FeatureSet
@@ -47,8 +47,11 @@ class LogisticRegressionPipeline(BasePipeline):
     def __init__(self):
         self.feature_set: FeatureSet = FeatureSet.auto()
 
+    @overrides
     def preprocess_data(self, df: pd.DataFrame) -> pd.DataFrame:
         """Define all data preprocessing steps here"""
+        df = add_col_pump_id(df=df)
+        df = remove_failed_pump_cross_sections(df=df)
         powerlaw_cols: List[str] = FeatureType.POWERLAW_ALPHA.col_names(offsets=REGRESSOR_OFFSETS)
         df[powerlaw_cols] = df[powerlaw_cols].clip(1, 2)
         df = fillna_with_median_by_cross_section(df=df, feature_set=self.feature_set)

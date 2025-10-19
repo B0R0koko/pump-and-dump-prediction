@@ -29,9 +29,8 @@ def cross_section_standardisation(df: pd.DataFrame) -> pd.DataFrame:
     cols_to_scale: List[str] = asset_return_cols + asset_return_zscore_cols + quote_abs_zscore_cols + powerlaw_cols
     dfs: List[pd.DataFrame] = []
 
-    for i, (pump_hash, df_cross_section) in tqdm(
-            enumerate(df.groupby(COL_PUMP_HASH, sort=False)),
-            total=df[COL_PUMP_HASH].nunique(),
+    for pump_hash, df_cross_section in tqdm(
+            df.groupby(COL_PUMP_ID, sort=False), total=df[COL_PUMP_ID].nunique(),
             desc="Applying cross section standardisation",
     ):
         df_cross_section = df_cross_section.reset_index(drop=True)
@@ -41,7 +40,7 @@ def cross_section_standardisation(df: pd.DataFrame) -> pd.DataFrame:
             if df_cross_section[col].nunique() == 1:
                 continue
             df_cross_section[col] = (df_cross_section[col] - df_cross_section[col].mean()) / df_cross_section[col].std()
-        df_cross_section[COL_PUMP_ID] = i
+
         dfs.append(df_cross_section)
 
     return pd.concat(dfs).reset_index(drop=True)
@@ -51,22 +50,27 @@ def remove_failed_pump_cross_sections(df: pd.DataFrame) -> pd.DataFrame:
     logging.info("Removing failed pump cross sections")
     target_return_col: str = f"target_return@{NamedTimeDelta.ONE_MINUTE.get_slug()}"
     df[COL_ASSET_RETURN_RANK] = (
-        df.groupby(COL_PUMP_HASH, sort=False)[target_return_col].rank(ascending=False, method="dense")
+        df.groupby(COL_PUMP_ID, sort=False)[target_return_col].rank(ascending=False, method="dense")
     )
     df_cross_sections: List[pd.DataFrame] = []
+    pumps_removed: int = 0
+
     for pump_hash, df_cross_section in df.groupby(COL_PUMP_HASH, sort=False):
         pump: pd.Series = df_cross_section.loc[df_cross_section[COL_IS_PUMPED], COL_ASSET_RETURN_RANK]
         assert len(pump) == 1, "Found many pumps within one cross-section"
         pump_rank: int = pump.iloc[0]
         # if pump is not even in top-10 based on returns, then it is a failed pump, and we should remove it from
         # our analysis
-
         if pump_rank >= 10:
-            logging.warn("Removing failed pump not in top-10 %s with rank %s", pump_hash, pump_rank)
+            pumps_removed += 1
             continue
         df_cross_sections.append(df_cross_section)
 
     df = pd.concat(df_cross_sections).reset_index(drop=True).drop(columns=[COL_ASSET_RETURN_RANK])
+
+    if pumps_removed > 0:
+        logging.warning("Removed %s failed pumps", pumps_removed)
+
     return df
 
 
@@ -76,7 +80,7 @@ def fillna_with_median_by_cross_section(df: pd.DataFrame, feature_set: FeatureSe
     global_medians: pd.Series = df[feature_set.regressors].median()  # -> median values for the features
 
     for pump_hash, df_cross_section in tqdm(
-            df.groupby(COL_PUMP_HASH), desc="Filling mssing values with cross-sectional medians"
+            df.groupby(COL_PUMP_HASH), desc="Filling missing values with cross-sectional medians"
     ):
         # Fill regressors and numeric target with median value
         for col in feature_set.regressors:
@@ -98,10 +102,16 @@ def fillna_with_median_by_cross_section(df: pd.DataFrame, feature_set: FeatureSe
     return df_nonans
 
 
+def add_col_pump_id(df: pd.DataFrame) -> pd.DataFrame:
+    df[COL_PUMP_ID] = df.groupby(by=COL_PUMP_HASH, sort=False).ngroup()
+    return df
+
+
 class BasePipeline(ABC):
 
     def preprocess_data(self, df: pd.DataFrame) -> pd.DataFrame:
         """Define all data preprocessing steps here"""
+        df = add_col_pump_id(df=df)
         df = remove_failed_pump_cross_sections(df=df)
         powerlaw_cols: List[str] = FeatureType.POWERLAW_ALPHA.col_names(offsets=REGRESSOR_OFFSETS)
         df[powerlaw_cols] = df[powerlaw_cols].clip(1, 2)
@@ -120,6 +130,7 @@ class BasePipeline(ABC):
             names=[DatasetType.TRAIN, DatasetType.VALIDATION, DatasetType.TEST],
             time_col=COL_PUMP_TIME,
         )
+
         return datasets
 
     def get_model_params(self, base_params: Dict[str, Any], study_name: str) -> Dict[str, Any]:

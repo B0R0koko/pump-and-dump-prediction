@@ -8,7 +8,8 @@ from optuna import Study, Trial
 from overrides import overrides
 
 from analysis.pipelines.BaseModel import BaseModel
-from analysis.pipelines.BasePipeline import BasePipeline, cross_section_standardisation
+from analysis.pipelines.BasePipeline import BasePipeline, cross_section_standardisation, \
+    remove_failed_pump_cross_sections, add_col_pump_id
 from analysis.pipelines.CatboostRanker.model import CatboostRankerModel
 from analysis.pipelines.study import create_study
 from analysis.utils.columns import *
@@ -51,20 +52,18 @@ class CatboostRankerPipeline(BasePipeline):
     @overrides
     def preprocess_data(self, df: pd.DataFrame) -> pd.DataFrame:
         """Define all data preprocessing steps here"""
-        df = df.sort_values(by=COL_PUMP_TIME, ascending=True).reset_index(drop=True)
+        df = add_col_pump_id(df=df)
+        df = remove_failed_pump_cross_sections(df=df)
         # Clip powerlaw alpha features to (1, 2)
         powerlaw_cols: List[str] = FeatureType.POWERLAW_ALPHA.col_names(offsets=REGRESSOR_OFFSETS)
         df[powerlaw_cols] = df[powerlaw_cols].clip(1, 2)
-
         # Fillna target for ranker which is target_return@5MIN
         df["target_return@5MIN"] = df["target_return@5MIN"].fillna(0)
         df_scaled: pd.DataFrame = cross_section_standardisation(df=df)
         # Create rankings
         df_scaled[self.feature_set.target] = (
-            df_scaled.groupby(COL_PUMP_ID)["target_return@5MIN"].rank(pct=True, ascending=False)
-            # False for ranks by high (1) to low (N).
+            df_scaled.groupby(COL_PUMP_ID, sort=False)["target_return@5MIN"].rank(pct=True, ascending=False)
         )
-
         assert df_scaled[COL_PUMP_ID].is_monotonic_increasing, "GroupId must be monotonic increasing"
         return df_scaled
 

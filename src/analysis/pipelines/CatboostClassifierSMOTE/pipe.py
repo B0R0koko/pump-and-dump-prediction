@@ -11,7 +11,7 @@ from overrides import overrides
 
 from analysis.pipelines.BaseModel import BaseModel
 from analysis.pipelines.BasePipeline import BasePipeline, cross_section_standardisation, \
-    fillna_with_median_by_cross_section
+    fillna_with_median_by_cross_section, remove_failed_pump_cross_sections, add_col_pump_id
 from analysis.pipelines.CatboostClassifier.model import CatboostClassifierModel
 from analysis.pipelines.study import create_study
 from analysis.utils.columns import *
@@ -55,6 +55,8 @@ class CatboostClassifierSMOTEPipeline(BasePipeline):
     @overrides
     def preprocess_data(self, df: pd.DataFrame) -> pd.DataFrame:
         """Define all data preprocessing steps here"""
+        df = add_col_pump_id(df=df)
+        df = remove_failed_pump_cross_sections(df=df)
         df[COL_IS_PUMPED] = df[COL_CURRENCY_PAIR] == df[COL_PUMPED_CURRENCY_PAIR]  # attach binary target
         powerlaw_cols: List[str] = FeatureType.POWERLAW_ALPHA.col_names(offsets=REGRESSOR_OFFSETS)
         df[powerlaw_cols] = df[powerlaw_cols].clip(1, 2)

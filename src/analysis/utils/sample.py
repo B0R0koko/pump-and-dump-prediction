@@ -21,7 +21,6 @@ def split_by_time(
 ) -> Dict[DatasetType, pd.DataFrame]:
     """Split df: pd.DataFrame by time_col and return Sample"""
     assert len(names) - 1 == len(time_bins), "There should be one name more than time_bins"
-    df = df.sort_values(by=time_col)
     # first slice: < first bin
     datasets: Dict[DatasetType, pd.DataFrame] = {names[0]: df[df[time_col] < time_bins[0]]}
 
