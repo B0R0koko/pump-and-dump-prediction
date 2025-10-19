@@ -16,7 +16,10 @@ def delete_study_if_exists(study_name: str) -> bool:
     return False
 
 
-def create_study(study_name: str) -> Study:
-    delete_study_if_exists(study_name=study_name)
-    study: Study = optuna.create_study(direction="maximize", storage=SQLITE_URL, study_name=study_name)
+def create_study(study_name: str, start_new: bool = True) -> Study:
+    if start_new:
+        delete_study_if_exists(study_name=study_name)
+    study: Study = optuna.create_study(
+        direction="maximize", storage=SQLITE_URL, study_name=study_name, load_if_exists=True
+    )
     return study

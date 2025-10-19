@@ -130,6 +130,8 @@ class BasePipeline(ABC):
             names=[DatasetType.TRAIN, DatasetType.VALIDATION, DatasetType.TEST],
             time_col=COL_PUMP_TIME,
         )
+        for ds_type, dataset in datasets.items():
+            logging.info("Dataset %s. Shape %s", ds_type, dataset.shape)
 
         return datasets
 

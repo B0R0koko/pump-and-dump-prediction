@@ -105,7 +105,7 @@ class CatboostClassifierPipeline(BasePipeline):
 def main():
     configure_logging()
     pipe = CatboostClassifierPipeline()
-    pipe.build_model()
+    pipe.optimize_parameters()
 
 
 if __name__ == "__main__":

@@ -100,7 +100,7 @@ class CatboostClassifierSMOTEPipeline(BasePipeline):
         logging.info("Running <optimize_parameters> for CatboostClassifierSMOTEPipeline")
         sample: Sample = self.create_sample()
         study: Study = create_study(study_name="CatboostClassifierSMOTEPipelineStudy")
-        study.optimize(partial(_objective, sample=sample), n_trials=10)
+        study.optimize(partial(_objective, sample=sample), n_trials=20)
         return study
 
     def train(self, sample: Sample, tuned: bool = True) -> CatboostClassifierModel:
@@ -131,7 +131,7 @@ class CatboostClassifierSMOTEPipeline(BasePipeline):
 def main():
     configure_logging()
     pipe = CatboostClassifierSMOTEPipeline()
-    pipe.build_model()
+    pipe.optimize_parameters()
 
 
 if __name__ == "__main__":
