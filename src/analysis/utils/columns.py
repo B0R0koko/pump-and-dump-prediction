@@ -4,5 +4,5 @@ COL_PUMP_ID: str = "pump_id"
 COL_PUMP_TIME: str = "pump_time"
 COL_PUMPED_CURRENCY_PAIR: str = "pumped_currency_pair"
 COL_PROBAS_PRED: str = "probas_pred"
-
 COL_CURRENCY_PAIR: str = "currency_pair"
+COL_ASSET_RETURN_RANK: str = "asset_return_rank"
