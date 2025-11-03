@@ -42,9 +42,22 @@ DECAY_OFFSETS: List[NamedTimeDelta] = [
 ]
 
 
+def compute_number_of_prev_pumps(pump_event: PumpEvent, pump_events: List[PumpEvent]) -> int:
+    """Compute number of times the same currency_pair was pumped before our current PumpEvent"""
+    count: int = 0
+    for pe in pump_events:
+        if pe == pump_event:
+            continue
+        if pe.currency_pair == pump_event.currency_pair and pe.time < pump_event.time:
+            count += 1
+
+    return count
+
+
 class PumpsFeatureWriter:
 
-    def __init__(self):
+    def __init__(self, pump_events: List[PumpEvent]):
+        self._pump_events: List[PumpEvent] = pump_events
         self._hive: pl.LazyFrame = pl.scan_parquet(
             Exchange.BINANCE_SPOT.get_hive_location(), hive_partitioning=True
         )
@@ -112,8 +125,7 @@ class PumpsFeatureWriter:
             CurrencyPair.from_string(symbol=symbol) for symbol in unique_symbols
         ]
 
-    @staticmethod
-    def compute_features(df: pl.DataFrame, pump_event: PumpEvent) -> Dict[str, Any]:
+    def compute_features(self, df: pl.DataFrame, pump_event: PumpEvent) -> Dict[str, Any]:
         features: Dict[str, float] = {}
         window: NamedTimeDelta
 
@@ -168,6 +180,10 @@ class PumpsFeatureWriter:
             }
             features |= values
 
+        features[FeatureType.NUM_TRADES.lower()] = compute_number_of_prev_pumps(
+            pump_event=pump_event, pump_events=self._pump_events
+        )
+
         # Price decay
         for decay_window in DECAY_OFFSETS:
             features[f"target_return@{decay_window.get_slug()}"] = (
@@ -221,16 +237,19 @@ class PumpsFeatureWriter:
         for pump_event in tqdm(pump_events):
             self._write_cross_section(pump_event=pump_event)
 
-    def run_parallel(self, pump_events: List[PumpEvent], cpu_count: int) -> None:
+    def run_parallel(self, cpu_count: int) -> None:
         tqdm.set_lock(RLock())  # for managing output contention
 
         with Pool(
-                processes=cpu_count, initializer=tqdm.set_lock, initargs=(tqdm.get_lock(),), maxtasksperchild=1
+                processes=cpu_count,
+                initializer=tqdm.set_lock,
+                initargs=(tqdm.get_lock(),),
+                maxtasksperchild=1
         ) as pool:
             promises: List[AsyncResult] = []
             i: int = 0
 
-            for pump_event in pump_events:
+            for pump_event in self._pump_events:
                 promises.append(
                     pool.apply_async(
                         partial(
@@ -251,8 +270,8 @@ def main():
     pump_events: List[PumpEvent] = load_pumps(
         path=get_root_dir() / "src/resources/pumps.json"
     )
-    writer = PumpsFeatureWriter()
-    writer.run_parallel(pump_events=pump_events, cpu_count=10)
+    writer = PumpsFeatureWriter(pump_events=pump_events)
+    writer.run_parallel(cpu_count=10)
 
 
 if __name__ == "__main__":

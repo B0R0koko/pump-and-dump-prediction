@@ -108,7 +108,7 @@ class BinanceSpotTrades2Hive:
 
 def run_main():
     bounds: Bounds = Bounds.for_days(
-        date(2022, 1, 1), date(2023, 1, 1)
+        date(2019, 1, 1), date(2025, 10, 1)
     )
     pipe = BinanceSpotTrades2Hive(
         bounds=bounds,

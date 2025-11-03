@@ -16,6 +16,7 @@ class FeatureType(Enum):
     SLIPPAGE_IMBALANCE = auto()
     FLOW_IMBALANCE = auto()
     NUM_TRADES = auto()
+    NUM_PREV_PUMP = auto()
 
     def lower(self) -> str:
         return self.name.lower()
