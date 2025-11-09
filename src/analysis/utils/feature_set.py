@@ -44,8 +44,12 @@ class FeatureSet:
         feature_type: FeatureType
         numeric_features: List[str] = []
 
-        for feature_type in list(FeatureType):
+        features_with_offsets: set[FeatureType] = set(list(FeatureType)) - {FeatureType.NUM_PREV_PUMP}
+
+        for feature_type in features_with_offsets:
             numeric_features.extend(feature_type.col_names(offsets=REGRESSOR_OFFSETS))
+
+        numeric_features.append(FeatureType.NUM_PREV_PUMP.lower())
 
         return cls(
             numeric_features=numeric_features,

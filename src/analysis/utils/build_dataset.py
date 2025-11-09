@@ -6,6 +6,7 @@ import pandas as pd
 from tqdm import tqdm
 
 from analysis.utils.columns import *
+from core.feature_type import FeatureType
 from core.paths import get_root_dir, FEATURE_DIR
 from core.pump_event import PumpEvent
 from core.utils import configure_logging
@@ -52,7 +53,7 @@ def create_dataset() -> pd.DataFrame:
 def main():
     configure_logging()
     df: pd.DataFrame = create_dataset()
-    logging.info("%s", df[COL_PUMP_HASH].nunique())
+    logging.info("%s", df[FeatureType.NUM_PREV_PUMP.lower()].value_counts())
 
 
 if __name__ == "__main__":

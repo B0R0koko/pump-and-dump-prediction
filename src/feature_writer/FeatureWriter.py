@@ -42,13 +42,14 @@ DECAY_OFFSETS: List[NamedTimeDelta] = [
 ]
 
 
-def compute_number_of_prev_pumps(pump_event: PumpEvent, pump_events: List[PumpEvent]) -> int:
+def compute_number_of_prev_pumps(
+        currency_pair: CurrencyPair, pump_event: PumpEvent, pump_events: List[PumpEvent]
+) -> int:
     """Compute number of times the same currency_pair was pumped before our current PumpEvent"""
     count: int = 0
-    for pe in pump_events:
-        if pe == pump_event:
-            continue
-        if pe.currency_pair == pump_event.currency_pair and pe.time < pump_event.time:
+    for prev_pump in pump_events:
+        # if the current currency_pair has been pumped before, and it was done before current cross-section pump time
+        if currency_pair == prev_pump.currency_pair and prev_pump.time < pump_event.time:
             count += 1
 
     return count
@@ -125,7 +126,7 @@ class PumpsFeatureWriter:
             CurrencyPair.from_string(symbol=symbol) for symbol in unique_symbols
         ]
 
-    def compute_features(self, df: pl.DataFrame, pump_event: PumpEvent) -> Dict[str, Any]:
+    def compute_features(self, df: pl.DataFrame, currency_pair: CurrencyPair, pump_event: PumpEvent) -> Dict[str, Any]:
         features: Dict[str, float] = {}
         window: NamedTimeDelta
 
@@ -180,8 +181,8 @@ class PumpsFeatureWriter:
             }
             features |= values
 
-        features[FeatureType.NUM_TRADES.lower()] = compute_number_of_prev_pumps(
-            pump_event=pump_event, pump_events=self._pump_events
+        features[FeatureType.NUM_PREV_PUMP.lower()] = compute_number_of_prev_pumps(
+            currency_pair=currency_pair, pump_event=pump_event, pump_events=self._pump_events
         )
 
         # Price decay
@@ -219,7 +220,7 @@ class PumpsFeatureWriter:
         for currency_pair in currency_pairs:
             df: pl.DataFrame = self.load_data_for_currency_pair(bounds=bounds, currency_pair=currency_pair)
             df = self.preprocess_data_for_currency(df=df)
-            features: Dict[str, Any] = self.compute_features(df=df, pump_event=pump_event)
+            features: Dict[str, Any] = self.compute_features(df=df, currency_pair=currency_pair, pump_event=pump_event)
             features["currency_pair"] = currency_pair.name
             cross_section_features.append(features)
             pbar.update(1)
