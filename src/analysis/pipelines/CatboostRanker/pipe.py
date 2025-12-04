@@ -86,7 +86,7 @@ class CatboostRankerPipeline(BasePipeline):
         logging.info("Running <optimize_parameters> for CatboostRankerPipeline")
         sample: Sample = self.create_sample()
         study: Study = create_study(study_name="CatboostRankerPipelineStudy", start_new=False)
-        study.optimize(partial(_objective, sample=sample), n_trials=20)
+        study.optimize(partial(_objective, sample=sample), n_trials=10)
         return study
 
     def train(self, sample: Sample, tuned: bool = True) -> CatboostRankerModel:

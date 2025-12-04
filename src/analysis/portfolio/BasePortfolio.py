@@ -86,11 +86,13 @@ class PortfolioStats:
 
 class ImplementsPortfolio(ABC):
 
-    def __init__(self, model: ImplementsRank):
+    def __init__(self, model: ImplementsRank, buy_before: timedelta, sell_after: timedelta):
         self.model: ImplementsRank = model
         self._hive: pl.LazyFrame = pl.scan_parquet(
             Exchange.BINANCE_SPOT.get_hive_location(), hive_partitioning=True
         )
+        self._buy_before: timedelta = buy_before
+        self._sell_after: timedelta = sell_after
 
     @abstractmethod
     def create_portfolio(self, cross_section: Dataset) -> Portfolio:
@@ -152,3 +154,11 @@ class ImplementsPortfolio(ABC):
         portfolio: Portfolio = self.create_portfolio(cross_section=cross_section)
         txs: List[Transaction] = self._create_cross_section_transactions(pump=pump, portfolio=portfolio)
         return PortfolioStats(portfolio=portfolio, txs=txs, pump=pump)
+
+    def compute_overall_pnl(self, dataset: Dataset) -> float:
+        """Compute overall pnl for self.model on provided dataset: Dataset"""
+        pnls: List[float] = []
+        for pump in dataset.get_pumps():
+            stats: PortfolioStats = self.evaluate_for_pump(dataset=dataset, pump=pump)
+            pnls.append(stats.pnl)
+        return np.array(pnls).sum()

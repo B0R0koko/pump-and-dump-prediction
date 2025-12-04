@@ -1,6 +1,7 @@
 import logging
 from abc import ABC, abstractmethod
 from datetime import datetime
+from functools import partial
 from typing import List, Dict, Any
 
 import optuna
@@ -8,7 +9,9 @@ import pandas as pd
 from optuna import Study
 from tqdm import tqdm
 
-from analysis.pipelines.BaseModel import BaseModel
+from analysis.pipelines.BaseModel import BaseModel, ImplementsRank
+from analysis.pipelines.study import create_study
+from analysis.portfolio.TOPKPortfolio import portfolio_pnl_objective
 from analysis.utils.build_dataset import create_dataset
 from analysis.utils.columns import COL_IS_PUMPED, COL_CURRENCY_PAIR, COL_PUMPED_CURRENCY_PAIR, COL_PUMP_TIME, \
     COL_PUMP_HASH, COL_PUMP_ID, COL_ASSET_RETURN_RANK
@@ -109,6 +112,10 @@ def add_col_pump_id(df: pd.DataFrame) -> pd.DataFrame:
 
 class BasePipeline(ABC):
 
+    @abstractmethod
+    def create_sample(self) -> Sample:
+        ...
+
     def preprocess_data(self, df: pd.DataFrame) -> pd.DataFrame:
         """Define all data preprocessing steps here"""
         df = add_col_pump_id(df=df)
@@ -151,3 +158,9 @@ class BasePipeline(ABC):
     @abstractmethod
     def optimize_parameters(self):
         ...
+
+    def optimize_portfolio_strategy(self) -> None:
+        sample: Sample = self.create_sample()
+        model: ImplementsRank = self.train(sample=sample)
+        study: Study = create_study(study_name="TOPKPortfolioStrategy", start_new=True)
+        study.optimize(partial(portfolio_pnl_objective, model=model, sample=sample), n_trials=10)

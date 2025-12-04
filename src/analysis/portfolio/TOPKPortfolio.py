@@ -1,22 +1,31 @@
 import logging
 from datetime import timedelta
+from functools import partial
 from typing import List
 
 import numpy as np
 import pandas as pd
+from optuna import Trial, Study
 
 from analysis.pipelines.BaseModel import ImplementsRank
+from analysis.pipelines.study import create_study
 from analysis.portfolio.BasePortfolio import ImplementsPortfolio, Portfolio, Transaction
 from analysis.utils.columns import COL_PROBAS_PRED, COL_CURRENCY_PAIR
-from analysis.utils.sample import Dataset
+from analysis.utils.sample import Dataset, Sample, DatasetType
 from core.currency_pair import CurrencyPair
 from core.pump_event import PumpEvent
 
 
 class TOPKPortfolio(ImplementsPortfolio):
 
-    def __init__(self, model: ImplementsRank, portfolio_size: int):
-        super().__init__(model=model)
+    def __init__(
+            self,
+            model: ImplementsRank,
+            portfolio_size: int,
+            buy_before: timedelta = timedelta(minutes=15),
+            sell_after: timedelta = timedelta(minutes=1)
+    ):
+        super().__init__(model=model, buy_before=buy_before, sell_after=sell_after)
         self.portfolio_size: int = portfolio_size
 
     def create_portfolio(self, cross_section: Dataset) -> Portfolio:
@@ -38,7 +47,7 @@ class TOPKPortfolio(ImplementsPortfolio):
 
     def regular_transaction(self, ts_price: pd.Series, pump: PumpEvent, cp: CurrencyPair) -> Transaction:
         assert ts_price.index.is_monotonic_increasing
-        entry: pd.Series = ts_price[ts_price.index <= pump.time - timedelta(minutes=15)]
+        entry: pd.Series = ts_price[ts_price.index <= pump.time - self._buy_before]
         exit: pd.Series = ts_price[ts_price.index >= pump.time]
 
         if entry.empty or exit.empty:
@@ -58,8 +67,8 @@ class TOPKPortfolio(ImplementsPortfolio):
 
     def pumped_transaction(self, ts_price: pd.Series, pump: PumpEvent, cp: CurrencyPair) -> Transaction:
         assert ts_price.index.is_monotonic_increasing
-        entry: pd.Series = ts_price[ts_price.index <= pump.time - timedelta(minutes=15)]
-        exit: pd.Series = ts_price[ts_price.index >= pump.time + timedelta(minutes=1)]
+        entry: pd.Series = ts_price[ts_price.index <= pump.time - self._buy_before]
+        exit: pd.Series = ts_price[ts_price.index >= pump.time + self._sell_after]
 
         if entry.empty or exit.empty:
             logging.info("No data to get prices for %s", cp.name)
@@ -75,3 +84,16 @@ class TOPKPortfolio(ImplementsPortfolio):
             entry_ts=entry_ts,
             exit_ts=exit_ts
         )
+
+
+def portfolio_pnl_objective(trial: Trial, model: ImplementsRank, sample: Sample) -> float:
+    buy_before_minutes: int = trial.suggest_categorical("buy_before", choices=[1, 2, 3, 5, 10, 15, 30, 60])
+    sell_after_minutes: int = trial.suggest_categorical("sell_after", choices=[1, 2, 3, 5, 10, 15])
+    portfolio_size: int = trial.suggest_categorical("portfolio_size", choices=[1, 2, 3, 5, 10, 15, 20, 30, 50])
+    manager = TOPKPortfolio(
+        model=model,
+        portfolio_size=portfolio_size,
+        buy_before=timedelta(minutes=buy_before_minutes),
+        sell_after=timedelta(minutes=sell_after_minutes)
+    )
+    return manager.compute_overall_pnl(dataset=sample.get_dataset(ds_type=DatasetType.TEST))

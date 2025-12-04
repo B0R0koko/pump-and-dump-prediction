@@ -79,8 +79,8 @@ class LogisticRegressionPipeline(BasePipeline):
     def optimize_parameters(self) -> Study:
         logging.info("Running <optimize_parameters> for LogisticRegressionPipeline")
         sample: Sample = self.create_sample()
-        study: Study = create_study(study_name="LogisticRegressionPipelineStudy")
-        study.optimize(partial(_objective, sample=sample), n_trials=20)
+        study: Study = create_study(study_name="LogisticRegressionPipelineStudy", start_new=False)
+        study.optimize(partial(_objective, sample=sample), n_trials=30)
         return study
 
     def train(self, sample: Sample, tuned: bool = True) -> LogisticRegressionModel:
