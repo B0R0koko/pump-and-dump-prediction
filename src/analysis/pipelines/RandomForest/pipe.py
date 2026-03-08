@@ -60,8 +60,8 @@ class RandomForestPipeline(BasePipeline):
     def optimize_parameters(self):
         logging.info("Running <optimize_parameters> for RandomForestPipeline")
         sample: Sample = self.create_sample()
-        study: Study = create_study(study_name="RandomForestPipelineStudy", start_new=False)
-        study.optimize(partial(_objective, sample=sample), n_trials=10)
+        study: Study = create_study(study_name="RandomForestPipelineStudy", start_new=True)
+        study.optimize(partial(_objective, sample=sample), n_trials=20)
 
     def train(self, sample: Sample, tuned: bool = True) -> RandomForestModel:
         model_params: Dict[str, Any] = _BASE_PARAMS
@@ -87,4 +87,4 @@ class RandomForestPipeline(BasePipeline):
 if __name__ == "__main__":
     configure_logging()
     pipeline = RandomForestPipeline()
-    pipeline.optimize_portfolio_strategy()
+    pipeline.optimize_parameters()

@@ -1,4 +1,4 @@
-from typing import Dict, Iterable
+from typing import Dict, Iterable, Literal
 
 import numpy as np
 import pandas as pd
@@ -6,6 +6,7 @@ import pandas as pd
 from analysis.pipelines.BaseModel import ImplementsRank
 from analysis.utils.columns import COL_PROBAS_PRED, COL_PUMP_HASH, COL_IS_PUMPED
 from analysis.utils.sample import Dataset
+from sklearn.metrics import auc, precision_recall_curve, f1_score, balanced_accuracy_score
 
 
 def calculate_topk(model: ImplementsRank, dataset: Dataset, bins: Iterable[float]) -> pd.Series:
@@ -60,9 +61,6 @@ def calculate_topk_percent(model: ImplementsRank, dataset: Dataset, bins: Iterab
     return pd.Series(data=counts / num_pumped, index=bins)
 
 
-from sklearn.metrics import auc
-
-
 def calculate_topk_percent_auc(model: ImplementsRank, dataset: Dataset) -> float:
     """
     :return: If we iterate over all percentages from (0, 1) and compute TOPK% accuracy for each, we can measure overall
@@ -70,3 +68,65 @@ def calculate_topk_percent_auc(model: ImplementsRank, dataset: Dataset) -> float
     """
     topk_percentages: pd.Series = calculate_topk_percent(model=model, dataset=dataset, bins=np.arange(0, 1.01, 0.005))
     return auc(x=topk_percentages.index, y=topk_percentages.values)
+
+
+def _with_scores(model: ImplementsRank, dataset: Dataset) -> pd.DataFrame:
+    scores: np.ndarray = model.rank(dataset=dataset)
+    # Ensure positional numpy indexing remains valid even when input dataframe has
+    # non-contiguous or non-zero-based index values.
+    df_scored: pd.DataFrame = dataset.all_data().copy().reset_index(drop=True)
+    df_scored[COL_PROBAS_PRED] = scores
+    return df_scored
+
+
+def _predict_labels(
+    df_scored: pd.DataFrame,
+    decision_rule: Literal["top1_per_cross_section", "threshold"],
+    threshold: float,
+) -> np.ndarray:
+    if decision_rule == "top1_per_cross_section":
+        pred_labels = np.zeros(df_scored.shape[0], dtype=int)
+        top_indices: np.ndarray = (
+            df_scored.groupby(COL_PUMP_HASH, sort=False)[COL_PROBAS_PRED].idxmax().to_numpy(dtype=int)
+        )
+        pred_labels[top_indices] = 1
+        return pred_labels
+
+    if decision_rule == "threshold":
+        return (df_scored[COL_PROBAS_PRED].to_numpy() >= threshold).astype(int)
+
+    raise ValueError(f"Unknown decision_rule={decision_rule}")
+
+
+def calculate_f1(
+    model: ImplementsRank,
+    dataset: Dataset,
+    decision_rule: Literal["top1_per_cross_section", "threshold"] = "top1_per_cross_section",
+    threshold: float = 0.5,
+) -> float:
+    df_scored: pd.DataFrame = _with_scores(model=model, dataset=dataset)
+    y_true: np.ndarray = df_scored[COL_IS_PUMPED].to_numpy(dtype=int)
+    y_pred: np.ndarray = _predict_labels(df_scored=df_scored, decision_rule=decision_rule, threshold=threshold)
+    return float(f1_score(y_true=y_true, y_pred=y_pred, zero_division=0))
+
+
+def calculate_balanced_accuracy(
+    model: ImplementsRank,
+    dataset: Dataset,
+    decision_rule: Literal["top1_per_cross_section", "threshold"] = "top1_per_cross_section",
+    threshold: float = 0.5,
+) -> float:
+    df_scored: pd.DataFrame = _with_scores(model=model, dataset=dataset)
+    y_true: np.ndarray = df_scored[COL_IS_PUMPED].to_numpy(dtype=int)
+    y_pred: np.ndarray = _predict_labels(df_scored=df_scored, decision_rule=decision_rule, threshold=threshold)
+    return float(balanced_accuracy_score(y_true=y_true, y_pred=y_pred))
+
+
+def calculate_pr_auc(model: ImplementsRank, dataset: Dataset) -> float:
+    df_scored: pd.DataFrame = _with_scores(model=model, dataset=dataset)
+    y_true: np.ndarray = df_scored[COL_IS_PUMPED].to_numpy(dtype=int)
+    y_score: np.ndarray = df_scored[COL_PROBAS_PRED].to_numpy(dtype=float)
+    precision: np.ndarray
+    recall: np.ndarray
+    precision, recall, _ = precision_recall_curve(y_true=y_true, y_score=y_score)
+    return float(auc(x=recall, y=precision))

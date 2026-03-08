@@ -1,4 +1,6 @@
 import logging
+import os
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import List
 
@@ -13,7 +15,25 @@ from core.utils import configure_logging
 from feature_writer.utils import load_pumps
 
 
-def create_dataset() -> pd.DataFrame:
+def _read_cross_section(pump: PumpEvent) -> tuple[PumpEvent, pd.DataFrame | None]:
+    cross_section_path: Path = FEATURE_DIR / "pumps" / f"{str(pump)}.parquet"
+
+    if not cross_section_path.exists():
+        return pump, None
+
+    df_cross_section: pd.DataFrame = pd.read_parquet(cross_section_path)
+
+    if not (df_cross_section[COL_CURRENCY_PAIR] == pump.currency_pair.name).any():
+        return pump, None
+
+    # Add additional columns
+    df_cross_section[COL_PUMP_HASH] = str(pump)
+    df_cross_section[COL_PUMP_TIME] = pump.time
+    df_cross_section[COL_PUMPED_CURRENCY_PAIR] = pump.currency_pair.name
+    return pump, df_cross_section
+
+
+def create_dataset(max_workers: int | None = None) -> pd.DataFrame:
     """
     Builds dataset using features computed by feature writer
     """
@@ -24,29 +44,17 @@ def create_dataset() -> pd.DataFrame:
     dfs: List[pd.DataFrame] = []
     skipped_pumps: List[PumpEvent] = []
 
-    for pump in tqdm(pump_events, desc="Building dataset"):
-        cross_section_path: Path = FEATURE_DIR / "pumps" / f"{str(pump)}.parquet"
+    workers: int = max_workers or min(32, max(4, (os.cpu_count() or 1) * 2))
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        iterator = executor.map(_read_cross_section, pump_events)
+        for pump, df_cross_section in tqdm(iterator, total=len(pump_events), desc="Building dataset"):
+            if df_cross_section is None:
+                skipped_pumps.append(pump)
+                continue
+            dfs.append(df_cross_section)
 
-        if not cross_section_path.exists():
-            skipped_pumps.append(pump)
-            continue
-
-        df_cross_section: pd.DataFrame = pd.read_parquet(cross_section_path)
-
-        if not (df_cross_section[COL_CURRENCY_PAIR] == pump.currency_pair.name).any():
-            skipped_pumps.append(pump)
-            continue
-
-        # Add additional columns
-        df_cross_section[COL_PUMP_HASH] = str(pump)
-        df_cross_section[COL_PUMP_TIME] = pump.time
-        df_cross_section[COL_PUMPED_CURRENCY_PAIR] = pump.currency_pair.name
-
-        dfs.append(df_cross_section)
-
-    df: pd.DataFrame = pd.concat(dfs)
-    df = df.reset_index(drop=True)
-    logging.warn("No data present for %s pumps", len(skipped_pumps))
+    df: pd.DataFrame = pd.concat(dfs, ignore_index=True)
+    logging.warning("No data present for %s pumps", len(skipped_pumps))
     return df
 
 

@@ -16,7 +16,7 @@ from preprocessing.pipelines.binance_spot_trades_to_hive import BinanceSpotTrade
 def test_binance_spot_trades_to_hive() -> None:
     """
     This test makes sure that the way HiveDataset is created matches the result produced by simply unpacking a csv file
-    and reading it with pandas, we simply compare shapes of two dataframes
+    and reading it with pandas; we simply compare shapes of two dataframes
     """
     configure_logging()
     day: date = date(2021, 6, 16)

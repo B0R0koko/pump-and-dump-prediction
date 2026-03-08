@@ -9,7 +9,7 @@ import polars as pl
 
 from analysis.pipelines.BaseModel import ImplementsRank
 from analysis.utils.sample import Dataset
-from core.columns import SYMBOL, DATE, TRADE_TIME, PRICE
+from core.columns import SYMBOL, DATE, TRADE_TIME, PRICE, QUANTITY, IS_BUYER_MAKER
 from core.currency_pair import CurrencyPair
 from core.exchange import Exchange
 from core.pump_event import PumpEvent
@@ -36,11 +36,17 @@ class Transaction:
     exit_price: Optional[float] = None
     entry_ts: Optional[datetime] = None
     exit_ts: Optional[datetime] = None
+    intended_notional_quote: Optional[float] = None
+    entry_filled_notional_quote: Optional[float] = None
+    exit_filled_notional_quote: Optional[float] = None
+    entry_impact_bps: float = 0.0
+    exit_impact_bps: float = 0.0
+    fill_ratio: float = 1.0
 
     @property
     def transaction_return(self) -> float:
         assert self.entry_price is not None and self.exit_price is not None
-        return self.exit_price / self.entry_price - 1 - 0.002
+        return (self.exit_price / self.entry_price - 1 - 0.002) * self.fill_ratio
 
     @classmethod
     def empty(cls, currency_pair: CurrencyPair) -> "Transaction":
@@ -100,19 +106,24 @@ class ImplementsPortfolio(ABC):
 
     def load_price_ts(self, bounds: Bounds, currency_pair: CurrencyPair) -> pd.Series:
         """Loads price time series for a given currency pair"""
-        data: pd.DataFrame = (
+        data: pd.DataFrame = self.load_trades(bounds=bounds, currency_pair=currency_pair)
+        return pd.Series(data=data[PRICE].values, index=data[TRADE_TIME])
+
+    def load_trades(self, bounds: Bounds, currency_pair: CurrencyPair) -> pd.DataFrame:
+        """Loads raw trades for a given currency pair and time bounds"""
+        return (
             self._hive
             .filter(
                 (pl.col(SYMBOL) == currency_pair.name) &
                 (pl.col(DATE).is_between(bounds.day0, bounds.day1)) &
-                (pl.col(TRADE_TIME).is_between(bounds.start_inclusive, bounds.end_exclusive))
+                (pl.col(TRADE_TIME) >= bounds.start_inclusive) &
+                (pl.col(TRADE_TIME) < bounds.end_exclusive)
             )
             .collect()
             .sort(by=TRADE_TIME)
-            .select([TRADE_TIME, PRICE])
+            .select([TRADE_TIME, PRICE, QUANTITY, IS_BUYER_MAKER])
             .to_pandas()
         )
-        return pd.Series(data=data[PRICE].values, index=data[TRADE_TIME])
 
     @abstractmethod
     def regular_transaction(self, ts_price: pd.Series, pump: PumpEvent, cp: CurrencyPair) -> Transaction:
@@ -146,7 +157,7 @@ class ImplementsPortfolio(ABC):
 
     def evaluate_for_pump(self, dataset: Dataset, pump: PumpEvent) -> PortfolioStats:
         """
-        :params cross_section: cross-section dataframe containing all features needed for model to make predictions
+        :params cross_section: a cross-section dataframe containing all features needed for model to make predictions
         :params pump: pump event of the current cross-section
         :returns: return of the portfolio selected by the model and corresponding portfolio
         """

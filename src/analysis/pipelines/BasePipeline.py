@@ -7,7 +7,6 @@ from typing import List, Dict, Any
 import optuna
 import pandas as pd
 from optuna import Study
-from tqdm import tqdm
 
 from analysis.pipelines.BaseModel import BaseModel, ImplementsRank
 from analysis.pipelines.study import create_study
@@ -22,6 +21,28 @@ from core.paths import SQLITE_URL
 from core.time_utils import NamedTimeDelta
 from feature_writer.FeatureWriter import REGRESSOR_OFFSETS
 
+_RAW_DATASET_CACHE: pd.DataFrame | None = None
+_PREPROCESSED_DATASETS_CACHE: Dict[str, Dict[DatasetType, pd.DataFrame]] = {}
+
+
+def _copy_datasets(datasets: Dict[DatasetType, pd.DataFrame]) -> Dict[DatasetType, pd.DataFrame]:
+    return {ds_type: dataset.copy(deep=True) for ds_type, dataset in datasets.items()}
+
+
+def _get_raw_dataset_cached() -> pd.DataFrame:
+    global _RAW_DATASET_CACHE
+
+    if _RAW_DATASET_CACHE is None:
+        logging.info("Building raw dataset from feature files")
+        _RAW_DATASET_CACHE = create_dataset()
+        _RAW_DATASET_CACHE[COL_IS_PUMPED] = (
+            _RAW_DATASET_CACHE[COL_CURRENCY_PAIR] == _RAW_DATASET_CACHE[COL_PUMPED_CURRENCY_PAIR]
+        )
+    else:
+        logging.info("Using cached raw dataset")
+
+    return _RAW_DATASET_CACHE.copy(deep=True)
+
 
 def cross_section_standardisation(df: pd.DataFrame) -> pd.DataFrame:
     asset_return_cols: List[str] = FeatureType.ASSET_RETURN.col_names(offsets=REGRESSOR_OFFSETS)
@@ -30,46 +51,37 @@ def cross_section_standardisation(df: pd.DataFrame) -> pd.DataFrame:
     powerlaw_cols: List[str] = FeatureType.POWERLAW_ALPHA.col_names(offsets=REGRESSOR_OFFSETS)
 
     cols_to_scale: List[str] = asset_return_cols + asset_return_zscore_cols + quote_abs_zscore_cols + powerlaw_cols
-    dfs: List[pd.DataFrame] = []
+    grouped = df.groupby(COL_PUMP_ID, sort=False)[cols_to_scale]
+    means: pd.DataFrame = grouped.transform("mean")
+    stds: pd.DataFrame = grouped.transform("std")
+    nuniques: pd.DataFrame = grouped.transform("nunique")
+    scaled: pd.DataFrame = (df[cols_to_scale] - means) / stds
+    apply_scaling: pd.DataFrame = nuniques != 1
 
-    for pump_hash, df_cross_section in tqdm(
-            df.groupby(COL_PUMP_ID, sort=False), total=df[COL_PUMP_ID].nunique(),
-            desc="Applying cross section standardisation",
-    ):
-        df_cross_section = df_cross_section.reset_index(drop=True)
-        # Apply cross-sectional standardisation
-        for col in cols_to_scale:
-            # check that X is not const, otherwise we will have nans in our data
-            if df_cross_section[col].nunique() == 1:
-                continue
-            df_cross_section[col] = (df_cross_section[col] - df_cross_section[col].mean()) / df_cross_section[col].std()
-
-        dfs.append(df_cross_section)
-
-    return pd.concat(dfs).reset_index(drop=True)
+    df_scaled: pd.DataFrame = df.copy()
+    df_scaled[cols_to_scale] = df[cols_to_scale].where(~apply_scaling, scaled)
+    return df_scaled
 
 
 def remove_failed_pump_cross_sections(df: pd.DataFrame) -> pd.DataFrame:
     logging.info("Removing failed pump cross sections")
     target_return_col: str = f"target_return@{NamedTimeDelta.ONE_MINUTE.get_slug()}"
+    df = df.copy()
     df[COL_ASSET_RETURN_RANK] = (
         df.groupby(COL_PUMP_ID, sort=False)[target_return_col].rank(ascending=False, method="dense")
     )
-    df_cross_sections: List[pd.DataFrame] = []
-    pumps_removed: int = 0
+    pumped_rows: pd.DataFrame = df.loc[df[COL_IS_PUMPED], [COL_PUMP_HASH, COL_ASSET_RETURN_RANK]]
+    assert pumped_rows[COL_PUMP_HASH].is_unique, "Found many pumps within one cross-section"
 
-    for pump_hash, df_cross_section in df.groupby(COL_PUMP_HASH, sort=False):
-        pump: pd.Series = df_cross_section.loc[df_cross_section[COL_IS_PUMPED], COL_ASSET_RETURN_RANK]
-        assert len(pump) == 1, "Found many pumps within one cross-section"
-        pump_rank: int = pump.iloc[0]
-        # if pump is not even in top-10 based on returns, then it is a failed pump, and we should remove it from
-        # our analysis
-        if pump_rank >= 10:
-            pumps_removed += 1
-            continue
-        df_cross_sections.append(df_cross_section)
+    # Keep NaN ranks for parity with the previous implementation:
+    # the old `pump_rank >= 10` check did not remove NaN-ranked pumps.
+    valid_mask: pd.Series = pumped_rows[COL_ASSET_RETURN_RANK].isna() | (
+        pumped_rows[COL_ASSET_RETURN_RANK] < 10
+    )
+    valid_pumps: pd.Series = pumped_rows.loc[valid_mask, COL_PUMP_HASH]
+    pumps_removed: int = pumped_rows.shape[0] - valid_pumps.shape[0]
 
-    df = pd.concat(df_cross_sections).reset_index(drop=True).drop(columns=[COL_ASSET_RETURN_RANK])
+    df = df[df[COL_PUMP_HASH].isin(valid_pumps)].reset_index(drop=True).drop(columns=[COL_ASSET_RETURN_RANK])
 
     if pumps_removed > 0:
         logging.warning("Removed %s failed pumps", pumps_removed)
@@ -79,28 +91,16 @@ def remove_failed_pump_cross_sections(df: pd.DataFrame) -> pd.DataFrame:
 
 def fillna_with_median_by_cross_section(df: pd.DataFrame, feature_set: FeatureSet) -> pd.DataFrame:
     """Group by PUMP_HASH and fill missing values with cross-section median values"""
-    dfs: List[pd.DataFrame] = []
-    global_medians: pd.Series = df[feature_set.regressors].median()  # -> median values for the features
+    regressors: List[str] = feature_set.regressors
+    global_medians: pd.Series = df[regressors].median()
+    cross_section_medians: pd.DataFrame = df.groupby(COL_PUMP_HASH, sort=False)[regressors].transform("median")
 
-    for pump_hash, df_cross_section in tqdm(
-            df.groupby(COL_PUMP_HASH), desc="Filling missing values with cross-sectional medians"
-    ):
-        # Fill regressors and numeric target with median value
-        for col in feature_set.regressors:
-            # if we don't have any data for the feature within the current cross-section, then fill missing values
-            # with global median
-            if df_cross_section[col].isna().all():
-                df_cross_section[col] = df_cross_section[col].fillna(global_medians.loc[col])
-            # Otherwise fill with cross-sectional median
-            else:
-                df_cross_section[col] = df_cross_section[col].fillna(df_cross_section[col].median())
+    df_nonans: pd.DataFrame = df.copy()
+    df_nonans[regressors] = df_nonans[regressors].fillna(cross_section_medians).fillna(global_medians)
 
-        dfs.append(df_cross_section)
-
-    df_nonans: pd.DataFrame = pd.concat(dfs).reset_index(drop=True)
     logging.info(
         "Nans\n%s",
-        df_nonans[feature_set.regressors].isna().sum().sort_values(ascending=False)
+        df_nonans[regressors].isna().sum().sort_values(ascending=False)
     )
     return df_nonans
 
@@ -126,10 +126,13 @@ class BasePipeline(ABC):
         return df_scaled
 
     def build_datasets(self) -> Dict[DatasetType, pd.DataFrame]:
-        logging.info("Building dataset and preprocessing data")
-        df: pd.DataFrame = create_dataset()
-        df[COL_IS_PUMPED] = df[COL_CURRENCY_PAIR] == df[COL_PUMPED_CURRENCY_PAIR]  # attach binary target
+        cache_key: str = self.__class__.__name__
+        if cache_key in _PREPROCESSED_DATASETS_CACHE:
+            logging.info("Using cached preprocessed datasets for %s", cache_key)
+            return _copy_datasets(_PREPROCESSED_DATASETS_CACHE[cache_key])
 
+        logging.info("Building dataset and preprocessing data")
+        df: pd.DataFrame = _get_raw_dataset_cached()
         df = self.preprocess_data(df=df)
         datasets: Dict[DatasetType, pd.DataFrame] = split_by_time(
             df=df,
@@ -140,7 +143,8 @@ class BasePipeline(ABC):
         for ds_type, dataset in datasets.items():
             logging.info("Dataset %s. Shape %s", ds_type, dataset.shape)
 
-        return datasets
+        _PREPROCESSED_DATASETS_CACHE[cache_key] = _copy_datasets(datasets)
+        return _copy_datasets(datasets)
 
     def get_model_params(self, base_params: Dict[str, Any], study_name: str) -> Dict[str, Any]:
         logging.info("Loading parameters from %s", study_name)
@@ -162,5 +166,5 @@ class BasePipeline(ABC):
     def optimize_portfolio_strategy(self) -> None:
         sample: Sample = self.create_sample()
         model: ImplementsRank = self.train(sample=sample)
-        study: Study = create_study(study_name="TOPKPortfolioStrategy", start_new=True)
-        study.optimize(partial(portfolio_pnl_objective, model=model, sample=sample), n_trials=10)
+        study: Study = create_study(study_name="TOPKPortfolioStrategy", start_new=False)
+        study.optimize(partial(portfolio_pnl_objective, model=model, sample=sample), n_trials=20)

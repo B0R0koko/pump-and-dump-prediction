@@ -157,7 +157,7 @@ class CatboostClassifierTOPKAUCPipeline(BasePipeline):
     def optimize_parameters(self) -> Study:
         logging.info("Running <optimize_parameters> for CatboostClassifierTOPKAUCPipeline")
         sample: Sample = self.create_sample()
-        study: Study = create_study(study_name="CatboostClassifierTOPKAUCPipeline", start_new=False)
+        study: Study = create_study(study_name="CatboostClassifierTOPKAUCPipeline", start_new=True)
         study.optimize(partial(_objective, sample=sample), n_trials=100)
         return study
 

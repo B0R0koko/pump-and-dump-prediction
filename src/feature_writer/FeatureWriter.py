@@ -1,4 +1,5 @@
 import os
+from bisect import bisect_left
 from datetime import datetime
 from functools import partial
 from multiprocessing import Pool, RLock
@@ -9,7 +10,7 @@ from typing import List, Dict, Optional, Any
 from tqdm import tqdm
 
 from core.columns import SYMBOL, TRADE_TIME, DATE, IS_BUYER_MAKER, PRICE, QUANTITY
-from core.currency_pair import CurrencyPair
+from core.currency_pair import CurrencyPair, get_cross_section_currencies
 from core.exchange import Exchange
 from core.paths import FEATURE_DIR, get_root_dir
 from core.pump_event import PumpEvent
@@ -55,10 +56,25 @@ def compute_number_of_prev_pumps(
     return count
 
 
+def get_currency_pairs(bounds: Bounds) -> List[CurrencyPair]:
+    # Reading partition directories is much faster than scanning parquet data to list symbols.
+    return [
+        currency_pair for currency_pair in get_cross_section_currencies(
+            hive_dir=Exchange.BINANCE_SPOT.get_hive_location(),
+            bounds=bounds,
+        )
+        if currency_pair.term == "BTC"
+    ]
+
+
 class PumpsFeatureWriter:
 
     def __init__(self, pump_events: List[PumpEvent]):
         self._pump_events: List[PumpEvent] = pump_events
+        self._pump_times_by_currency: Dict[str, List[datetime]] = {}
+        for pump_event in sorted(self._pump_events, key=lambda event: event.time):
+            self._pump_times_by_currency.setdefault(pump_event.currency_pair.name, []).append(pump_event.time)
+
         self._hive: pl.LazyFrame = pl.scan_parquet(
             Exchange.BINANCE_SPOT.get_hive_location(), hive_partitioning=True
         )
@@ -85,7 +101,6 @@ class PumpsFeatureWriter:
 
     def preprocess_data_for_currency(self, df: pl.DataFrame) -> pl.DataFrame:
         """Preprocess data loaded from the hive"""
-        df = df.sort(by=TRADE_TIME, descending=False)
         df = df.with_columns(
             quote_abs=pl.col(PRICE) * pl.col(QUANTITY),
             side=self.side_expr(),
@@ -111,23 +126,12 @@ class PumpsFeatureWriter:
         )
         return df_trades
 
-    def get_currency_pairs(self, bounds: Bounds) -> List[CurrencyPair]:
-        # Get the set of symbols that have data
-        unique_symbols: List[str] = pl.Series(
-            self._hive.filter(
-                pl.col(DATE).is_between(bounds.day0, bounds.day1) &
-                pl.col(TRADE_TIME).is_between(bounds.start_inclusive, bounds.end_exclusive) &
-                pl.col(SYMBOL).str.ends_with("BTC")
-            )
-            .select(SYMBOL).unique().collect()
-        ).to_list()
-
-        return [
-            CurrencyPair.from_string(symbol=symbol) for symbol in unique_symbols
-        ]
+    def _num_prev_pumps(self, currency_pair: CurrencyPair, pump_event: PumpEvent) -> int:
+        pump_times: List[datetime] = self._pump_times_by_currency.get(currency_pair.name, [])
+        return bisect_left(pump_times, pump_event.time)
 
     def compute_features(self, df: pl.DataFrame, currency_pair: CurrencyPair, pump_event: PumpEvent) -> Dict[str, Any]:
-        features: Dict[str, float] = {}
+        features: Dict[str, Any] = {}
         window: NamedTimeDelta
 
         df_hourly: pl.DataFrame = (
@@ -150,39 +154,39 @@ class PumpsFeatureWriter:
 
         for window in REGRESSOR_OFFSETS:
             # Compute using data 1 hour prior to the pump
-            df_filtered: pl.DataFrame = df.filter(pl.col(TRADE_TIME).is_between(rb - window.get_td(), rb))
-            df_hourly_filtered: pl.DataFrame = df_hourly.filter(pl.col(TRADE_TIME).is_between(rb - window.get_td(), rb))
+            lb: datetime = rb - window.get_td()
+            df_filtered: pl.DataFrame = df.filter(pl.col(TRADE_TIME).is_between(lb, rb))
+            df_hourly_filtered: pl.DataFrame = df_hourly.filter(pl.col(TRADE_TIME).is_between(lb, rb))
+
+            window_values: Dict[str, Any] = df_filtered.select(
+                compute_return().alias("asset_return"),
+                compute_share_of_long_trades().alias("share_of_long_trades"),
+                compute_powerlaw_alpha().alias("powerlaw_alpha"),
+                compute_slippage_imbalance().alias("slippage_imbalance"),
+                compute_flow_imbalance().alias("flow_imbalance"),
+                compute_num_trades().alias("num_trades"),
+            ).to_dicts()[0]
+            hourly_values: Dict[str, Any] = df_hourly_filtered.select(
+                compute_asset_return_zscore(asset_return_std=asset_return_std).alias("asset_return_zscore"),
+                compute_quote_abs_zscore(quote_abs_mean=quote_abs_mean, quote_abs_std=quote_abs_std).alias(
+                    "quote_abs_zscore"
+                ),
+            ).to_dicts()[0]
 
             values: Dict[str, float] = {
-                # Asset return
-                FeatureType.ASSET_RETURN.col_name(offset=window): df_filtered.select(compute_return()).item(),
-                # Asset return zscore
-                FeatureType.ASSET_RETURN_ZSCORE.col_name(offset=window): df_hourly_filtered.select(
-                    compute_asset_return_zscore(asset_return_std=asset_return_std)
-                ).item(),
-                # Quote abs zscore
-                FeatureType.QUOTE_ABS_ZSCORE.col_name(offset=window): df_hourly_filtered.select(
-                    compute_quote_abs_zscore(quote_abs_mean=quote_abs_mean, quote_abs_std=quote_abs_std)
-                ).item(),
-                # Share of long trades
-                FeatureType.SHARE_OF_LONG_TRADES.col_name(offset=window): df_filtered.select(
-                    compute_share_of_long_trades()).item(),
-                # Powerlaw alpha
-                FeatureType.POWERLAW_ALPHA.col_name(offset=window): df_filtered.select(
-                    compute_powerlaw_alpha()).item(),
-                # Slippage imbalance
-                FeatureType.SLIPPAGE_IMBALANCE.col_name(offset=window): df_filtered.select(
-                    compute_slippage_imbalance()).item(),
-                # Flow imbalance
-                FeatureType.FLOW_IMBALANCE.col_name(offset=window): df_filtered.select(
-                    compute_flow_imbalance()).item(),
-                # Num trades
-                FeatureType.NUM_TRADES.col_name(offset=window): df_filtered.select(compute_num_trades()).item(),
+                FeatureType.ASSET_RETURN.col_name(offset=window): window_values["asset_return"],
+                FeatureType.ASSET_RETURN_ZSCORE.col_name(offset=window): hourly_values["asset_return_zscore"],
+                FeatureType.QUOTE_ABS_ZSCORE.col_name(offset=window): hourly_values["quote_abs_zscore"],
+                FeatureType.SHARE_OF_LONG_TRADES.col_name(offset=window): window_values["share_of_long_trades"],
+                FeatureType.POWERLAW_ALPHA.col_name(offset=window): window_values["powerlaw_alpha"],
+                FeatureType.SLIPPAGE_IMBALANCE.col_name(offset=window): window_values["slippage_imbalance"],
+                FeatureType.FLOW_IMBALANCE.col_name(offset=window): window_values["flow_imbalance"],
+                FeatureType.NUM_TRADES.col_name(offset=window): window_values["num_trades"],
             }
             features |= values
 
-        features[FeatureType.NUM_PREV_PUMP.lower()] = compute_number_of_prev_pumps(
-            currency_pair=currency_pair, pump_event=pump_event, pump_events=self._pump_events
+        features[FeatureType.NUM_PREV_PUMP.lower()] = self._num_prev_pumps(
+            currency_pair=currency_pair, pump_event=pump_event
         )
 
         # Price decay
@@ -202,7 +206,7 @@ class PumpsFeatureWriter:
             end_exclusive=pump_event.time + timedelta(hours=1),
         )
         pbar = tqdm(desc=f"Loading currency_pairs", position=2 + position, leave=False)
-        currency_pairs: List[CurrencyPair] = self.get_currency_pairs(bounds=bounds)
+        currency_pairs: List[CurrencyPair] = get_currency_pairs(bounds=bounds)
 
         if len(currency_pairs) == 0:
             pbar.set_description(f"Error: no currencies in the cross-section of the pump {str(pump_event)}")
@@ -245,7 +249,6 @@ class PumpsFeatureWriter:
                 processes=cpu_count,
                 initializer=tqdm.set_lock,
                 initargs=(tqdm.get_lock(),),
-                maxtasksperchild=1
         ) as pool:
             promises: List[AsyncResult] = []
             i: int = 0
@@ -265,12 +268,14 @@ class PumpsFeatureWriter:
             for p in tqdm(promises, desc="Overall progress", position=0):
                 p.get()
 
+    @property
+    def pump_times_by_currency(self):
+        return self._pump_times_by_currency
+
 
 def main():
     configure_logging()
-    pump_events: List[PumpEvent] = load_pumps(
-        path=get_root_dir() / "src/resources/pumps.json"
-    )
+    pump_events: List[PumpEvent] = load_pumps(path=get_root_dir() / "src/resources/pumps.json")
     writer = PumpsFeatureWriter(pump_events=pump_events)
     writer.run_parallel(cpu_count=10)
 
