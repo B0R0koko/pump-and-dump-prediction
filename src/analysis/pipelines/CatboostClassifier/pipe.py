@@ -23,7 +23,7 @@ _BASE_PARAMS: Dict[str, Any] = {
     "sampling_frequency": "PerTree",
     "num_boost_round": 1000,
     "auto_class_weights": "Balanced",
-    "verbose": False
+    "verbose": False,
 }
 
 
@@ -35,7 +35,9 @@ def _objective(trial: Trial, sample: Sample) -> float:
         "max_depth": trial.suggest_int("max_depth", 2, 10),
     }
 
-    model: CatboostClassifierModel = CatboostClassifierModel(params=_BASE_PARAMS | tuned_params)
+    model: CatboostClassifierModel = CatboostClassifierModel(
+        params=_BASE_PARAMS | tuned_params
+    )
     model.train(sample=sample)
 
     val: Dataset = sample.get_dataset(ds_type=DatasetType.VALIDATION)
@@ -49,7 +51,9 @@ class CatboostClassifierPipeline(BasePipeline):
         self.feature_set: FeatureSet = FeatureSet.auto()
 
     @overrides
-    def get_model_params(self, base_params: Dict[str, Any], study_name: str) -> Dict[str, Any]:
+    def get_model_params(
+        self, base_params: Dict[str, Any], study_name: str
+    ) -> Dict[str, Any]:
         study: Study = optuna.load_study(study_name=study_name, storage=SQLITE_URL)
         model_params: Dict[str, Any] = base_params | study.best_params
         return model_params
@@ -57,13 +61,15 @@ class CatboostClassifierPipeline(BasePipeline):
     def create_sample(self) -> Sample:
         # we also need to set_pools as Catboost uses Pool under the hood
         datasets: Dict[DatasetType, pd.DataFrame] = self.build_datasets()
-        sample: Sample = Sample.from_pandas(datasets=datasets, feature_set=self.feature_set)
+        sample: Sample = Sample.from_pandas(
+            datasets=datasets, feature_set=self.feature_set
+        )
         for ds_type, dataset in sample.iter_datasets():
             dataset.set_pool(
                 Pool(
                     data=dataset.get_data(),
                     label=dataset.get_label(),
-                    cat_features=self.feature_set.categorical_features
+                    cat_features=self.feature_set.categorical_features,
                 )
             )
 
@@ -72,7 +78,9 @@ class CatboostClassifierPipeline(BasePipeline):
     def optimize_parameters(self) -> Study:
         logging.info("Running <optimize_parameters> for CatboostClassifierPipeline")
         sample: Sample = self.create_sample()
-        study: Study = create_study(study_name="CatboostClassifierPipelineStudy", start_new=True)
+        study: Study = create_study(
+            study_name="CatboostClassifierPipelineStudy", start_new=True
+        )
         study.optimize(partial(_objective, sample=sample), n_trials=20)
         return study
 
@@ -95,7 +103,7 @@ class CatboostClassifierPipeline(BasePipeline):
         topk_vals: pd.Series = calculate_topk_percent(
             model=model,
             dataset=sample.get_dataset(ds_type=DatasetType.VALIDATION),
-            bins=[0.01, 0.02, 0.05, 0.1, 0.2]
+            bins=[0.01, 0.02, 0.05, 0.1, 0.2],
         )
         logging.info(f"TopK Accuracy:\n%s", topk_vals)
 

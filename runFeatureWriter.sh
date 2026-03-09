@@ -1,1 +1,0 @@
-PYTHONPATH=src python src/feature_writer/FeatureWriter.py

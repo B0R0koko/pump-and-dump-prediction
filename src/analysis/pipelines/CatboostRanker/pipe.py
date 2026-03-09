@@ -8,8 +8,12 @@ from optuna import Study, Trial
 from overrides import overrides
 
 from analysis.pipelines.BaseModel import BaseModel
-from analysis.pipelines.BasePipeline import BasePipeline, cross_section_standardisation, \
-    remove_failed_pump_cross_sections, add_col_pump_id
+from analysis.pipelines.BasePipeline import (
+    BasePipeline,
+    cross_section_standardisation,
+    remove_failed_pump_cross_sections,
+    add_col_pump_id,
+)
 from analysis.pipelines.CatboostRanker.model import CatboostRankerModel
 from analysis.pipelines.study import create_study
 from analysis.utils.columns import *
@@ -55,21 +59,27 @@ class CatboostRankerPipeline(BasePipeline):
         df = add_col_pump_id(df=df)
         df = remove_failed_pump_cross_sections(df=df)
         # Clip powerlaw alpha features to (1, 2)
-        powerlaw_cols: List[str] = FeatureType.POWERLAW_ALPHA.col_names(offsets=REGRESSOR_OFFSETS)
+        powerlaw_cols: List[str] = FeatureType.POWERLAW_ALPHA.col_names(
+            offsets=REGRESSOR_OFFSETS
+        )
         df[powerlaw_cols] = df[powerlaw_cols].clip(1, 2)
         # Fillna target for ranker which is target_return@5MIN
         df["target_return@5MIN"] = df["target_return@5MIN"].fillna(0)
         df_scaled: pd.DataFrame = cross_section_standardisation(df=df)
         # Create rankings
-        df_scaled[self.feature_set.target] = (
-            df_scaled.groupby(COL_PUMP_ID, sort=False)["target_return@5MIN"].rank(pct=True, ascending=False)
-        )
-        assert df_scaled[COL_PUMP_ID].is_monotonic_increasing, "GroupId must be monotonic increasing"
+        df_scaled[self.feature_set.target] = df_scaled.groupby(COL_PUMP_ID, sort=False)[
+            "target_return@5MIN"
+        ].rank(pct=True, ascending=False)
+        assert df_scaled[
+            COL_PUMP_ID
+        ].is_monotonic_increasing, "GroupId must be monotonic increasing"
         return df_scaled
 
     def create_sample(self) -> Sample:
         datasets: Dict[DatasetType, pd.DataFrame] = self.build_datasets()
-        sample: Sample = Sample.from_pandas(datasets=datasets, feature_set=self.feature_set)
+        sample: Sample = Sample.from_pandas(
+            datasets=datasets, feature_set=self.feature_set
+        )
         # we also need to set_pools as Catboost uses Pool under the hood
         for ds_type, dataset in sample.iter_datasets():
             dataset.set_pool(
@@ -77,7 +87,7 @@ class CatboostRankerPipeline(BasePipeline):
                     data=dataset.get_data(),
                     label=dataset.get_label(),
                     cat_features=self.feature_set.categorical_features,
-                    group_id=dataset.all_data()[COL_PUMP_ID]
+                    group_id=dataset.all_data()[COL_PUMP_ID],
                 )
             )
         return sample
@@ -85,7 +95,9 @@ class CatboostRankerPipeline(BasePipeline):
     def optimize_parameters(self) -> Study:
         logging.info("Running <optimize_parameters> for CatboostRankerPipeline")
         sample: Sample = self.create_sample()
-        study: Study = create_study(study_name="CatboostRankerPipelineStudy", start_new=True)
+        study: Study = create_study(
+            study_name="CatboostRankerPipelineStudy", start_new=True
+        )
         study.optimize(partial(_objective, sample=sample), n_trials=20)
         return study
 
@@ -108,7 +120,7 @@ class CatboostRankerPipeline(BasePipeline):
         topk_vals: pd.Series = calculate_topk_percent(
             model=model,
             dataset=sample.get_dataset(ds_type=DatasetType.TEST),
-            bins=[0.01, 0.02, 0.05, 0.1, 0.2]
+            bins=[0.01, 0.02, 0.05, 0.1, 0.2],
         )
         logging.info(f"TopK Accuracy:\n%s", topk_vals)
         return model

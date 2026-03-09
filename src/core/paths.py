@@ -15,6 +15,7 @@ TRANSFORMED_DATA_DIR: Path = DATA_DIR / "transformed"
 
 # Raw zip files
 BINANCE_SPOT_RAW_TRADES: Path = RAW_DATA_DIR / "binance" / "spot" / "trades"
+BINANCE_SPOT_RAW_KLINES: Path = RAW_DATA_DIR / "binance" / "spot" / "klines"
 # HIVE locations
 BINANCE_SPOT_HIVE_TRADES: Path = TRANSFORMED_DATA_DIR / "binance" / "spot" / "trades"
 FEATURE_DIR: Path = DATA_DIR.joinpath("features")

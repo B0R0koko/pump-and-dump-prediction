@@ -46,7 +46,9 @@ def score_dataset(model: ImplementsRank, dataset: Dataset) -> pd.DataFrame:
     Evaluate model scores once and keep only the columns required for grouped bootstrap.
     """
     scores: np.ndarray = model.rank(dataset=dataset)
-    df: pd.DataFrame = dataset.all_data()[[COL_PUMP_HASH, COL_IS_PUMPED]].copy(deep=True)
+    df: pd.DataFrame = dataset.all_data()[[COL_PUMP_HASH, COL_IS_PUMPED]].copy(
+        deep=True
+    )
     if len(scores) != len(df):
         raise ValueError(
             f"Model returned {len(scores)} scores, but dataset contains {len(df)} rows"
@@ -65,7 +67,9 @@ def _validate_n_bootstrap(n_bootstrap: int) -> None:
         raise ValueError(f"n_bootstrap must be >= 1, got {n_bootstrap}")
 
 
-def _cross_section_indicator_vectors_topk(scored_df: pd.DataFrame, bins: Sequence[int]) -> dict[str, np.ndarray]:
+def _cross_section_indicator_vectors_topk(
+    scored_df: pd.DataFrame, bins: Sequence[int]
+) -> dict[str, np.ndarray]:
     if len(bins) == 0:
         raise ValueError("bins must not be empty")
     if any(k < 1 for k in bins):
@@ -87,7 +91,7 @@ def _cross_section_indicator_vectors_topk(scored_df: pd.DataFrame, bins: Sequenc
 
 
 def _cross_section_indicator_vectors_topk_percent(
-        scored_df: pd.DataFrame, bins: Sequence[float]
+    scored_df: pd.DataFrame, bins: Sequence[float]
 ) -> dict[str, np.ndarray]:
     if len(bins) == 0:
         raise ValueError("bins must not be empty")
@@ -112,21 +116,25 @@ def _cross_section_indicator_vectors_topk_percent(
     return vectors
 
 
-def _matrix_from_vectors(vectors: dict[str, np.ndarray], order: Sequence[str]) -> np.ndarray:
+def _matrix_from_vectors(
+    vectors: dict[str, np.ndarray], order: Sequence[str]
+) -> np.ndarray:
     return np.vstack([vectors[pump_hash] for pump_hash in order])
 
 
-def _bootstrap_indices(n_cross_sections: int, n_bootstrap: int, random_state: int) -> np.ndarray:
+def _bootstrap_indices(
+    n_cross_sections: int, n_bootstrap: int, random_state: int
+) -> np.ndarray:
     rng = np.random.default_rng(seed=random_state)
     return rng.integers(0, n_cross_sections, size=(n_bootstrap, n_cross_sections))
 
 
 def _curve_ci_from_matrix(
-        matrix: np.ndarray,
-        bins: Sequence[int | float],
-        n_bootstrap: int,
-        alpha: float,
-        random_state: int,
+    matrix: np.ndarray,
+    bins: Sequence[int | float],
+    n_bootstrap: int,
+    alpha: float,
+    random_state: int,
 ) -> pd.DataFrame:
     _validate_alpha(alpha=alpha)
     _validate_n_bootstrap(n_bootstrap=n_bootstrap)
@@ -155,13 +163,15 @@ def _curve_ci_from_matrix(
 
 
 def bootstrap_topk_ci(
-        scored_df: pd.DataFrame,
-        bins: Sequence[int],
-        n_bootstrap: int = 1000,
-        alpha: float = 0.05,
-        random_state: int = 42,
+    scored_df: pd.DataFrame,
+    bins: Sequence[int],
+    n_bootstrap: int = 1000,
+    alpha: float = 0.05,
+    random_state: int = 42,
 ) -> pd.DataFrame:
-    vectors: dict[str, np.ndarray] = _cross_section_indicator_vectors_topk(scored_df=scored_df, bins=bins)
+    vectors: dict[str, np.ndarray] = _cross_section_indicator_vectors_topk(
+        scored_df=scored_df, bins=bins
+    )
     order: list[str] = list(vectors.keys())
     matrix: np.ndarray = _matrix_from_vectors(vectors=vectors, order=order)
     return _curve_ci_from_matrix(
@@ -174,13 +184,15 @@ def bootstrap_topk_ci(
 
 
 def bootstrap_topk_percent_ci(
-        scored_df: pd.DataFrame,
-        bins: Sequence[float],
-        n_bootstrap: int = 1000,
-        alpha: float = 0.05,
-        random_state: int = 42,
+    scored_df: pd.DataFrame,
+    bins: Sequence[float],
+    n_bootstrap: int = 1000,
+    alpha: float = 0.05,
+    random_state: int = 42,
 ) -> pd.DataFrame:
-    vectors: dict[str, np.ndarray] = _cross_section_indicator_vectors_topk_percent(scored_df=scored_df, bins=bins)
+    vectors: dict[str, np.ndarray] = _cross_section_indicator_vectors_topk_percent(
+        scored_df=scored_df, bins=bins
+    )
     order: list[str] = list(vectors.keys())
     matrix: np.ndarray = _matrix_from_vectors(vectors=vectors, order=order)
     return _curve_ci_from_matrix(
@@ -193,10 +205,10 @@ def bootstrap_topk_percent_ci(
 
 
 def _bootstrap_auc_distribution(
-        matrix: np.ndarray,
-        bins: Sequence[float],
-        n_bootstrap: int,
-        random_state: int,
+    matrix: np.ndarray,
+    bins: Sequence[float],
+    n_bootstrap: int,
+    random_state: int,
 ) -> np.ndarray:
     sampled_indices: np.ndarray = _bootstrap_indices(
         n_cross_sections=matrix.shape[0],
@@ -205,15 +217,17 @@ def _bootstrap_auc_distribution(
     )
     bootstrap_curves: np.ndarray = matrix[sampled_indices].mean(axis=1)
     bins_array: np.ndarray = np.array(bins, dtype=float)
-    return np.array([auc(x=bins_array, y=curve) for curve in bootstrap_curves], dtype=float)
+    return np.array(
+        [auc(x=bins_array, y=curve) for curve in bootstrap_curves], dtype=float
+    )
 
 
 def bootstrap_topk_percent_auc_ci(
-        scored_df: pd.DataFrame,
-        bins: Sequence[float] | None = None,
-        n_bootstrap: int = 1000,
-        alpha: float = 0.05,
-        random_state: int = 42,
+    scored_df: pd.DataFrame,
+    bins: Sequence[float] | None = None,
+    n_bootstrap: int = 1000,
+    alpha: float = 0.05,
+    random_state: int = 42,
 ) -> BootstrapCI:
     if bins is None:
         bins = np.arange(0, 1.01, 0.005)
@@ -221,7 +235,9 @@ def bootstrap_topk_percent_auc_ci(
     _validate_alpha(alpha=alpha)
     _validate_n_bootstrap(n_bootstrap=n_bootstrap)
 
-    vectors: dict[str, np.ndarray] = _cross_section_indicator_vectors_topk_percent(scored_df=scored_df, bins=bins)
+    vectors: dict[str, np.ndarray] = _cross_section_indicator_vectors_topk_percent(
+        scored_df=scored_df, bins=bins
+    )
     order: list[str] = list(vectors.keys())
     matrix: np.ndarray = _matrix_from_vectors(vectors=vectors, order=order)
     bins_array: np.ndarray = np.array(bins, dtype=float)
@@ -249,13 +265,13 @@ def bootstrap_topk_percent_auc_ci(
 
 
 def paired_bootstrap_topk_percent_auc_test(
-        scored_df_a: pd.DataFrame,
-        scored_df_b: pd.DataFrame,
-        bins: Sequence[float] | None = None,
-        n_bootstrap: int = 1000,
-        alpha: float = 0.05,
-        random_state: int = 42,
-        alternative: Literal["two-sided", "greater", "less"] = "two-sided",
+    scored_df_a: pd.DataFrame,
+    scored_df_b: pd.DataFrame,
+    bins: Sequence[float] | None = None,
+    n_bootstrap: int = 1000,
+    alpha: float = 0.05,
+    random_state: int = 42,
+    alternative: Literal["two-sided", "greater", "less"] = "two-sided",
 ) -> PairedBootstrapTestResult:
     if bins is None:
         bins = np.arange(0, 1.01, 0.005)
@@ -265,8 +281,12 @@ def paired_bootstrap_topk_percent_auc_test(
     if alternative not in {"two-sided", "greater", "less"}:
         raise ValueError(f"Unknown alternative={alternative}")
 
-    vectors_a: dict[str, np.ndarray] = _cross_section_indicator_vectors_topk_percent(scored_df=scored_df_a, bins=bins)
-    vectors_b: dict[str, np.ndarray] = _cross_section_indicator_vectors_topk_percent(scored_df=scored_df_b, bins=bins)
+    vectors_a: dict[str, np.ndarray] = _cross_section_indicator_vectors_topk_percent(
+        scored_df=scored_df_a, bins=bins
+    )
+    vectors_b: dict[str, np.ndarray] = _cross_section_indicator_vectors_topk_percent(
+        scored_df=scored_df_b, bins=bins
+    )
 
     pump_hashes_a = set(vectors_a.keys())
     pump_hashes_b = set(vectors_b.keys())
@@ -283,7 +303,8 @@ def paired_bootstrap_topk_percent_auc_test(
     bins_array: np.ndarray = np.array(bins, dtype=float)
 
     observed_diff: float = float(
-        auc(x=bins_array, y=matrix_a.mean(axis=0)) - auc(x=bins_array, y=matrix_b.mean(axis=0))
+        auc(x=bins_array, y=matrix_a.mean(axis=0))
+        - auc(x=bins_array, y=matrix_b.mean(axis=0))
     )
 
     sampled_indices: np.ndarray = _bootstrap_indices(
@@ -293,8 +314,12 @@ def paired_bootstrap_topk_percent_auc_test(
     )
     bootstrap_curves_a: np.ndarray = matrix_a[sampled_indices].mean(axis=1)
     bootstrap_curves_b: np.ndarray = matrix_b[sampled_indices].mean(axis=1)
-    auc_dist_a: np.ndarray = np.array([auc(x=bins_array, y=curve) for curve in bootstrap_curves_a], dtype=float)
-    auc_dist_b: np.ndarray = np.array([auc(x=bins_array, y=curve) for curve in bootstrap_curves_b], dtype=float)
+    auc_dist_a: np.ndarray = np.array(
+        [auc(x=bins_array, y=curve) for curve in bootstrap_curves_a], dtype=float
+    )
+    auc_dist_b: np.ndarray = np.array(
+        [auc(x=bins_array, y=curve) for curve in bootstrap_curves_b], dtype=float
+    )
     diffs: np.ndarray = auc_dist_a - auc_dist_b
 
     ci_lower, ci_upper = np.quantile(diffs, [alpha / 2, 1 - alpha / 2])

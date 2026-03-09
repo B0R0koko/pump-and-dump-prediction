@@ -47,7 +47,9 @@ def create_dataset(max_workers: int | None = None) -> pd.DataFrame:
     workers: int = max_workers or min(32, max(4, (os.cpu_count() or 1) * 2))
     with ThreadPoolExecutor(max_workers=workers) as executor:
         iterator = executor.map(_read_cross_section, pump_events)
-        for pump, df_cross_section in tqdm(iterator, total=len(pump_events), desc="Building dataset"):
+        for pump, df_cross_section in tqdm(
+            iterator, total=len(pump_events), desc="Building dataset"
+        ):
             if df_cross_section is None:
                 skipped_pumps.append(pump)
                 continue

@@ -24,13 +24,24 @@ class PriceImpactModel:
             impact = self.sell_intercept_bps + self.sell_slope_bps_per_sqrt_notional * x
         return max(0.0, float(impact))
 
-    def estimate_fill_notional(self, side: int, intended_notional_quote: float) -> float:
+    def estimate_fill_notional(
+        self, side: int, intended_notional_quote: float
+    ) -> float:
         if intended_notional_quote <= 0:
             return 0.0
         capacity = self.buy_capacity_quote if side >= 0 else self.sell_capacity_quote
         if not np.isfinite(capacity) or capacity <= 0:
             return float(intended_notional_quote)
         return float(min(intended_notional_quote, capacity))
+
+    def estimate_vwap_price(
+        self, base_price: float, side: int, notional_quote: float
+    ) -> tuple[float, float]:
+        if notional_quote <= 0:
+            return max(1e-12, float(base_price)), 0.0
+        impact_bps = self.predict_impact_bps(side=side, notional_quote=notional_quote)
+        vwap_price = max(1e-12, float(base_price) * (1.0 + side * impact_bps / 1e4))
+        return vwap_price, impact_bps
 
 
 def _fit_linear_regression(x: np.ndarray, y: np.ndarray) -> tuple[float, float]:
@@ -47,8 +58,9 @@ def _fit_linear_regression(x: np.ndarray, y: np.ndarray) -> tuple[float, float]:
     return intercept, slope
 
 
-def _fit_side_model(df_side: pd.DataFrame, fallback_capacity: float, liquidity_quantile: float) -> tuple[
-    float, float, float]:
+def _fit_side_model(
+    df_side: pd.DataFrame, fallback_capacity: float, liquidity_quantile: float
+) -> tuple[float, float, float]:
     if df_side.empty:
         return 0.0, 0.0, fallback_capacity
 
@@ -62,14 +74,13 @@ def _fit_side_model(df_side: pd.DataFrame, fallback_capacity: float, liquidity_q
 
 
 def fit_price_impact_model(
-        trades: pd.DataFrame,
-        bar_minutes: int = 1,
-        liquidity_quantile: float = 0.9,
+    trades: pd.DataFrame,
+    liquidity_quantile: float = 0.9,
 ) -> PriceImpactModel:
     """
     Fit a side-aware (buy/sell) regression:
         impact_bps ~ intercept + slope * sqrt(executed_notional_quote)
-    using historical aggregated trade bars.
+    using historical trades aggregated by exact TRADE_TIME.
     """
     if trades.empty:
         return PriceImpactModel(
@@ -88,15 +99,18 @@ def fit_price_impact_model(
 
     # Aggressor buy -> is_buyer_maker=False, aggressor sell -> True
     df["side"] = np.where(df[IS_BUYER_MAKER].astype(bool), -1, 1)
-    df["notional_quote_trade"] = df[PRICE].astype(float) * df[QUANTITY].astype(float)
-    df["bucket_time"] = df[TRADE_TIME].dt.floor(f"{bar_minutes}min")
+    df["quote_abs"] = df[PRICE].astype(float) * df[QUANTITY].astype(float)
+    df["quote_sign"] = df["quote_abs"] * df["side"]
+    df["quantity_sign"] = df[QUANTITY].astype(float) * df["side"]
 
     grouped = (
-        df.groupby(["bucket_time", "side"], sort=True)
+        df.groupby(TRADE_TIME, sort=True)
         .agg(
             open_price=(PRICE, "first"),
+            notional_quote=("quote_abs", "sum"),
+            quote_sign=("quote_sign", "sum"),
             sum_quantity=(QUANTITY, "sum"),
-            notional_quote=("notional_quote_trade", "sum"),
+            quantity_sign=("quantity_sign", "sum"),
         )
         .reset_index()
     )
@@ -112,11 +126,16 @@ def fit_price_impact_model(
             num_bars=0,
         )
 
+    grouped["side"] = np.where(grouped["quantity_sign"] >= 0.0, 1, -1)
     grouped["vwap_price"] = grouped["notional_quote"] / grouped["sum_quantity"]
-    grouped["impact_bps"] = grouped["side"] * (grouped["vwap_price"] / grouped["open_price"] - 1.0) * 1e4
+    grouped["impact_bps"] = (
+        grouped["side"] * (grouped["vwap_price"] / grouped["open_price"] - 1.0) * 1e4
+    )
     grouped["impact_bps"] = grouped["impact_bps"].clip(lower=0.0)
 
-    fallback_capacity: float = float(grouped["notional_quote"].quantile(liquidity_quantile))
+    fallback_capacity: float = float(
+        grouped["notional_quote"].quantile(liquidity_quantile)
+    )
     if not np.isfinite(fallback_capacity) or fallback_capacity <= 0:
         fallback_capacity = np.inf
 
@@ -124,10 +143,14 @@ def fit_price_impact_model(
     sell_df = grouped[grouped["side"] == -1]
 
     buy_intercept, buy_slope, buy_capacity = _fit_side_model(
-        df_side=buy_df, fallback_capacity=fallback_capacity, liquidity_quantile=liquidity_quantile
+        df_side=buy_df,
+        fallback_capacity=fallback_capacity,
+        liquidity_quantile=liquidity_quantile,
     )
     sell_intercept, sell_slope, sell_capacity = _fit_side_model(
-        df_side=sell_df, fallback_capacity=fallback_capacity, liquidity_quantile=liquidity_quantile
+        df_side=sell_df,
+        fallback_capacity=fallback_capacity,
+        liquidity_quantile=liquidity_quantile,
     )
 
     return PriceImpactModel(

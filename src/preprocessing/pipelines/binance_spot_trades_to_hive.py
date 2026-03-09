@@ -23,7 +23,7 @@ def filter_by_bounds(bounds: Bounds, file_names: List[str]) -> List[date]:
     valid_dates: List[date] = []
 
     for file in file_names:
-        date_part = re.search(r'@(\d{4}-\d{2}-\d{2})\.zip$', file)[1]
+        date_part = re.search(r"@(\d{4}-\d{2}-\d{2})\.zip$", file)[1]
         day: date = datetime.strptime(date_part, "%Y-%m-%d").date()
 
         if bounds.contain_days(day=day):
@@ -35,16 +35,19 @@ def filter_by_bounds(bounds: Bounds, file_names: List[str]) -> List[date]:
 class BinanceSpotTrades2Hive:
 
     def __init__(
-            self, bounds: Bounds,
-            raw_data_dir: Path,
-            output_dir: Path,
+        self,
+        bounds: Bounds,
+        raw_data_dir: Path,
+        output_dir: Path,
     ):
         self.bounds: Bounds = bounds
         self.raw_data_dir: Path = raw_data_dir
         self.output_dir: Path = output_dir
 
     @staticmethod
-    def preprocess_batched_data(df_batch: pd.DataFrame, currency_pair: CurrencyPair, day: date) -> pd.DataFrame:
+    def preprocess_batched_data(
+        df_batch: pd.DataFrame, currency_pair: CurrencyPair, day: date
+    ) -> pd.DataFrame:
         """Attach new columns and convert dtypes here before saving to hive structure"""
         # Since 2025-01-01 Binance Spot data is written not in "ms" but in "us" - microseconds
         unit: str = "ms" if day < date(2025, 1, 1) else "us"
@@ -75,7 +78,9 @@ class BinanceSpotTrades2Hive:
         )
 
         for batch_id, df_batch in enumerate(csv_reader):
-            df_batch = self.preprocess_batched_data(df_batch=df_batch, currency_pair=currency_pair, day=day)
+            df_batch = self.preprocess_batched_data(
+                df_batch=df_batch, currency_pair=currency_pair, day=day
+            )
             self.save_batched_data_to_hive(df_batch=df_batch)
 
     def iterate_over_tasks(self) -> Generator[tuple[date, CurrencyPair], Any, None]:
@@ -92,7 +97,7 @@ class BinanceSpotTrades2Hive:
         with Pool(processes=processes) as pool:
             promises: List[AsyncResult] = []
 
-            for (day, currency_pair) in self.iterate_over_tasks():
+            for day, currency_pair in self.iterate_over_tasks():
                 promise: AsyncResult = pool.apply_async(
                     partial(
                         self.unzip_and_save_to_hive,
@@ -102,18 +107,18 @@ class BinanceSpotTrades2Hive:
                 )
                 promises.append(promise)
 
-            for promise in tqdm(promises, desc="Saving zipped csv files to HiveDataset: "):
+            for promise in tqdm(
+                promises, desc="Saving zipped csv files to HiveDataset: "
+            ):
                 promise.get()
 
 
 def run_main():
-    bounds: Bounds = Bounds.for_days(
-        date(2018, 1, 1), date(2019, 1, 1)
-    )
+    bounds: Bounds = Bounds.for_days(date(2018, 1, 1), date(2019, 1, 1))
     pipe = BinanceSpotTrades2Hive(
         bounds=bounds,
         raw_data_dir=BINANCE_SPOT_RAW_TRADES,
-        output_dir=BINANCE_SPOT_HIVE_TRADES
+        output_dir=BINANCE_SPOT_HIVE_TRADES,
     )
     pipe.run_multiprocessing()
 

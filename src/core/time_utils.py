@@ -25,24 +25,35 @@ def _convert_to_dates(dates: pd.DatetimeIndex) -> List[date]:
 def get_seconds_slug(td: timedelta) -> str:
     if td.total_seconds() < 1:
         return f"{int(td.total_seconds() * 1000)}MS"
-    assert td.total_seconds() % 1 == 0, "Above second timedeltas must be a multiple of 1 second"
+    assert (
+        td.total_seconds() % 1 == 0
+    ), "Above second timedeltas must be a multiple of 1 second"
     return f"{int(td.total_seconds())}S"
 
 
-def generate_daily_time_chunks(start_date: date, end_date: date) -> Optional[List[date]]:
+def generate_daily_time_chunks(
+    start_date: date, end_date: date
+) -> Optional[List[date]]:
     days: List[date] = []
 
     if start_date != get_first_day_month(start_date):
         days.extend(
             _convert_to_dates(
-                pd.date_range(start_date, get_last_day_month(start_date), freq="D", inclusive="both")
+                pd.date_range(
+                    start_date,
+                    get_last_day_month(start_date),
+                    freq="D",
+                    inclusive="both",
+                )
             )
         )
 
     if end_date != get_first_day_month(end_date):
         days.extend(
             _convert_to_dates(
-                pd.date_range(get_first_day_month(end_date), end_date, freq="D", inclusive="both")
+                pd.date_range(
+                    get_first_day_month(end_date), end_date, freq="D", inclusive="both"
+                )
             )
         )
 
@@ -125,10 +136,14 @@ class Bounds:
         return self.end_exclusive.date()
 
     def __str__(self) -> str:
-        return (f"Bounds: {self.start_inclusive.strftime("%Y-%m-%d %H:%M:%S")} - "
-                f"{self.end_exclusive.strftime("%Y-%m-%d %H:%M:%S")}")
+        return (
+            f"Bounds: {self.start_inclusive.strftime("%Y-%m-%d %H:%M:%S")} - "
+            f"{self.end_exclusive.strftime("%Y-%m-%d %H:%M:%S")}"
+        )
 
-    def generate_overlapping_bounds(self, step: timedelta, interval: timedelta) -> List["Bounds"]:
+    def generate_overlapping_bounds(
+        self, step: timedelta, interval: timedelta
+    ) -> List["Bounds"]:
         """Returns a list of bounds created from a parent Bounds interval with a certain interval size and step"""
         intervals: List["Bounds"] = []
 
@@ -138,7 +153,12 @@ class Bounds:
             rb: datetime = lb + interval
             # create new overlapping sub-Bounds
             intervals.append(
-                Bounds(start_inclusive=lb, end_exclusive=min(rb - timedelta(microseconds=1), self.end_exclusive))
+                Bounds(
+                    start_inclusive=lb,
+                    end_exclusive=min(
+                        rb - timedelta(microseconds=1), self.end_exclusive
+                    ),
+                )
             )
             lb += step
 
@@ -158,11 +178,21 @@ class Bounds:
         )
 
     def expand_bounds(
-            self, lb_timedelta: Optional[timedelta] = None, rb_timedelta: Optional[timedelta] = None
+        self,
+        lb_timedelta: Optional[timedelta] = None,
+        rb_timedelta: Optional[timedelta] = None,
     ) -> "Bounds":
         return Bounds(
-            start_inclusive=self.start_inclusive - lb_timedelta if lb_timedelta else self.start_inclusive,
-            end_exclusive=self.end_exclusive + rb_timedelta if rb_timedelta else self.end_exclusive,
+            start_inclusive=(
+                self.start_inclusive - lb_timedelta
+                if lb_timedelta
+                else self.start_inclusive
+            ),
+            end_exclusive=(
+                self.end_exclusive + rb_timedelta
+                if rb_timedelta
+                else self.end_exclusive
+            ),
         )
 
     def date_range(self):
@@ -191,7 +221,10 @@ class Bounds:
         return months
 
     def __eq__(self, other) -> bool:
-        return self.start_inclusive == other.start_inclusive and self.end_exclusive == other.end_exclusive
+        return (
+            self.start_inclusive == other.start_inclusive
+            and self.end_exclusive == other.end_exclusive
+        )
 
 
 if __name__ == "__main__":

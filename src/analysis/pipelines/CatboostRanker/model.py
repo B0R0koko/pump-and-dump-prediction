@@ -18,7 +18,9 @@ class CatboostRankerModel(BaseModel):
         self._model = CatBoostRanker(**self.params)
         ptrain: Pool = sample.get_pool(DatasetType.TRAIN)
         pval: Pool = sample.get_pool(DatasetType.VALIDATION)
-        self._model.fit(X=ptrain, eval_set=pval, early_stopping_rounds=50, use_best_model=True)
+        self._model.fit(
+            X=ptrain, eval_set=pval, early_stopping_rounds=50, use_best_model=True
+        )
         return self
 
     def predict(self, dataset: Dataset) -> pd.Series:

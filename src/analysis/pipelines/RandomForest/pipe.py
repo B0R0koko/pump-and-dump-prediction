@@ -16,11 +16,7 @@ from analysis.utils.sample import DatasetType, Sample, Dataset
 from core.paths import SQLITE_URL
 from core.utils import configure_logging
 
-_BASE_PARAMS: Dict[str, Any] = {
-    "criterion": "gini",
-    "n_jobs": -1,
-    "verbose": False
-}
+_BASE_PARAMS: Dict[str, Any] = {"criterion": "gini", "n_jobs": -1, "verbose": False}
 
 
 def _objective(trial: Trial, sample: Sample) -> float:
@@ -47,11 +43,15 @@ class RandomForestPipeline(BasePipeline):
 
     def create_sample(self) -> Sample:
         datasets: Dict[DatasetType, pd.DataFrame] = self.build_datasets()
-        sample: Sample = Sample.from_pandas(datasets=datasets, feature_set=self.feature_set)
+        sample: Sample = Sample.from_pandas(
+            datasets=datasets, feature_set=self.feature_set
+        )
         return sample
 
     @overrides
-    def get_model_params(self, base_params: Dict[str, Any], study_name: str) -> Dict[str, Any]:
+    def get_model_params(
+        self, base_params: Dict[str, Any], study_name: str
+    ) -> Dict[str, Any]:
         study: Study = optuna.load_study(study_name=study_name, storage=SQLITE_URL)
         model_params: Dict[str, Any] = base_params | study.best_params
         model_params["class_weight"] = {0: 1, 1: model_params["class_weight"]}
@@ -60,14 +60,18 @@ class RandomForestPipeline(BasePipeline):
     def optimize_parameters(self):
         logging.info("Running <optimize_parameters> for RandomForestPipeline")
         sample: Sample = self.create_sample()
-        study: Study = create_study(study_name="RandomForestPipelineStudy", start_new=True)
+        study: Study = create_study(
+            study_name="RandomForestPipelineStudy", start_new=True
+        )
         study.optimize(partial(_objective, sample=sample), n_trials=20)
 
     def train(self, sample: Sample, tuned: bool = True) -> RandomForestModel:
         model_params: Dict[str, Any] = _BASE_PARAMS
         if tuned:
             # Read optimal parameters from optuna.RDBStorage
-            model_params = self.get_model_params(base_params=_BASE_PARAMS, study_name="RandomForestPipelineStudy")
+            model_params = self.get_model_params(
+                base_params=_BASE_PARAMS, study_name="RandomForestPipelineStudy"
+            )
         model: RandomForestModel = RandomForestModel(params=model_params)
         model.train(sample=sample)
         return model
@@ -79,7 +83,7 @@ class RandomForestPipeline(BasePipeline):
         topk_vals: pd.Series = calculate_topk_percent(
             model=model,
             dataset=sample.get_dataset(ds_type=DatasetType.VALIDATION),
-            bins=[0.01, 0.02, 0.05, 0.1, 0.2]
+            bins=[0.01, 0.02, 0.05, 0.1, 0.2],
         )
         logging.info(f"TopK Accuracy:\n%s", topk_vals)
 

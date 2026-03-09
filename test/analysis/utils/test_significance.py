@@ -72,7 +72,9 @@ def test_bootstrap_topk_ci_returns_expected_shape() -> None:
     )
 
     assert list(ci_df.index) == [1, 2, 5]
-    assert {"point_estimate", "ci_lower", "ci_upper", "n_bootstrap", "alpha"}.issubset(ci_df.columns)
+    assert {"point_estimate", "ci_lower", "ci_upper", "n_bootstrap", "alpha"}.issubset(
+        ci_df.columns
+    )
     assert np.allclose(ci_df["point_estimate"].to_numpy(), np.ones(3))
 
 

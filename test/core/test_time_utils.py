@@ -18,10 +18,12 @@ expected_bounds: List[Bounds] = [
 
 
 def test_bounds_generate_overlapping_bounds():
-    bounds: Bounds = Bounds.for_days(
-        date(2025, 1, 1), date(2025, 2, 1)
+    bounds: Bounds = Bounds.for_days(date(2025, 1, 1), date(2025, 2, 1))
+    sub_bounds: List[Bounds] = bounds.generate_overlapping_bounds(
+        step=timedelta(days=3), interval=timedelta(days=3)
     )
-    sub_bounds: List[Bounds] = bounds.generate_overlapping_bounds(step=timedelta(days=3), interval=timedelta(days=3))
 
     for sub_bound, expected in zip(sub_bounds, expected_bounds):
-        assert sub_bound == expected, f"Generated {str(sub_bound)} and expected {str(expected)} bounds do not match"
+        assert (
+            sub_bound == expected
+        ), f"Generated {str(sub_bound)} and expected {str(expected)} bounds do not match"

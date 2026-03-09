@@ -16,7 +16,9 @@ BINANCE_S3: str = "https://s3-ap-northeast-1.amazonaws.com/data.binance.vision"
 BINANCE_DATAVISION: str = "https://data.binance.vision"
 
 
-def filter_hrefs_by_bounds(hrefs: List[str], bounds: Bounds) -> Tuple[List[str], List[date]]:
+def filter_hrefs_by_bounds(
+    hrefs: List[str], bounds: Bounds
+) -> Tuple[List[str], List[date]]:
     """Takes bounds as input and returns a list of hrefs that matches passed in Bounds"""
 
     filtered_hrefs: List[str] = []
@@ -41,7 +43,14 @@ def get_zip_file_url(href: str) -> str:
 
 
 class BinanceBaseParser(ABC, scrapy.Spider):
-    def __init__(self, bounds: Bounds, currency_pairs: List[CurrencyPair], output_dir: Path, *args, **kwargs):
+    def __init__(
+        self,
+        bounds: Bounds,
+        currency_pairs: List[CurrencyPair],
+        output_dir: Path,
+        *args,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
         self.bounds: Bounds = bounds
         self.currency_pairs: List[CurrencyPair] = currency_pairs
@@ -51,7 +60,9 @@ class BinanceBaseParser(ABC, scrapy.Spider):
     def get_prefix(self, currency_pair: CurrencyPair) -> str:
         """Return prefix"""
 
-    def _get_currency_url(self, currency_pair: CurrencyPair, marker: Optional[str] = None) -> str:
+    def _get_currency_url(
+        self, currency_pair: CurrencyPair, marker: Optional[str] = None
+    ) -> str:
         params: Dict[str, str] = {
             "delimiter": "/",
             "prefix": self.get_prefix(currency_pair=currency_pair),
@@ -68,8 +79,11 @@ class BinanceBaseParser(ABC, scrapy.Spider):
         for currency_pair in self.currency_pairs:
             yield Request(
                 url=self._get_currency_url(currency_pair=currency_pair),
-                callback=self._parse_currency_pair,  # type:ignore
-                meta={"currency_pair": currency_pair, "href_container": []},  # mutable object
+                callback=self._parse_currency_pair,  # type: ignore
+                meta={
+                    "currency_pair": currency_pair,
+                    "href_container": [],
+                },  # mutable object
             )
 
     def _parse_currency_pair(self, response: Response):
@@ -78,8 +92,12 @@ class BinanceBaseParser(ABC, scrapy.Spider):
         currency_pair: Optional[CurrencyPair] = response.meta.get("currency_pair")
         href_container: List[str] = response.meta.get("href_container")
 
-        assert currency_pair, "Currency pair must be supplied in scrapy.http.Response.meta"
-        assert href_container is not None, "Href container must be supplied in scrapy.http.Response.meta"
+        assert (
+            currency_pair
+        ), "Currency pair must be supplied in scrapy.http.Response.meta"
+        assert (
+            href_container is not None
+        ), "Href container must be supplied in scrapy.http.Response.meta"
 
         hrefs: List[str] = re.findall(pattern=r"<Key>(.*?)</Key>", string=response.text)
         hrefs: List[str] = [href for href in hrefs if "CHECKSUM" not in href]
@@ -88,14 +106,18 @@ class BinanceBaseParser(ABC, scrapy.Spider):
         # if len is 500, then we need to send another request with marker param which is the last entry in hrefs
         if len(hrefs) == 500:
             yield scrapy.Request(
-                url=self._get_currency_url(currency_pair=currency_pair, marker=hrefs[-1]),
+                url=self._get_currency_url(
+                    currency_pair=currency_pair, marker=hrefs[-1]
+                ),
                 callback=self._parse_currency_pair,  # call itself one more time
                 meta={"currency_pair": currency_pair, "href_container": href_container},
             )
         # Once we have collected all hrefs into response.meta.href_container we loop over it and send requests that
         # collect zip files
         # Filter hrefs by dates that we want to collect data for
-        filtered_hrefs, href_dates = filter_hrefs_by_bounds(hrefs=href_container, bounds=self.bounds)
+        filtered_hrefs, href_dates = filter_hrefs_by_bounds(
+            hrefs=href_container, bounds=self.bounds
+        )
 
         for href, day in zip(filtered_hrefs, href_dates):
             yield scrapy.Request(

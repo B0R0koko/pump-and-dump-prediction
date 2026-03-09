@@ -17,7 +17,7 @@ from core.utils import configure_logging
 test_pump: PumpEvent = PumpEvent(
     currency_pair=CurrencyPair.from_string(symbol="ACM-BTC"),
     time=datetime.strptime("2021-06-05 18:00:13", "%Y-%m-%d %H:%M:%S"),
-    exchange=Exchange.BINANCE_SPOT
+    exchange=Exchange.BINANCE_SPOT,
 )
 
 cross_section: pd.DataFrame = pd.DataFrame(
@@ -26,7 +26,7 @@ cross_section: pd.DataFrame = pd.DataFrame(
         ("ETH-BTC", test_pump.as_pump_hash()),
         ("ACM-BTC", test_pump.as_pump_hash()),
     ],
-    columns=[COL_CURRENCY_PAIR, COL_PUMP_HASH]
+    columns=[COL_CURRENCY_PAIR, COL_PUMP_HASH],
 )
 
 
@@ -42,7 +42,9 @@ class DummyTestModel(ImplementsRank):
 
 def test_topk_portfolio():
     configure_logging()
-    portfolio_manager: TOPKPortfolio = TOPKPortfolio(model=DummyTestModel(), portfolio_size=1)
+    portfolio_manager: TOPKPortfolio = TOPKPortfolio(
+        model=DummyTestModel(), portfolio_size=1
+    )
     expected_return: float = 0.0001981 / 0.0001953 - 1  # portfolio should only contain
 
     portfolio_return: float
@@ -51,12 +53,17 @@ def test_topk_portfolio():
     dataset: Dataset = Dataset(
         data=cross_section,
         feature_set=FeatureSet(
-            numeric_features=[], categorical_features=[], target="", eval_fields=[COL_CURRENCY_PAIR, COL_PUMP_HASH],
+            numeric_features=[],
+            categorical_features=[],
+            target="",
+            eval_fields=[COL_CURRENCY_PAIR, COL_PUMP_HASH],
         ),
-        ds_type=DatasetType.TEST
+        ds_type=DatasetType.TEST,
     )
 
-    portfolio_return, portfolio = portfolio_manager.evaluate_cross_section(dataset=dataset, pump=test_pump)
+    portfolio_return, portfolio = portfolio_manager.evaluate_cross_section(
+        dataset=dataset, pump=test_pump
+    )
     print(portfolio_return, portfolio)
 
     assert np.abs(portfolio_return - expected_return) < 1e-10, "Returns do not match"

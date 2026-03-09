@@ -26,7 +26,7 @@ _BASE_PARAMS: Dict[str, Any] = {
     "sampling_frequency": "PerTree",
     "num_boost_round": 1000,
     "auto_class_weights": "Balanced",
-    "verbose": 10
+    "verbose": 10,
 }
 
 
@@ -43,7 +43,9 @@ def _compute_topk_percent_auc(probas_pred: np.ndarray, df_val: pd.DataFrame) -> 
         return 0.0
 
     for _, df_cross_section in df_val.groupby(COL_PUMP_HASH, sort=False):
-        df_cross_section = df_cross_section.sort_values(by=COL_PROBAS_PRED, ascending=False)
+        df_cross_section = df_cross_section.sort_values(
+            by=COL_PROBAS_PRED, ascending=False
+        )
 
         is_pumped = df_cross_section[COL_IS_PUMPED].to_numpy(dtype=bool)
         n_rows = is_pumped.size
@@ -100,7 +102,9 @@ class TOPKPAUCMetric:
         probas_pred: np.ndarray = approxes[0]
         metric: float = _compute_topk_percent_auc(
             probas_pred=probas_pred,
-            df_val=self.df_val if len(probas_pred) == len(self.df_val) else self.df_train,
+            df_val=(
+                self.df_val if len(probas_pred) == len(self.df_val) else self.df_train
+            ),
         )
         return metric, 1
 
@@ -118,9 +122,13 @@ def _objective(trial: Trial, sample: Sample) -> float:
     df_train: pd.DataFrame = sample.get_dataset(ds_type=DatasetType.TRAIN).all_data()
     df_val: pd.DataFrame = sample.get_dataset(ds_type=DatasetType.VALIDATION).all_data()
     # Add custom evaluation metric that maximizes TOPKAUC
-    base_params: Dict[str, Any] = _BASE_PARAMS | {"eval_metric": TOPKPAUCMetric(df_train=df_train, df_val=df_val)}
+    base_params: Dict[str, Any] = _BASE_PARAMS | {
+        "eval_metric": TOPKPAUCMetric(df_train=df_train, df_val=df_val)
+    }
 
-    model: CatboostClassifierModel = CatboostClassifierModel(params=base_params | tuned_params)
+    model: CatboostClassifierModel = CatboostClassifierModel(
+        params=base_params | tuned_params
+    )
     model.train(sample=sample)
 
     val: Dataset = sample.get_dataset(ds_type=DatasetType.VALIDATION)
@@ -134,7 +142,9 @@ class CatboostClassifierTOPKAUCPipeline(BasePipeline):
         self.feature_set: FeatureSet = FeatureSet.auto()
 
     @overrides
-    def get_model_params(self, base_params: Dict[str, Any], study_name: str) -> Dict[str, Any]:
+    def get_model_params(
+        self, base_params: Dict[str, Any], study_name: str
+    ) -> Dict[str, Any]:
         study: Study = optuna.load_study(study_name=study_name, storage=SQLITE_URL)
         model_params: Dict[str, Any] = base_params | study.best_params
         return model_params
@@ -142,30 +152,42 @@ class CatboostClassifierTOPKAUCPipeline(BasePipeline):
     def create_sample(self) -> Sample:
         # we also need to set_pools as Catboost uses Pool under the hood
         datasets: Dict[DatasetType, pd.DataFrame] = self.build_datasets()
-        sample: Sample = Sample.from_pandas(datasets=datasets, feature_set=self.feature_set)
+        sample: Sample = Sample.from_pandas(
+            datasets=datasets, feature_set=self.feature_set
+        )
         for ds_type, dataset in sample.iter_datasets():
             dataset.set_pool(
                 Pool(
                     data=dataset.get_data(),
                     label=dataset.get_label(),
-                    cat_features=self.feature_set.categorical_features
+                    cat_features=self.feature_set.categorical_features,
                 )
             )
 
         return sample
 
     def optimize_parameters(self) -> Study:
-        logging.info("Running <optimize_parameters> for CatboostClassifierTOPKAUCPipeline")
+        logging.info(
+            "Running <optimize_parameters> for CatboostClassifierTOPKAUCPipeline"
+        )
         sample: Sample = self.create_sample()
-        study: Study = create_study(study_name="CatboostClassifierTOPKAUCPipeline", start_new=True)
+        study: Study = create_study(
+            study_name="CatboostClassifierTOPKAUCPipeline", start_new=True
+        )
         study.optimize(partial(_objective, sample=sample), n_trials=100)
         return study
 
     def train(self, sample: Sample, tuned: bool = True) -> CatboostClassifierModel:
-        df_train: pd.DataFrame = sample.get_dataset(ds_type=DatasetType.TRAIN).all_data()
-        df_val: pd.DataFrame = sample.get_dataset(ds_type=DatasetType.VALIDATION).all_data()
+        df_train: pd.DataFrame = sample.get_dataset(
+            ds_type=DatasetType.TRAIN
+        ).all_data()
+        df_val: pd.DataFrame = sample.get_dataset(
+            ds_type=DatasetType.VALIDATION
+        ).all_data()
         # Add custom evaluation metric that maximizes TOPKAUC
-        model_params: Dict[str, Any] = _BASE_PARAMS | {"eval_metric": TOPKPAUCMetric(df_train=df_train, df_val=df_val)}
+        model_params: Dict[str, Any] = _BASE_PARAMS | {
+            "eval_metric": TOPKPAUCMetric(df_train=df_train, df_val=df_val)
+        }
         if tuned:
             model_params = self.get_model_params(
                 base_params=model_params, study_name="CatboostClassifierTOPKAUCPipeline"
@@ -183,7 +205,7 @@ class CatboostClassifierTOPKAUCPipeline(BasePipeline):
         topk_vals: pd.Series = calculate_topk_percent(
             model=model,
             dataset=sample.get_dataset(ds_type=DatasetType.VALIDATION),
-            bins=[0.01, 0.02, 0.05, 0.1, 0.2]
+            bins=[0.01, 0.02, 0.05, 0.1, 0.2],
         )
         logging.info(f"TopK Accuracy:\n%s", topk_vals)
 

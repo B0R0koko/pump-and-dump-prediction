@@ -13,20 +13,18 @@ from core.pump_event import PumpEvent
 
 def aggregate_into_trades(df_ticks: pl.DataFrame) -> pl.DataFrame:
     """Aggregate ticks into trades by TRADE_TIME"""
-    df_trades: pl.DataFrame = (
-        df_ticks
-        .group_by(TRADE_TIME, maintain_order=True)
-        .agg(
-            price_first=pl.col(PRICE).first(),  # if someone placed a trade with price impact, then price_first
-            price_last=pl.col(PRICE).last(),  # and price_last will differ
-            # Amount spent in quote asset for the trade
-            quote_abs=pl.col("quote_abs").sum(),
-            quote_sign=pl.col("quote_sign").sum(),
-            quantity_sign=pl.col("quantity_sign").sum(),
-            # Amount of base asset transacted
-            quantity_abs=pl.col("quantity").sum(),
-            num_ticks=pl.col("price").count(),  # number of ticks for each trade
-        )
+    df_trades: pl.DataFrame = df_ticks.group_by(TRADE_TIME, maintain_order=True).agg(
+        price_first=pl.col(
+            PRICE
+        ).first(),  # if someone placed a trade with price impact, then price_first
+        price_last=pl.col(PRICE).last(),  # and price_last will differ
+        # Amount spent in quote asset for the trade
+        quote_abs=pl.col("quote_abs").sum(),
+        quote_sign=pl.col("quote_sign").sum(),
+        quantity_sign=pl.col("quantity_sign").sum(),
+        # Amount of base asset transacted
+        quantity_abs=pl.col("quantity").sum(),
+        num_ticks=pl.col("price").count(),  # number of ticks for each trade
     )
     df_trades = df_trades.with_columns(is_long=pl.col("quantity_sign") >= 0)
     return df_trades

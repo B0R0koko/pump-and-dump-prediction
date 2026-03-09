@@ -59,10 +59,10 @@ class Transaction:
 class PortfolioStats:
 
     def __init__(
-            self,
-            portfolio: Portfolio,
-            txs: List[Transaction],
-            pump: PumpEvent,
+        self,
+        portfolio: Portfolio,
+        txs: List[Transaction],
+        pump: PumpEvent,
     ):
         self.portfolio: Portfolio = portfolio
         self.txs: List[Transaction] = txs
@@ -92,7 +92,9 @@ class PortfolioStats:
 
 class ImplementsPortfolio(ABC):
 
-    def __init__(self, model: ImplementsRank, buy_before: timedelta, sell_after: timedelta):
+    def __init__(
+        self, model: ImplementsRank, buy_before: timedelta, sell_after: timedelta
+    ):
         self.model: ImplementsRank = model
         self._hive: pl.LazyFrame = pl.scan_parquet(
             Exchange.BINANCE_SPOT.get_hive_location(), hive_partitioning=True
@@ -101,23 +103,23 @@ class ImplementsPortfolio(ABC):
         self._sell_after: timedelta = sell_after
 
     @abstractmethod
-    def create_portfolio(self, cross_section: Dataset) -> Portfolio:
-        ...
+    def create_portfolio(self, cross_section: Dataset) -> Portfolio: ...
 
     def load_price_ts(self, bounds: Bounds, currency_pair: CurrencyPair) -> pd.Series:
         """Loads price time series for a given currency pair"""
-        data: pd.DataFrame = self.load_trades(bounds=bounds, currency_pair=currency_pair)
+        data: pd.DataFrame = self.load_trades(
+            bounds=bounds, currency_pair=currency_pair
+        )
         return pd.Series(data=data[PRICE].values, index=data[TRADE_TIME])
 
     def load_trades(self, bounds: Bounds, currency_pair: CurrencyPair) -> pd.DataFrame:
         """Loads raw trades for a given currency pair and time bounds"""
         return (
-            self._hive
-            .filter(
-                (pl.col(SYMBOL) == currency_pair.name) &
-                (pl.col(DATE).is_between(bounds.day0, bounds.day1)) &
-                (pl.col(TRADE_TIME) >= bounds.start_inclusive) &
-                (pl.col(TRADE_TIME) < bounds.end_exclusive)
+            self._hive.filter(
+                (pl.col(SYMBOL) == currency_pair.name)
+                & (pl.col(DATE).is_between(bounds.day0, bounds.day1))
+                & (pl.col(TRADE_TIME) >= bounds.start_inclusive)
+                & (pl.col(TRADE_TIME) < bounds.end_exclusive)
             )
             .collect()
             .sort(by=TRADE_TIME)
@@ -126,22 +128,30 @@ class ImplementsPortfolio(ABC):
         )
 
     @abstractmethod
-    def regular_transaction(self, ts_price: pd.Series, pump: PumpEvent, cp: CurrencyPair) -> Transaction:
+    def regular_transaction(
+        self, ts_price: pd.Series, pump: PumpEvent, cp: CurrencyPair
+    ) -> Transaction:
         """
         Define when we entry and exit for the regular asset which is not manipulated
         """
 
     @abstractmethod
-    def pumped_transaction(self, ts_price: pd.Series, pump: PumpEvent, cp: CurrencyPair) -> Transaction:
+    def pumped_transaction(
+        self, ts_price: pd.Series, pump: PumpEvent, cp: CurrencyPair
+    ) -> Transaction:
         """
         Define when we exit and when we can enter for the manipulated asset
         """
 
-    def _create_cross_section_transactions(self, pump: PumpEvent, portfolio: Portfolio) -> List[Transaction]:
+    def _create_cross_section_transactions(
+        self, pump: PumpEvent, portfolio: Portfolio
+    ) -> List[Transaction]:
         """
         Returns a list of transactions for cross-section
         """
-        bounds: Bounds = Bounds(pump.time - timedelta(days=1), pump.time + timedelta(days=1))
+        bounds: Bounds = Bounds(
+            pump.time - timedelta(days=1), pump.time + timedelta(days=1)
+        )
         txs: List[Transaction] = []
 
         for cp in portfolio.currency_pairs:
@@ -163,7 +173,9 @@ class ImplementsPortfolio(ABC):
         """
         cross_section: Dataset = dataset.get_cross_section(pump=pump)
         portfolio: Portfolio = self.create_portfolio(cross_section=cross_section)
-        txs: List[Transaction] = self._create_cross_section_transactions(pump=pump, portfolio=portfolio)
+        txs: List[Transaction] = self._create_cross_section_transactions(
+            pump=pump, portfolio=portfolio
+        )
         return PortfolioStats(portfolio=portfolio, txs=txs, pump=pump)
 
     def compute_overall_pnl(self, dataset: Dataset) -> float:

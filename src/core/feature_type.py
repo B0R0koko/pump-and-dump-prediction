@@ -8,6 +8,7 @@ class FeatureType(Enum):
     """
     This is the enum for features defined in feature_exprs.py
     """
+
     ASSET_RETURN = auto()
     ASSET_RETURN_ZSCORE = auto()
     QUOTE_ABS_ZSCORE = auto()

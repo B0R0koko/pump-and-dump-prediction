@@ -8,8 +8,13 @@ from optuna import Trial, Study
 from overrides import overrides
 
 from analysis.pipelines.BaseModel import BaseModel
-from analysis.pipelines.BasePipeline import BasePipeline, cross_section_standardisation, \
-    fillna_with_median_by_cross_section, remove_failed_pump_cross_sections, add_col_pump_id
+from analysis.pipelines.BasePipeline import (
+    BasePipeline,
+    cross_section_standardisation,
+    fillna_with_median_by_cross_section,
+    remove_failed_pump_cross_sections,
+    add_col_pump_id,
+)
 from analysis.pipelines.LogisticRegression.model import LogisticRegressionModel
 from analysis.pipelines.study import create_study
 from analysis.utils.feature_set import FeatureSet
@@ -34,7 +39,9 @@ def _objective(trial: Trial, sample: Sample) -> float:
         "C": 1 / trial.suggest_float("lambda", 10, 1000),  # C = 1/lambda
     }
 
-    model: LogisticRegressionModel = LogisticRegressionModel(params=_BASE_PARAMS | tuned_params)
+    model: LogisticRegressionModel = LogisticRegressionModel(
+        params=_BASE_PARAMS | tuned_params
+    )
     model.train(sample=sample)
 
     val: Dataset = sample.get_dataset(ds_type=DatasetType.VALIDATION)
@@ -52,14 +59,18 @@ class LogisticRegressionPipeline(BasePipeline):
         """Define all data preprocessing steps here"""
         df = add_col_pump_id(df=df)
         df = remove_failed_pump_cross_sections(df=df)
-        powerlaw_cols: List[str] = FeatureType.POWERLAW_ALPHA.col_names(offsets=REGRESSOR_OFFSETS)
+        powerlaw_cols: List[str] = FeatureType.POWERLAW_ALPHA.col_names(
+            offsets=REGRESSOR_OFFSETS
+        )
         df[powerlaw_cols] = df[powerlaw_cols].clip(1, 2)
         df = fillna_with_median_by_cross_section(df=df, feature_set=self.feature_set)
         df_scaled: pd.DataFrame = cross_section_standardisation(df=df)
         return df_scaled
 
     @overrides
-    def get_model_params(self, base_params: Dict[str, Any], study_name: str) -> Dict[str, Any]:
+    def get_model_params(
+        self, base_params: Dict[str, Any], study_name: str
+    ) -> Dict[str, Any]:
         study: Study = optuna.load_study(study_name=study_name, storage=SQLITE_URL)
         # Change some parameters to the way LogisticRegression expects them to be
         tuned_params: Dict[str, Any] = study.best_params
@@ -73,13 +84,17 @@ class LogisticRegressionPipeline(BasePipeline):
 
     def create_sample(self) -> Sample:
         datasets: Dict[DatasetType, pd.DataFrame] = self.build_datasets()
-        sample: Sample = Sample.from_pandas(datasets=datasets, feature_set=self.feature_set)
+        sample: Sample = Sample.from_pandas(
+            datasets=datasets, feature_set=self.feature_set
+        )
         return sample
 
     def optimize_parameters(self) -> Study:
         logging.info("Running <optimize_parameters> for LogisticRegressionPipeline")
         sample: Sample = self.create_sample()
-        study: Study = create_study(study_name="LogisticRegressionPipelineStudy", start_new=True)
+        study: Study = create_study(
+            study_name="LogisticRegressionPipelineStudy", start_new=True
+        )
         study.optimize(partial(_objective, sample=sample), n_trials=20)
         return study
 
@@ -102,7 +117,7 @@ class LogisticRegressionPipeline(BasePipeline):
         topk_vals: pd.Series = calculate_topk_percent(
             model=model,
             dataset=sample.get_dataset(ds_type=DatasetType.VALIDATION),
-            bins=[0.01, 0.02, 0.05, 0.1, 0.2]
+            bins=[0.01, 0.02, 0.05, 0.1, 0.2],
         )
         logging.info(f"TopK Accuracy:\n%s", topk_vals)
         return model

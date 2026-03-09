@@ -30,7 +30,7 @@ REGRESSOR_OFFSETS: List[NamedTimeDelta] = [
     NamedTimeDelta.ONE_DAY,
     NamedTimeDelta.TWO_DAYS,
     NamedTimeDelta.ONE_WEEK,
-    NamedTimeDelta.TWO_WEEKS
+    NamedTimeDelta.TWO_WEEKS,
 ]
 
 # Offsets to compute decay returns
@@ -44,13 +44,16 @@ DECAY_OFFSETS: List[NamedTimeDelta] = [
 
 
 def compute_number_of_prev_pumps(
-        currency_pair: CurrencyPair, pump_event: PumpEvent, pump_events: List[PumpEvent]
+    currency_pair: CurrencyPair, pump_event: PumpEvent, pump_events: List[PumpEvent]
 ) -> int:
     """Compute number of times the same currency_pair was pumped before our current PumpEvent"""
     count: int = 0
     for prev_pump in pump_events:
         # if the current currency_pair has been pumped before, and it was done before current cross-section pump time
-        if currency_pair == prev_pump.currency_pair and prev_pump.time < pump_event.time:
+        if (
+            currency_pair == prev_pump.currency_pair
+            and prev_pump.time < pump_event.time
+        ):
             count += 1
 
     return count
@@ -59,7 +62,8 @@ def compute_number_of_prev_pumps(
 def get_currency_pairs(bounds: Bounds) -> List[CurrencyPair]:
     # Reading partition directories is much faster than scanning parquet data to list symbols.
     return [
-        currency_pair for currency_pair in get_cross_section_currencies(
+        currency_pair
+        for currency_pair in get_cross_section_currencies(
             hive_dir=Exchange.BINANCE_SPOT.get_hive_location(),
             bounds=bounds,
         )
@@ -73,20 +77,27 @@ class PumpsFeatureWriter:
         self._pump_events: List[PumpEvent] = pump_events
         self._pump_times_by_currency: Dict[str, List[datetime]] = {}
         for pump_event in sorted(self._pump_events, key=lambda event: event.time):
-            self._pump_times_by_currency.setdefault(pump_event.currency_pair.name, []).append(pump_event.time)
+            self._pump_times_by_currency.setdefault(
+                pump_event.currency_pair.name, []
+            ).append(pump_event.time)
 
         self._hive: pl.LazyFrame = pl.scan_parquet(
             Exchange.BINANCE_SPOT.get_hive_location(), hive_partitioning=True
         )
 
-    def load_data_for_currency_pair(self, bounds: Bounds, currency_pair: CurrencyPair) -> pl.DataFrame:
+    def load_data_for_currency_pair(
+        self, bounds: Bounds, currency_pair: CurrencyPair
+    ) -> pl.DataFrame:
         """Load data for currency from HiveDataset"""
         return (
-            self._hive
-            .filter(
-                (pl.col(SYMBOL) == currency_pair.name) &
-                (pl.col(DATE).is_between(bounds.day0, bounds.day1)) &
-                (pl.col(TRADE_TIME).is_between(bounds.start_inclusive, bounds.end_exclusive))
+            self._hive.filter(
+                (pl.col(SYMBOL) == currency_pair.name)
+                & (pl.col(DATE).is_between(bounds.day0, bounds.day1))
+                & (
+                    pl.col(TRADE_TIME).is_between(
+                        bounds.start_inclusive, bounds.end_exclusive
+                    )
+                )
             )
             .collect()
             .sort(by=TRADE_TIME)
@@ -107,45 +118,58 @@ class PumpsFeatureWriter:
         )
         df = df.with_columns(
             quote_sign=pl.col("quote_abs") * pl.col("side"),
-            quantity_sign=pl.col(QUANTITY) * pl.col("side")
+            quantity_sign=pl.col(QUANTITY) * pl.col("side"),
         )
         # Aggregate into trades
         df_trades: pl.DataFrame = aggregate_into_trades(df_ticks=df)
 
-        assert df_trades[TRADE_TIME].is_sorted(descending=False), "Data must be in ascending order by TRADE_TIME"
+        assert df_trades[TRADE_TIME].is_sorted(
+            descending=False
+        ), "Data must be in ascending order by TRADE_TIME"
 
         # Compute slippages
         df_trades = df_trades.with_columns(
-            quote_slippage_abs=(pl.col("quote_abs") - pl.col("price_first") * pl.col("quantity_abs")).abs()
+            quote_slippage_abs=(
+                pl.col("quote_abs") - pl.col("price_first") * pl.col("quantity_abs")
+            ).abs()
         )
         df_trades = df_trades.with_columns(
-            quote_slippage_sign=pl.col("quote_slippage_abs") * pl.col("quantity_sign").sign(),
+            quote_slippage_sign=pl.col("quote_slippage_abs")
+            * pl.col("quantity_sign").sign(),
             # Add lags of price_last and trade_time
             price_last_prev=pl.col("price_last").shift(1),
-            trade_time_prev=pl.col(TRADE_TIME).shift(1)
+            trade_time_prev=pl.col(TRADE_TIME).shift(1),
         )
         return df_trades
 
-    def _num_prev_pumps(self, currency_pair: CurrencyPair, pump_event: PumpEvent) -> int:
-        pump_times: List[datetime] = self._pump_times_by_currency.get(currency_pair.name, [])
+    def _num_prev_pumps(
+        self, currency_pair: CurrencyPair, pump_event: PumpEvent
+    ) -> int:
+        pump_times: List[datetime] = self._pump_times_by_currency.get(
+            currency_pair.name, []
+        )
         return bisect_left(pump_times, pump_event.time)
 
-    def compute_features(self, df: pl.DataFrame, currency_pair: CurrencyPair, pump_event: PumpEvent) -> Dict[str, Any]:
+    def compute_features(
+        self, df: pl.DataFrame, currency_pair: CurrencyPair, pump_event: PumpEvent
+    ) -> Dict[str, Any]:
         features: Dict[str, Any] = {}
         window: NamedTimeDelta
 
-        df_hourly: pl.DataFrame = (
-            df.group_by_dynamic(
-                index_column=TRADE_TIME,
-                period=timedelta(hours=1),
-                every=timedelta(hours=1),
+        df_hourly: pl.DataFrame = df.group_by_dynamic(
+            index_column=TRADE_TIME,
+            period=timedelta(hours=1),
+            every=timedelta(hours=1),
+        ).agg(
+            asset_return_pips=(
+                pl.col("price_last").last() / pl.col("price_first").first() - 1
             )
-            .agg(
-                asset_return_pips=(pl.col("price_last").last() / pl.col("price_first").first() - 1) * 1e4,
-                quote_abs=pl.col("quote_abs").sum()
-            )
+            * 1e4,
+            quote_abs=pl.col("quote_abs").sum(),
         )
-        asset_return_std: float = df_hourly.select(pl.col("asset_return_pips").std()).item()
+        asset_return_std: float = df_hourly.select(
+            pl.col("asset_return_pips").std()
+        ).item()
 
         quote_abs_mean: float = df_hourly.select(pl.col("quote_abs").mean()).item()
         quote_abs_std: float = df_hourly.select(pl.col("quote_abs").std()).item()
@@ -156,7 +180,9 @@ class PumpsFeatureWriter:
             # Compute using data 1 hour prior to the pump
             lb: datetime = rb - window.get_td()
             df_filtered: pl.DataFrame = df.filter(pl.col(TRADE_TIME).is_between(lb, rb))
-            df_hourly_filtered: pl.DataFrame = df_hourly.filter(pl.col(TRADE_TIME).is_between(lb, rb))
+            df_hourly_filtered: pl.DataFrame = df_hourly.filter(
+                pl.col(TRADE_TIME).is_between(lb, rb)
+            )
 
             window_values: Dict[str, Any] = df_filtered.select(
                 compute_return().alias("asset_return"),
@@ -167,21 +193,39 @@ class PumpsFeatureWriter:
                 compute_num_trades().alias("num_trades"),
             ).to_dicts()[0]
             hourly_values: Dict[str, Any] = df_hourly_filtered.select(
-                compute_asset_return_zscore(asset_return_std=asset_return_std).alias("asset_return_zscore"),
-                compute_quote_abs_zscore(quote_abs_mean=quote_abs_mean, quote_abs_std=quote_abs_std).alias(
-                    "quote_abs_zscore"
+                compute_asset_return_zscore(asset_return_std=asset_return_std).alias(
+                    "asset_return_zscore"
                 ),
+                compute_quote_abs_zscore(
+                    quote_abs_mean=quote_abs_mean, quote_abs_std=quote_abs_std
+                ).alias("quote_abs_zscore"),
             ).to_dicts()[0]
 
             values: Dict[str, float] = {
-                FeatureType.ASSET_RETURN.col_name(offset=window): window_values["asset_return"],
-                FeatureType.ASSET_RETURN_ZSCORE.col_name(offset=window): hourly_values["asset_return_zscore"],
-                FeatureType.QUOTE_ABS_ZSCORE.col_name(offset=window): hourly_values["quote_abs_zscore"],
-                FeatureType.SHARE_OF_LONG_TRADES.col_name(offset=window): window_values["share_of_long_trades"],
-                FeatureType.POWERLAW_ALPHA.col_name(offset=window): window_values["powerlaw_alpha"],
-                FeatureType.SLIPPAGE_IMBALANCE.col_name(offset=window): window_values["slippage_imbalance"],
-                FeatureType.FLOW_IMBALANCE.col_name(offset=window): window_values["flow_imbalance"],
-                FeatureType.NUM_TRADES.col_name(offset=window): window_values["num_trades"],
+                FeatureType.ASSET_RETURN.col_name(offset=window): window_values[
+                    "asset_return"
+                ],
+                FeatureType.ASSET_RETURN_ZSCORE.col_name(offset=window): hourly_values[
+                    "asset_return_zscore"
+                ],
+                FeatureType.QUOTE_ABS_ZSCORE.col_name(offset=window): hourly_values[
+                    "quote_abs_zscore"
+                ],
+                FeatureType.SHARE_OF_LONG_TRADES.col_name(offset=window): window_values[
+                    "share_of_long_trades"
+                ],
+                FeatureType.POWERLAW_ALPHA.col_name(offset=window): window_values[
+                    "powerlaw_alpha"
+                ],
+                FeatureType.SLIPPAGE_IMBALANCE.col_name(offset=window): window_values[
+                    "slippage_imbalance"
+                ],
+                FeatureType.FLOW_IMBALANCE.col_name(offset=window): window_values[
+                    "flow_imbalance"
+                ],
+                FeatureType.NUM_TRADES.col_name(offset=window): window_values[
+                    "num_trades"
+                ],
             }
             features |= values
 
@@ -193,14 +237,19 @@ class PumpsFeatureWriter:
         for decay_window in DECAY_OFFSETS:
             features[f"target_return@{decay_window.get_slug()}"] = (
                 df.filter(
-                    pl.col(TRADE_TIME).is_between(pump_event.time, pump_event.time + decay_window.get_td())
+                    pl.col(TRADE_TIME).is_between(
+                        pump_event.time, pump_event.time + decay_window.get_td()
+                    )
                 )
-                .select(compute_return()).item()
+                .select(compute_return())
+                .item()
             )
 
         return features
 
-    def create_cross_section(self, pump_event: PumpEvent, position: int) -> Optional[pl.DataFrame]:
+    def create_cross_section(
+        self, pump_event: PumpEvent, position: int
+    ) -> Optional[pl.DataFrame]:
         bounds: Bounds = Bounds(
             start_inclusive=pump_event.time - timedelta(days=30),
             end_exclusive=pump_event.time + timedelta(hours=1),
@@ -209,11 +258,15 @@ class PumpsFeatureWriter:
         currency_pairs: List[CurrencyPair] = get_currency_pairs(bounds=bounds)
 
         if len(currency_pairs) == 0:
-            pbar.set_description(f"Error: no currencies in the cross-section of the pump {str(pump_event)}")
+            pbar.set_description(
+                f"Error: no currencies in the cross-section of the pump {str(pump_event)}"
+            )
             return None
 
         if pump_event.currency_pair not in currency_pairs:
-            pbar.set_description(f"Error: no data found for target currency {str(pump_event)}")
+            pbar.set_description(
+                f"Error: no data found for target currency {str(pump_event)}"
+            )
             return None
 
         cross_section_features: List[Dict[str, float]] = []
@@ -222,9 +275,13 @@ class PumpsFeatureWriter:
         pbar.total = len(currency_pairs)
 
         for currency_pair in currency_pairs:
-            df: pl.DataFrame = self.load_data_for_currency_pair(bounds=bounds, currency_pair=currency_pair)
+            df: pl.DataFrame = self.load_data_for_currency_pair(
+                bounds=bounds, currency_pair=currency_pair
+            )
             df = self.preprocess_data_for_currency(df=df)
-            features: Dict[str, Any] = self.compute_features(df=df, currency_pair=currency_pair, pump_event=pump_event)
+            features: Dict[str, Any] = self.compute_features(
+                df=df, currency_pair=currency_pair, pump_event=pump_event
+            )
             features["currency_pair"] = currency_pair.name
             cross_section_features.append(features)
             pbar.update(1)
@@ -232,7 +289,9 @@ class PumpsFeatureWriter:
         return pl.DataFrame(data=cross_section_features)
 
     def _write_cross_section(self, pump_event: PumpEvent, position: int = 0) -> None:
-        features: Optional[pl.DataFrame] = self.create_cross_section(pump_event=pump_event, position=position)
+        features: Optional[pl.DataFrame] = self.create_cross_section(
+            pump_event=pump_event, position=position
+        )
         if features is not None:
             path: Path = FEATURE_DIR / "pumps" / f"{str(pump_event)}.parquet"
             os.makedirs(path.parent, exist_ok=True)
@@ -246,9 +305,9 @@ class PumpsFeatureWriter:
         tqdm.set_lock(RLock())  # for managing output contention
 
         with Pool(
-                processes=cpu_count,
-                initializer=tqdm.set_lock,
-                initargs=(tqdm.get_lock(),),
+            processes=cpu_count,
+            initializer=tqdm.set_lock,
+            initargs=(tqdm.get_lock(),),
         ) as pool:
             promises: List[AsyncResult] = []
             i: int = 0
@@ -259,7 +318,7 @@ class PumpsFeatureWriter:
                         partial(
                             self._write_cross_section,
                             pump_event=pump_event,
-                            position=i % cpu_count
+                            position=i % cpu_count,
                         )
                     )
                 )
@@ -275,7 +334,9 @@ class PumpsFeatureWriter:
 
 def main():
     configure_logging()
-    pump_events: List[PumpEvent] = load_pumps(path=get_root_dir() / "src/resources/pumps.json")
+    pump_events: List[PumpEvent] = load_pumps(
+        path=get_root_dir() / "src/resources/pumps.json"
+    )
     writer = PumpsFeatureWriter(pump_events=pump_events)
     writer.run_parallel(cpu_count=10)
 

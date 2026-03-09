@@ -17,12 +17,16 @@ class DatasetType(Enum):
 
 
 def split_by_time(
-        df: pd.DataFrame, time_bins: List[datetime], names: List[DatasetType], time_col: str
+    df: pd.DataFrame, time_bins: List[datetime], names: List[DatasetType], time_col: str
 ) -> Dict[DatasetType, pd.DataFrame]:
     """Split df: pd.DataFrame by time_col and return Sample"""
-    assert len(names) - 1 == len(time_bins), "There should be one name more than time_bins"
+    assert len(names) - 1 == len(
+        time_bins
+    ), "There should be one name more than time_bins"
     # first slice: < first bin
-    datasets: Dict[DatasetType, pd.DataFrame] = {names[0]: df[df[time_col] < time_bins[0]]}
+    datasets: Dict[DatasetType, pd.DataFrame] = {
+        names[0]: df[df[time_col] < time_bins[0]]
+    }
 
     # middle slices: between bins
     for i in range(1, len(time_bins)):
@@ -38,7 +42,9 @@ def split_by_time(
 
 class Dataset:
 
-    def __init__(self, data: pd.DataFrame, feature_set: FeatureSet, ds_type: DatasetType):
+    def __init__(
+        self, data: pd.DataFrame, feature_set: FeatureSet, ds_type: DatasetType
+    ):
         self._data: pd.DataFrame = data
         self.ds_type: DatasetType = ds_type
         self.feature_set: FeatureSet = feature_set
@@ -73,8 +79,12 @@ class Dataset:
 
     def get_cross_section(self, pump: PumpEvent) -> "Dataset":
         df: pd.DataFrame = self.all_data()
-        df_pump = df[df[COL_PUMP_HASH] == pump.as_pump_hash()].copy().reset_index(drop=True)
-        dataset: Dataset = Dataset(data=df_pump, feature_set=self.feature_set, ds_type=self.ds_type)
+        df_pump = (
+            df[df[COL_PUMP_HASH] == pump.as_pump_hash()].copy().reset_index(drop=True)
+        )
+        dataset: Dataset = Dataset(
+            data=df_pump, feature_set=self.feature_set, ds_type=self.ds_type
+        )
         dataset.add_pool()
         return dataset
 
@@ -92,7 +102,9 @@ class Sample:
         self._pools: Optional[Dict[DatasetType, Pool]] = None
 
     @classmethod
-    def from_pandas(cls, datasets: Dict[DatasetType, pd.DataFrame], feature_set: FeatureSet) -> "Sample":
+    def from_pandas(
+        cls, datasets: Dict[DatasetType, pd.DataFrame], feature_set: FeatureSet
+    ) -> "Sample":
         return cls(
             datasets={
                 ds_type: Dataset(data=data, feature_set=feature_set, ds_type=ds_type)

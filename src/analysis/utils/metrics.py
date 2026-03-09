@@ -6,10 +6,17 @@ import pandas as pd
 from analysis.pipelines.BaseModel import ImplementsRank
 from analysis.utils.columns import COL_PROBAS_PRED, COL_PUMP_HASH, COL_IS_PUMPED
 from analysis.utils.sample import Dataset
-from sklearn.metrics import auc, precision_recall_curve, f1_score, balanced_accuracy_score
+from sklearn.metrics import (
+    auc,
+    precision_recall_curve,
+    f1_score,
+    balanced_accuracy_score,
+)
 
 
-def calculate_topk(model: ImplementsRank, dataset: Dataset, bins: Iterable[float]) -> pd.Series:
+def calculate_topk(
+    model: ImplementsRank, dataset: Dataset, bins: Iterable[float]
+) -> pd.Series:
     """
     :param bins: bins used to calculate topk
     :return: pd.Series with topk values. Which measures the chance of predicting the actual pump given we take a portfolio
@@ -22,7 +29,9 @@ def calculate_topk(model: ImplementsRank, dataset: Dataset, bins: Iterable[float
     count_by_bins: Dict[float, int] = {}
 
     for pump_hash, df_cross_section in _df.groupby(COL_PUMP_HASH):
-        df_cross_section = df_cross_section.sort_values(by=COL_PROBAS_PRED, ascending=False).reset_index(drop=True)
+        df_cross_section = df_cross_section.sort_values(
+            by=COL_PROBAS_PRED, ascending=False
+        ).reset_index(drop=True)
         for K in bins:
             contains_pump: bool = df_cross_section.iloc[:K][COL_IS_PUMPED].any()
             count_by_bins[K] = count_by_bins.get(K, 0) + contains_pump
@@ -34,7 +43,9 @@ def calculate_topk(model: ImplementsRank, dataset: Dataset, bins: Iterable[float
     return pd.Series(data=counts / num_pumped, index=bins)
 
 
-def calculate_topk_percent(model: ImplementsRank, dataset: Dataset, bins: Iterable[float]) -> pd.Series:
+def calculate_topk_percent(
+    model: ImplementsRank, dataset: Dataset, bins: Iterable[float]
+) -> pd.Series:
     """
     :param bins: bins used to calculate topk. K measures the share of cross-section taken as a portfolio
     :return: pd.Series with topk% values. Which measures the chance of predicting the actual pump given we take a portfolio
@@ -47,7 +58,9 @@ def calculate_topk_percent(model: ImplementsRank, dataset: Dataset, bins: Iterab
     count_by_bins: Dict[float, int] = {}
 
     for pump_hash, df_cross_section in _df.groupby(COL_PUMP_HASH):
-        df_cross_section = df_cross_section.sort_values(by=COL_PROBAS_PRED, ascending=False)
+        df_cross_section = df_cross_section.sort_values(
+            by=COL_PROBAS_PRED, ascending=False
+        )
         n_rows = len(df_cross_section)
 
         for pct_bin in bins:
@@ -66,7 +79,9 @@ def calculate_topk_percent_auc(model: ImplementsRank, dataset: Dataset) -> float
     :return: If we iterate over all percentages from (0, 1) and compute TOPK% accuracy for each, we can measure overall
     performance using AUC approach
     """
-    topk_percentages: pd.Series = calculate_topk_percent(model=model, dataset=dataset, bins=np.arange(0, 1.01, 0.005))
+    topk_percentages: pd.Series = calculate_topk_percent(
+        model=model, dataset=dataset, bins=np.arange(0, 1.01, 0.005)
+    )
     return auc(x=topk_percentages.index, y=topk_percentages.values)
 
 
@@ -87,7 +102,9 @@ def _predict_labels(
     if decision_rule == "top1_per_cross_section":
         pred_labels = np.zeros(df_scored.shape[0], dtype=int)
         top_indices: np.ndarray = (
-            df_scored.groupby(COL_PUMP_HASH, sort=False)[COL_PROBAS_PRED].idxmax().to_numpy(dtype=int)
+            df_scored.groupby(COL_PUMP_HASH, sort=False)[COL_PROBAS_PRED]
+            .idxmax()
+            .to_numpy(dtype=int)
         )
         pred_labels[top_indices] = 1
         return pred_labels
@@ -101,24 +118,32 @@ def _predict_labels(
 def calculate_f1(
     model: ImplementsRank,
     dataset: Dataset,
-    decision_rule: Literal["top1_per_cross_section", "threshold"] = "top1_per_cross_section",
+    decision_rule: Literal[
+        "top1_per_cross_section", "threshold"
+    ] = "top1_per_cross_section",
     threshold: float = 0.5,
 ) -> float:
     df_scored: pd.DataFrame = _with_scores(model=model, dataset=dataset)
     y_true: np.ndarray = df_scored[COL_IS_PUMPED].to_numpy(dtype=int)
-    y_pred: np.ndarray = _predict_labels(df_scored=df_scored, decision_rule=decision_rule, threshold=threshold)
+    y_pred: np.ndarray = _predict_labels(
+        df_scored=df_scored, decision_rule=decision_rule, threshold=threshold
+    )
     return float(f1_score(y_true=y_true, y_pred=y_pred, zero_division=0))
 
 
 def calculate_balanced_accuracy(
     model: ImplementsRank,
     dataset: Dataset,
-    decision_rule: Literal["top1_per_cross_section", "threshold"] = "top1_per_cross_section",
+    decision_rule: Literal[
+        "top1_per_cross_section", "threshold"
+    ] = "top1_per_cross_section",
     threshold: float = 0.5,
 ) -> float:
     df_scored: pd.DataFrame = _with_scores(model=model, dataset=dataset)
     y_true: np.ndarray = df_scored[COL_IS_PUMPED].to_numpy(dtype=int)
-    y_pred: np.ndarray = _predict_labels(df_scored=df_scored, decision_rule=decision_rule, threshold=threshold)
+    y_pred: np.ndarray = _predict_labels(
+        df_scored=df_scored, decision_rule=decision_rule, threshold=threshold
+    )
     return float(balanced_accuracy_score(y_true=y_true, y_pred=y_pred))
 
 

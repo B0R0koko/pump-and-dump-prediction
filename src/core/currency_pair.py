@@ -19,7 +19,7 @@ class CurrencyPair:
     def from_string(cls, symbol: str):
         """Parse CurrencyPair from string formatted like this: ADA-USDT"""
         base, term = symbol.split("-")
-        return cls(base=base, term=term)  # type:ignore
+        return cls(base=base, term=term)  # type: ignore
 
     def __str__(self) -> str:
         return f"{self.base}-{self.term}"
@@ -41,7 +41,8 @@ def collect_all_spot_currency_pairs() -> List[CurrencyPair]:
     resp = requests.get("https://api.binance.com/api/v3/exchangeInfo")
     data: Dict[str, Any] = resp.json()
     return [
-        CurrencyPair(base=entry["baseAsset"], term=entry["quoteAsset"]) for entry in data["symbols"]
+        CurrencyPair(base=entry["baseAsset"], term=entry["quoteAsset"])
+        for entry in data["symbols"]
     ]
 
 
@@ -50,7 +51,8 @@ def collect_all_usdm_currency_pairs() -> List[CurrencyPair]:
     resp = requests.get("https://fapi.binance.com/fapi/v1/exchangeInfo")
     data: Dict[str, Any] = resp.json()
     return [
-        CurrencyPair(base=entry["baseAsset"], term=entry["quoteAsset"]) for entry in data["symbols"]
+        CurrencyPair(base=entry["baseAsset"], term=entry["quoteAsset"])
+        for entry in data["symbols"]
     ]
 
 
@@ -58,7 +60,9 @@ def get_cross_section_currencies(hive_dir: Path, bounds: Bounds) -> List[Currenc
     matched_dirs: List[str] = []
 
     for directory in os.listdir(hive_dir):
-        match: Optional[re.Match[str]] = re.search(string=directory, pattern=r"(\d{4}-\d{2}-\d{2})")
+        match: Optional[re.Match[str]] = re.search(
+            string=directory, pattern=r"(\d{4}-\d{2}-\d{2})"
+        )
         date_matched: Optional[str] = match.group(1) if match else None
         if date_matched is None:
             continue
@@ -73,7 +77,8 @@ def get_cross_section_currencies(hive_dir: Path, bounds: Bounds) -> List[Currenc
     for directory in matched_dirs:
         symbol_directories: List[str] = os.listdir(hive_dir.joinpath(directory))
         all_currency_pairs |= set(
-            CurrencyPair.from_string(symbol=directory.split("=")[1]) for directory in symbol_directories
+            CurrencyPair.from_string(symbol=directory.split("=")[1])
+            for directory in symbol_directories
         )
 
     return list(all_currency_pairs)

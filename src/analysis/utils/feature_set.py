@@ -12,10 +12,11 @@ from feature_writer.FeatureWriter import REGRESSOR_OFFSETS
 class FeatureSet:
 
     def __init__(
-            self, numeric_features: List[str],
-            target: str,
-            categorical_features: Optional[List[str]] = None,
-            eval_fields: Optional[List[str]] = None,
+        self,
+        numeric_features: List[str],
+        target: str,
+        categorical_features: Optional[List[str]] = None,
+        eval_fields: Optional[List[str]] = None,
     ):
         self.numeric_features: List[str] = numeric_features
         self.categorical_features: Optional[List[str]] = categorical_features
@@ -24,17 +25,27 @@ class FeatureSet:
 
     def check_against(self, df: pd.DataFrame) -> None:
         categorical_features = self.categorical_features or []
-        assert set(self.numeric_features).issubset(set(df.columns)), "Some numeric features are missing"
-        assert set(categorical_features).issubset(set(df.columns)), "Some categorical features are missing"
+        assert set(self.numeric_features).issubset(
+            set(df.columns)
+        ), "Some numeric features are missing"
+        assert set(categorical_features).issubset(
+            set(df.columns)
+        ), "Some categorical features are missing"
         assert self.target in df.columns, "Target column is missing"
 
     @property
     def regressors(self) -> List[str]:
-        return self.numeric_features + [] if self.categorical_features is None else self.categorical_features
+        return (
+            self.numeric_features + []
+            if self.categorical_features is None
+            else self.categorical_features
+        )
 
     @property
     def all_columns(self) -> List[str]:
-        return self.numeric_features + self.categorical_features + self.eval_fields or []
+        return (
+            self.numeric_features + self.categorical_features + self.eval_fields or []
+        )
 
     @classmethod
     def auto(cls) -> "FeatureSet":
@@ -44,7 +55,9 @@ class FeatureSet:
         feature_type: FeatureType
         numeric_features: List[str] = []
 
-        features_with_offsets: set[FeatureType] = set(list(FeatureType)) - {FeatureType.NUM_PREV_PUMP}
+        features_with_offsets: set[FeatureType] = set(list(FeatureType)) - {
+            FeatureType.NUM_PREV_PUMP
+        }
 
         for feature_type in features_with_offsets:
             numeric_features.extend(feature_type.col_names(offsets=REGRESSOR_OFFSETS))
@@ -54,7 +67,7 @@ class FeatureSet:
         return cls(
             numeric_features=numeric_features,
             target=COL_IS_PUMPED,
-            categorical_features=None
+            categorical_features=None,
         )
 
     @classmethod

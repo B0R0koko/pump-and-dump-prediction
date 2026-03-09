@@ -1,7 +1,3 @@
-
-
-
-
 class Pipeline:
 
     def build_sample(self):
