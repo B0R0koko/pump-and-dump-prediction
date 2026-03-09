@@ -3,12 +3,12 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 
-from analysis.pipelines.BaseModel import ImplementsRank
-from analysis.portfolio.BasePortfolio import Portfolio
-from analysis.portfolio.TOPKPortfolio import TOPKPortfolio
-from analysis.utils.columns import COL_CURRENCY_PAIR, COL_PUMP_HASH
-from analysis.utils.sample import Dataset, DatasetType
-from analysis.utils.feature_set import FeatureSet
+from backtest.pipelines.BaseModel import ImplementsRank
+from backtest.portfolio.BasePortfolio import Portfolio
+from backtest.portfolio.TOPKPortfolio import TOPKPortfolio
+from backtest.utils.columns import COL_CURRENCY_PAIR, COL_PUMP_HASH
+from backtest.utils.sample import Dataset, DatasetType
+from backtest.utils.feature_set import FeatureSet
 from core.currency_pair import CurrencyPair
 from core.exchange import Exchange
 from core.pump_event import PumpEvent
@@ -42,9 +42,7 @@ class DummyTestModel(ImplementsRank):
 
 def test_topk_portfolio():
     configure_logging()
-    portfolio_manager: TOPKPortfolio = TOPKPortfolio(
-        model=DummyTestModel(), portfolio_size=1
-    )
+    portfolio_manager: TOPKPortfolio = TOPKPortfolio(model=DummyTestModel(), portfolio_size=1)
     expected_return: float = 0.0001981 / 0.0001953 - 1  # portfolio should only contain
 
     portfolio_return: float
@@ -61,9 +59,7 @@ def test_topk_portfolio():
         ds_type=DatasetType.TEST,
     )
 
-    portfolio_return, portfolio = portfolio_manager.evaluate_cross_section(
-        dataset=dataset, pump=test_pump
-    )
+    portfolio_return, portfolio = portfolio_manager.evaluate_cross_section(dataset=dataset, pump=test_pump)
     print(portfolio_return, portfolio)
 
     assert np.abs(portfolio_return - expected_return) < 1e-10, "Returns do not match"

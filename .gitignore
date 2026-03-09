@@ -1,6 +1,6 @@
-src/analysis/images
-catboost_info
-.ipynb_checkpoints
+notebooks/images
+notebooks/catboost_info
+notebooks/.ipynb_checkpoints
 **/catboost_info/
 **/.ipynb_checkpoints/
 **/images/

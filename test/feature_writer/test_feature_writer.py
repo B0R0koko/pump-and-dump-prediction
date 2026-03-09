@@ -3,14 +3,14 @@ from datetime import datetime, timedelta
 import numpy as np
 import polars as pl
 
-import feature_writer.FeatureWriter as feature_writer_module
+import features.FeatureWriter as feature_writer_module
 from core.columns import TRADE_TIME, PRICE, QUANTITY, IS_BUYER_MAKER
 from core.currency_pair import CurrencyPair
 from core.exchange import Exchange
 from core.feature_type import FeatureType
 from core.pump_event import PumpEvent
 from core.time_utils import NamedTimeDelta
-from feature_writer.FeatureWriter import PumpsFeatureWriter
+from features.FeatureWriter import PumpsFeatureWriter
 
 
 def _build_writer(pump_events: list[PumpEvent]) -> PumpsFeatureWriter:
@@ -18,9 +18,7 @@ def _build_writer(pump_events: list[PumpEvent]) -> PumpsFeatureWriter:
     writer._pump_events = pump_events
     writer._pump_times_by_currency = {}
     for pump_event in sorted(pump_events, key=lambda event: event.time):
-        writer.pump_times_by_currency.setdefault(
-            pump_event.currency_pair.name, []
-        ).append(pump_event.time)
+        writer.pump_times_by_currency.setdefault(pump_event.currency_pair.name, []).append(pump_event.time)
     return writer
 
 
@@ -66,12 +64,8 @@ def test_preprocess_data_for_currency_aggregates_ticks_into_trades() -> None:
 
 
 def test_compute_features_matches_feature_definitions(monkeypatch) -> None:
-    monkeypatch.setattr(
-        feature_writer_module, "REGRESSOR_OFFSETS", [NamedTimeDelta.ONE_HOUR]
-    )
-    monkeypatch.setattr(
-        feature_writer_module, "DECAY_OFFSETS", [NamedTimeDelta.ONE_MINUTE]
-    )
+    monkeypatch.setattr(feature_writer_module, "REGRESSOR_OFFSETS", [NamedTimeDelta.ONE_HOUR])
+    monkeypatch.setattr(feature_writer_module, "DECAY_OFFSETS", [NamedTimeDelta.ONE_MINUTE])
 
     currency_pair: CurrencyPair = CurrencyPair.from_string("AAA-BTC")
     other_pair: CurrencyPair = CurrencyPair.from_string("BBB-BTC")
@@ -129,9 +123,7 @@ def test_compute_features_matches_feature_definitions(monkeypatch) -> None:
         }
     )
 
-    features = writer.compute_features(
-        df=df, currency_pair=currency_pair, pump_event=pump_event
-    )
+    features = writer.compute_features(df=df, currency_pair=currency_pair, pump_event=pump_event)
     window: NamedTimeDelta = NamedTimeDelta.ONE_HOUR
     rb: datetime = pump_event.time - timedelta(hours=1)
     lb: datetime = rb - window.get_td()
@@ -148,14 +140,9 @@ def test_compute_features_matches_feature_definitions(monkeypatch) -> None:
     expected_target_return = ((120.0 / 109.0) - 1.0) * 1e4
 
     hourly = (
-        df.group_by_dynamic(
-            index_column=TRADE_TIME, period=timedelta(hours=1), every=timedelta(hours=1)
-        )
+        df.group_by_dynamic(index_column=TRADE_TIME, period=timedelta(hours=1), every=timedelta(hours=1))
         .agg(
-            asset_return_pips=(
-                pl.col("price_last").last() / pl.col("price_first").first() - 1.0
-            )
-            * 1e4,
+            asset_return_pips=(pl.col("price_last").last() / pl.col("price_first").first() - 1.0) * 1e4,
             quote_abs=pl.col("quote_abs").sum(),
         )
         .sort(TRADE_TIME)
@@ -167,9 +154,7 @@ def test_compute_features_matches_feature_definitions(monkeypatch) -> None:
     expected_asset_return_zscore = 588.2352941176471 / asset_return_std
     expected_quote_abs_zscore = (80.0 - quote_abs_mean) / quote_abs_std
 
-    assert np.isclose(
-        features[FeatureType.ASSET_RETURN.col_name(window)], expected_return
-    )
+    assert np.isclose(features[FeatureType.ASSET_RETURN.col_name(window)], expected_return)
     assert np.isclose(
         features[FeatureType.ASSET_RETURN_ZSCORE.col_name(window)],
         expected_asset_return_zscore,
@@ -178,21 +163,13 @@ def test_compute_features_matches_feature_definitions(monkeypatch) -> None:
         features[FeatureType.QUOTE_ABS_ZSCORE.col_name(window)],
         expected_quote_abs_zscore,
     )
-    assert np.isclose(
-        features[FeatureType.SHARE_OF_LONG_TRADES.col_name(window)], expected_share_long
-    )
-    assert np.isclose(
-        features[FeatureType.POWERLAW_ALPHA.col_name(window)], expected_powerlaw
-    )
+    assert np.isclose(features[FeatureType.SHARE_OF_LONG_TRADES.col_name(window)], expected_share_long)
+    assert np.isclose(features[FeatureType.POWERLAW_ALPHA.col_name(window)], expected_powerlaw)
     assert np.isclose(
         features[FeatureType.SLIPPAGE_IMBALANCE.col_name(window)],
         expected_slippage_imbalance,
     )
-    assert np.isclose(
-        features[FeatureType.FLOW_IMBALANCE.col_name(window)], expected_flow_imbalance
-    )
-    assert np.isclose(
-        features[FeatureType.NUM_TRADES.col_name(window)], expected_num_trades
-    )
+    assert np.isclose(features[FeatureType.FLOW_IMBALANCE.col_name(window)], expected_flow_imbalance)
+    assert np.isclose(features[FeatureType.NUM_TRADES.col_name(window)], expected_num_trades)
     assert features[FeatureType.NUM_PREV_PUMP.lower()] == 2
     assert np.isclose(features["target_return@1MIN"], expected_target_return)

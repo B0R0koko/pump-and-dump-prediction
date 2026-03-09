@@ -1,8 +1,8 @@
 import numpy as np
 import pandas as pd
 
-from analysis.utils.columns import COL_IS_PUMPED, COL_PROBAS_PRED, COL_PUMP_HASH
-from analysis.robust.significance import (
+from backtest.utils.columns import COL_IS_PUMPED, COL_PROBAS_PRED, COL_PUMP_HASH
+from backtest.robust.significance import (
     bootstrap_topk_ci,
     bootstrap_topk_percent_auc_ci,
     paired_bootstrap_topk_percent_auc_test,
@@ -72,9 +72,7 @@ def test_bootstrap_topk_ci_returns_expected_shape() -> None:
     )
 
     assert list(ci_df.index) == [1, 2, 5]
-    assert {"point_estimate", "ci_lower", "ci_upper", "n_bootstrap", "alpha"}.issubset(
-        ci_df.columns
-    )
+    assert {"point_estimate", "ci_lower", "ci_upper", "n_bootstrap", "alpha"}.issubset(ci_df.columns)
     assert np.allclose(ci_df["point_estimate"].to_numpy(), np.ones(3))
 
 

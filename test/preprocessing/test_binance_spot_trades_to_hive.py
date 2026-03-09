@@ -36,22 +36,11 @@ def test_binance_spot_trades_to_hive() -> None:
         # Collect the number of rows lazily
         hive: pl.LazyFrame = pl.scan_parquet(source=output_dir, hive_partitioning=True)
 
-        hive_size: int = (
-            hive.filter((pl.col(SYMBOL) == currency_pair.name))
-            .select(pl.len())
-            .collect()
-            .item()
-        )
+        hive_size: int = hive.filter((pl.col(SYMBOL) == currency_pair.name)).select(pl.len()).collect().item()
 
         # unzip data using pandas by simply unpacking csv file and then reading csv with pandas
-        zip_file_path: Path = BINANCE_SPOT_RAW_TRADES.joinpath(
-            currency_pair.name
-        ).joinpath(zip_file_name)
+        zip_file_path: Path = BINANCE_SPOT_RAW_TRADES.joinpath(currency_pair.name).joinpath(zip_file_name)
 
-        df_pandas: pd.DataFrame = pd.read_csv(
-            zip_file_path, compression="zip", header=None
-        )
+        df_pandas: pd.DataFrame = pd.read_csv(zip_file_path, compression="zip", header=None)
 
-        assert (
-            df_pandas.shape[0] == hive_size
-        ), "Polars HiveDataset and Pandas.DataFrame have different shapes"
+        assert df_pandas.shape[0] == hive_size, "Polars HiveDataset and Pandas.DataFrame have different shapes"

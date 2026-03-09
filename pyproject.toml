@@ -37,3 +37,9 @@ dev = [
     "pylint (>=4.0.5,<5.0.0)",
     "mypy (>=1.19.1,<2.0.0)"
 ]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+
+[tool.black]
+line-length = 120
