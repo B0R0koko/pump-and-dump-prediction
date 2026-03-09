@@ -10,12 +10,13 @@ from backtest.pipelines.BaseModel import ImplementsRank
 from backtest.portfolio.BasePortfolio import ImplementsPortfolio, Portfolio, Transaction
 from backtest.portfolio.PriceImpact import PriceImpactModel
 from backtest.portfolio.config import PortfolioExecutionConfig
-from backtest.portfolio.execution_engine import ExecutionEngine
 from backtest.portfolio.impact_provider import LookbackImpactModelProvider
 from backtest.portfolio.interfaces import QuoteToUSDTProvider
+from backtest.portfolio.manipulated_impact_provider import ManipulatedImpactModelProvider
 from backtest.portfolio.models import OrderIntent
 from backtest.portfolio.selector import TopKPortfolioSelector
 from backtest.portfolio.sizing import NotionalSizer
+from backtest.portfolio.vwap_estimator import VWAPEstimator
 from backtest.utils.IndicativePriceProvider import IndicativePriceProvider
 from backtest.utils.sample import Dataset, DatasetType, Sample
 from core.currency_pair import CurrencyPair
@@ -67,7 +68,11 @@ class TOPKPortfolio(ImplementsPortfolio):
             lookback_days=self.config.impact_lookback_days,
             liquidity_quantile=self.config.impact_liquidity_quantile,
         )
-        self._execution_engine = ExecutionEngine(indicative_price_provider=self._indicative_price_provider)
+        self._manipulated_impact_model_provider = ManipulatedImpactModelProvider(
+            load_trades=self.load_trades,
+            liquidity_quantile=self.config.impact_liquidity_quantile,
+        )
+        self._vwap_estimator = VWAPEstimator(indicative_price_provider=self._indicative_price_provider)
 
     @property
     def portfolio_size(self) -> int:
@@ -107,6 +112,18 @@ class TOPKPortfolio(ImplementsPortfolio):
     def _get_impact_model(self, pump: PumpEvent, cp: CurrencyPair) -> PriceImpactModel:
         return self._impact_model_provider.get_impact_model(pump=pump, currency_pair=cp)
 
+    def _get_manipulated_exit_impact_model(
+        self,
+        pump: PumpEvent,
+        cp: CurrencyPair,
+        exit_ts: datetime,
+    ) -> PriceImpactModel:
+        return self._manipulated_impact_model_provider.get_impact_model(
+            pump=pump,
+            currency_pair=cp,
+            end_exclusive=exit_ts,
+        )
+
     def _build_order_intent(
         self,
         cp: CurrencyPair,
@@ -115,6 +132,7 @@ class TOPKPortfolio(ImplementsPortfolio):
         exit_price: float,
         entry_ts: datetime,
         exit_ts: datetime,
+        is_manipulated_asset: bool,
     ) -> OrderIntent:
         """
         Build execution intent for one asset leg.
@@ -136,6 +154,7 @@ class TOPKPortfolio(ImplementsPortfolio):
             entry_ts=entry_ts,
             exit_ts=exit_ts,
             intended_notional_quote=intended_notional_quote,
+            is_manipulated_asset=is_manipulated_asset,
         )
 
     def _create_transaction_from_intent(self, intent: OrderIntent) -> Transaction:
@@ -154,14 +173,24 @@ class TOPKPortfolio(ImplementsPortfolio):
                 exit_ts=intent.exit_ts,
             )
 
-        impact_model: Optional[PriceImpactModel] = None
+        entry_impact_model: Optional[PriceImpactModel] = None
+        exit_impact_model: Optional[PriceImpactModel] = None
         if self.config.use_price_impact:
-            impact_model = self._get_impact_model(pump=intent.pump, cp=intent.currency_pair)
+            entry_impact_model = self._get_impact_model(pump=intent.pump, cp=intent.currency_pair)
+            if intent.is_manipulated_asset:
+                exit_impact_model = self._get_manipulated_exit_impact_model(
+                    pump=intent.pump,
+                    cp=intent.currency_pair,
+                    exit_ts=intent.exit_ts,
+                )
+            else:
+                exit_impact_model = entry_impact_model
 
-        execution = self._execution_engine.execute(
+        execution = self._vwap_estimator.estimate(
             intent=intent,
             use_price_impact=self.config.use_price_impact,
-            impact_model=impact_model,
+            entry_impact_model=entry_impact_model,
+            exit_impact_model=exit_impact_model,
         )
         return Transaction(
             entry_price=execution.entry_price,
@@ -203,6 +232,7 @@ class TOPKPortfolio(ImplementsPortfolio):
             exit_price=float(exit_price),
             entry_ts=entry_ts,
             exit_ts=exit_ts,
+            is_manipulated_asset=False,
         )
         return self._create_transaction_from_intent(intent=intent)
 
@@ -230,6 +260,7 @@ class TOPKPortfolio(ImplementsPortfolio):
             exit_price=float(exit_price),
             entry_ts=entry_ts,
             exit_ts=exit_ts,
+            is_manipulated_asset=True,
         )
         return self._create_transaction_from_intent(intent=intent)
 

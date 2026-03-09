@@ -254,6 +254,62 @@ def test_topk_transaction_converts_usdt_to_quote_before_price_impact(
     assert np.isclose(tx.fill_ratio, 1.0)
 
 
+def test_pumped_transaction_uses_manipulated_exit_impact_model(
+    monkeypatch,
+) -> None:
+    cp = CurrencyPair.from_string("AAA-BTC")
+    pump = PumpEvent(
+        currency_pair=cp,
+        time=datetime(2021, 1, 2, 12, 0, 0),
+        exchange=Exchange.BINANCE_SPOT,
+    )
+    manager = TOPKPortfolio(
+        model=DummyModel(),
+        portfolio_size=1,
+        use_price_impact=True,
+        order_notional_quote=100.0,
+        indicative_price_provider=DummyQuoteToUSDTRateProvider(),
+    )
+    pre_pump_model = PriceImpactModel(
+        buy_intercept_bps=10.0,
+        buy_slope_bps_per_sqrt_notional=0.0,
+        sell_intercept_bps=5.0,
+        sell_slope_bps_per_sqrt_notional=0.0,
+        buy_capacity_quote=100.0,
+        sell_capacity_quote=100.0,
+        num_bars=100,
+    )
+    manipulated_exit_model = PriceImpactModel(
+        buy_intercept_bps=0.0,
+        buy_slope_bps_per_sqrt_notional=0.0,
+        sell_intercept_bps=40.0,
+        sell_slope_bps_per_sqrt_notional=0.0,
+        buy_capacity_quote=100.0,
+        sell_capacity_quote=80.0,
+        num_bars=20,
+    )
+    monkeypatch.setattr(TOPKPortfolio, "_get_impact_model", lambda self, pump, cp: pre_pump_model)
+    monkeypatch.setattr(
+        TOPKPortfolio,
+        "_get_manipulated_exit_impact_model",
+        lambda self, pump, cp, exit_ts: manipulated_exit_model,
+    )
+
+    ts_price = pd.Series(
+        index=[pump.time - timedelta(minutes=20), pump.time + timedelta(minutes=1)],
+        data=[100.0, 110.0],
+    )
+    tx = manager.pumped_transaction(ts_price=ts_price, pump=pump, cp=cp)
+
+    assert np.isclose(tx.entry_filled_notional_quote, 80.0)
+    assert np.isclose(tx.exit_filled_notional_quote, 80.0)
+    assert np.isclose(tx.fill_ratio, 0.8)
+    assert np.isclose(tx.entry_price, 100.1)
+    assert np.isclose(tx.exit_price, 109.56)
+    assert np.isclose(tx.entry_impact_bps, 10.0)
+    assert np.isclose(tx.exit_impact_bps, 40.0)
+
+
 def test_portfolio_stats_pnl_is_usdt_denominated_when_conversion_available() -> None:
     cp = CurrencyPair.from_string("AAA-BTC")
     tx = Transaction(

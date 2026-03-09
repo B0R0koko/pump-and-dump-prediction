@@ -18,6 +18,7 @@ class OrderIntent:
     entry_ts: datetime
     exit_ts: datetime
     intended_notional_quote: float
+    is_manipulated_asset: bool = False
 
 
 @dataclass(frozen=True)
