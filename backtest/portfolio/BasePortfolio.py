@@ -44,6 +44,8 @@ class Transaction:
     exit_filled_notional_usdt: Optional[float] = None
     entry_impact_bps: float = 0.0
     exit_impact_bps: float = 0.0
+    entry_impact_num_bars: int = 0
+    exit_impact_num_bars: int = 0
     fill_ratio: float = 1.0
 
     @property
@@ -51,11 +53,11 @@ class Transaction:
         """
         Net fractional return for one round-trip transaction.
 
-        Includes fixed 20 bps trading cost and scales by `fill_ratio` so partial
+        Includes fixed 25 bps trading cost and scales by `fill_ratio` so partial
         fills contribute proportionally.
         """
         assert self.entry_price is not None and self.exit_price is not None
-        return (self.exit_price / self.entry_price - 1 - 0.002) * self.fill_ratio
+        return (self.exit_price / self.entry_price - 1 - 0.0025) * self.fill_ratio
 
     @classmethod
     def empty(cls, currency_pair: CurrencyPair) -> "Transaction":
@@ -85,6 +87,74 @@ class PortfolioStats:
         :return: PnL of the portfolio in USDT. Skips assets with no price data.
         """
         return self._pnl_calculator.calculate_portfolio_pnl(portfolio=self.portfolio, txs=self.txs)
+
+    def _weighted_transaction_metric(self, attr_name: str) -> float:
+        """
+        Return the portfolio-weighted average of a transaction metric.
+        """
+        total_weighted_value: float = 0.0
+        total_weight: float = 0.0
+        for tx in self.txs:
+            if tx.is_empty():
+                continue
+            value = getattr(tx, attr_name)
+            if value is None:
+                continue
+            weight = float(self.portfolio.get_weight(tx.currency_pair))
+            total_weighted_value += weight * float(value)
+            total_weight += weight
+        if np.isclose(total_weight, 0.0):
+            return 0.0
+        return total_weighted_value / total_weight
+
+    @property
+    def mean_fill_ratio(self) -> float:
+        """
+        Portfolio-weighted average fill ratio across non-empty legs.
+        """
+        return self._weighted_transaction_metric("fill_ratio")
+
+    @property
+    def mean_entry_impact_bps(self) -> float:
+        """
+        Portfolio-weighted average entry impact in basis points.
+        """
+        return self._weighted_transaction_metric("entry_impact_bps")
+
+    @property
+    def mean_exit_impact_bps(self) -> float:
+        """
+        Portfolio-weighted average exit impact in basis points.
+        """
+        return self._weighted_transaction_metric("exit_impact_bps")
+
+    @property
+    def mean_entry_impact_num_bars(self) -> float:
+        """
+        Portfolio-weighted average number of bars behind the entry impact model.
+        """
+        return self._weighted_transaction_metric("entry_impact_num_bars")
+
+    @property
+    def mean_exit_impact_num_bars(self) -> float:
+        """
+        Portfolio-weighted average number of bars behind the exit impact model.
+        """
+        return self._weighted_transaction_metric("exit_impact_num_bars")
+
+    @property
+    def executed_notional_usdt(self) -> float:
+        """
+        Portfolio-weighted executed notional in USDT at entry.
+        """
+        total_executed_notional_usdt: float = 0.0
+        for tx in self.txs:
+            if tx.is_empty() or tx.entry_filled_notional_usdt is None:
+                continue
+            total_executed_notional_usdt += (
+                float(self.portfolio.get_weight(tx.currency_pair)) * float(tx.entry_filled_notional_usdt)
+            )
+        return total_executed_notional_usdt
 
     def has_pump(self) -> bool:
         """

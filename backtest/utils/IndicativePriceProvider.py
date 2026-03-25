@@ -12,6 +12,7 @@ from core.columns import (
     QUOTE_ASSET_VOLUME,
     VOLUME,
 )
+
 from core.paths import BINANCE_SPOT_RAW_KLINES
 
 
@@ -50,6 +51,7 @@ class IndicativePriceProvider:
             names=BINANCE_KLINES_COLS,
             usecols=[OPEN_TIME, VOLUME, QUOTE_ASSET_VOLUME, CLOSE_PRICE],
         )
+
         if df.empty:
             self._cache[cache_key] = None
             return None
@@ -70,7 +72,7 @@ class IndicativePriceProvider:
 
     def get_indicative_price(self, symbol: str, ts: datetime) -> Optional[float]:
         """
-        Return nearest minute-level indicative price for `symbol` at timestamp `ts`.
+        Return the nearest minute-level indicative price for `symbol` at timestamp `ts`.
 
         Preference order:
         1. Most recent minute at or before `ts`.
@@ -85,6 +87,7 @@ class IndicativePriceProvider:
 
         minute = ts.replace(second=0, microsecond=0)
         upto = series.loc[series.index <= minute]
+
         if not upto.empty:
             return float(upto.iloc[-1])
 

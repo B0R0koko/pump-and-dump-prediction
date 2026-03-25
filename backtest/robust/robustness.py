@@ -137,3 +137,67 @@ def summarise_robustness_distribution(
 
     summary: pd.DataFrame = results[list(metric_cols)].describe(percentiles=[0.1, 0.25, 0.5, 0.75, 0.9]).T
     return summary
+
+
+def evaluate_subperiod_metrics(
+    model: Any,
+    dataset_df: pd.DataFrame,
+    date_col: str,
+    split_date: str,
+    topk_bins: Sequence[float] = (0.01, 0.02, 0.05, 0.1, 0.2),
+) -> pd.DataFrame:
+    """
+    Split the test set into early and late subperiods by pump event date
+    and evaluate Top@K% and Top@K%-AUC on each half independently.
+
+    Parameters
+    ----------
+    model : ImplementsRank
+        Trained model with a .rank() method.
+    dataset_df : pd.DataFrame
+        The full test dataset including a date column and pump_hash.
+    date_col : str
+        Column containing the event timestamp used for splitting.
+    split_date : str
+        ISO date string to split the test set into early (<= split_date) and late (> split_date).
+    topk_bins : Sequence[float]
+        Percentage bins for Top@K% evaluation.
+
+    Returns
+    -------
+    pd.DataFrame
+        One row per subperiod with metric columns.
+    """
+    from backtest.utils.sample import Dataset, DatasetType
+    from backtest.utils.feature_set import FeatureSet
+
+    dataset_df = dataset_df.copy()
+    dataset_df[date_col] = pd.to_datetime(dataset_df[date_col])
+    split_ts = pd.Timestamp(split_date)
+
+    pump_dates = dataset_df.groupby(COL_PUMP_HASH)[date_col].min()
+    early_hashes = pump_dates[pump_dates <= split_ts].index
+    late_hashes = pump_dates[pump_dates > split_ts].index
+
+    feature_set = FeatureSet.auto()
+
+    rows: List[Dict[str, float | int | str]] = []
+    for label, hashes in [("early", early_hashes), ("late", late_hashes)]:
+        subset = dataset_df[dataset_df[COL_PUMP_HASH].isin(hashes)].reset_index(drop=True)
+        if subset.empty or subset[COL_PUMP_HASH].nunique() == 0:
+            continue
+        sub_dataset = Dataset(data=subset, feature_set=feature_set, ds_type=DatasetType.TEST)
+        sub_dataset.add_pool()
+        topk_pct_auc: float = calculate_topk_percent_auc(model=model, dataset=sub_dataset)
+        topk_values: pd.Series = calculate_topk_percent(model=model, dataset=sub_dataset, bins=topk_bins)
+        result: Dict[str, float | int | str] = {
+            "subperiod": label,
+            "n_pumps": int(subset[COL_PUMP_HASH].nunique()),
+            "n_rows": int(subset.shape[0]),
+            "topk_percent_auc": float(topk_pct_auc),
+        }
+        for pct_bin, val in topk_values.items():
+            result[f"topk_percent@{float(pct_bin):g}"] = float(val)
+        rows.append(result)
+
+    return pd.DataFrame(rows)

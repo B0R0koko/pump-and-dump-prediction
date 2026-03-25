@@ -8,3 +8,6 @@ pylint:
 
 mypy:
     poetry run python -m mypy core features market_data preprocessing backtest test
+
+paper:
+    cd paper && pdflatex -interaction=nonstopmode access.tex && pdflatex -interaction=nonstopmode access.tex

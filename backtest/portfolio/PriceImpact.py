@@ -2,184 +2,299 @@ from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
+from scipy.optimize import lsq_linear
 
-from core.columns import TRADE_TIME, PRICE, QUANTITY, IS_BUYER_MAKER
+from core.columns import IS_BUYER_MAKER, PRICE, QUANTITY, TRADE_TIME
+
+
+def _fit_sqrt_regression(notionals: np.ndarray, impacts: np.ndarray) -> tuple[float, float]:
+    """Constrained OLS for I(Q) = max(0, a + beta * sqrt(Q)).
+
+    The intercept a is unconstrained (negative = dead zone for small Q),
+    while beta is constrained >= 0 (impact increases with size).
+    """
+    if len(notionals) == 0:
+        return 0.0, 0.0
+    X = np.column_stack([np.ones(len(notionals)), np.sqrt(notionals)])
+    result = lsq_linear(X, impacts, bounds=([-np.inf, 0.0], [np.inf, np.inf]))
+    return float(result.x[0]), float(result.x[1])
 
 
 @dataclass(frozen=True)
 class PriceImpactModel:
     """
-    Parametric market-impact model fit independently for buy and sell executions.
+    Square-root market-impact model: I(Q) = max(0, a + beta * sqrt(Q)).
 
-    Impact is modelled in basis points as:
-        impact_bps = intercept + slope * sqrt(notional_quote)
+    Regression is fitted in USDT-normalised notional space so the impact
+    curve is comparable across time (BTC price regimes). The public interface
+    accepts notionals in quote currency; the model converts internally using
+    the stored ``quote_to_usdt`` rate from fitting time.
+
+    The intercept a can be negative, creating a dead zone for small orders
+    that execute within the spread. beta >= 0 is enforced during fitting.
     """
 
-    buy_intercept_bps: float
-    buy_slope_bps_per_sqrt_notional: float
-    sell_intercept_bps: float
-    sell_slope_bps_per_sqrt_notional: float
-    buy_capacity_quote: float
-    sell_capacity_quote: float
-    num_bars: int
+    buy_beta0: float
+    buy_beta1: float
+    sell_beta0: float
+    sell_beta1: float
+    buy_capacity_usdt: float
+    sell_capacity_usdt: float
+    quote_to_usdt: float
+    num_trades: int
 
     def predict_impact_bps(self, side: int, notional_quote: float) -> float:
+        """Terminal impact: I(Q) = max(0, a + beta * sqrt(Q_usdt))."""
+        if notional_quote <= 0:
+            return 0.0
+        q_usdt = notional_quote * self.quote_to_usdt
+        a, b = (self.buy_beta0, self.buy_beta1) if side >= 0 else (self.sell_beta0, self.sell_beta1)
+        return max(0.0, a + b * np.sqrt(q_usdt))
+
+    def _impact_threshold_usdt(self, a: float, b: float) -> float:
+        """USDT notional below which impact is zero: Q* = (a/b)^2 when a < 0."""
+        if a >= 0 or b <= 0:
+            return 0.0
+        return (a / b) ** 2
+
+    def predict_vwap_impact_bps(self, side: int, notional_quote: float) -> float:
         """
-        Predict expected impact (in bps) for a side and notional in quote currency.
+        VWAP impact accounting for the dead zone, in USDT space.
+
+        I_vwap(Q) = (1/Q) * integral from Q* to Q of (a + beta*sqrt(q)) dq
+                   = (1/Q) * [a*(Q - Q*) + 2/3*beta*(Q^1.5 - Q*^1.5)]
+
+        where Q* = (a/beta)^2 is the USDT threshold below which impact is zero.
         """
-        x: float = float(np.sqrt(max(notional_quote, 0.0)))
-        if side >= 0:
-            impact = self.buy_intercept_bps + self.buy_slope_bps_per_sqrt_notional * x
-        else:
-            impact = self.sell_intercept_bps + self.sell_slope_bps_per_sqrt_notional * x
-        return max(0.0, float(impact))
+        if notional_quote <= 0:
+            return 0.0
+        q_usdt = notional_quote * self.quote_to_usdt
+        a, b = (self.buy_beta0, self.buy_beta1) if side >= 0 else (self.sell_beta0, self.sell_beta1)
+        q_star = self._impact_threshold_usdt(a, b)
+        if q_usdt <= q_star:
+            return 0.0
+        integral = a * (q_usdt - q_star) + (2.0 / 3.0) * b * (q_usdt**1.5 - q_star**1.5)
+        return max(0.0, integral / q_usdt)
 
     def estimate_fill_notional(self, side: int, intended_notional_quote: float) -> float:
-        """
-        Cap intended notional by side-specific liquidity capacity inferred from history.
-        """
+        """Cap intended notional by side-specific USDT liquidity capacity."""
         if intended_notional_quote <= 0:
             return 0.0
-        capacity = self.buy_capacity_quote if side >= 0 else self.sell_capacity_quote
-        if not np.isfinite(capacity) or capacity <= 0:
+        intended_usdt = intended_notional_quote * self.quote_to_usdt
+        capacity_usdt = self.buy_capacity_usdt if side >= 0 else self.sell_capacity_usdt
+        if not np.isfinite(capacity_usdt) or capacity_usdt <= 0:
             return float(intended_notional_quote)
-        return float(min(intended_notional_quote, capacity))
+        filled_usdt = min(intended_usdt, capacity_usdt)
+        return float(filled_usdt / self.quote_to_usdt)
 
     def estimate_vwap_price(self, base_price: float, side: int, notional_quote: float) -> tuple[float, float]:
         """
-        Convert predicted impact into an indicative VWAP execution price.
+        VWAP execution price (Eqs. 10-11).
+
+        Entry (side=1):  p_vwap = p * (1 + I_vwap / 1e4)
+        Exit  (side=-1): p_vwap = p * (1 - I_vwap / 1e4)
         """
         if notional_quote <= 0:
             return max(1e-12, float(base_price)), 0.0
-        impact_bps = self.predict_impact_bps(side=side, notional_quote=notional_quote)
-        vwap_price = max(1e-12, float(base_price) * (1.0 + side * impact_bps / 1e4))
-        return vwap_price, impact_bps
+        vwap_impact_bps = self.predict_vwap_impact_bps(side=side, notional_quote=notional_quote)
+        vwap_price = max(1e-12, float(base_price) * (1.0 + side * vwap_impact_bps / 1e4))
+        return vwap_price, vwap_impact_bps
 
 
-def _fit_linear_regression(x: np.ndarray, y: np.ndarray) -> tuple[float, float]:
+@dataclass(frozen=True)
+class PriceImpactFitResult:
+    model: PriceImpactModel
+    samples: pd.DataFrame
+    diagnostics: pd.DataFrame
+
+
+def _empty_price_impact_model(quote_to_usdt: float = 1.0) -> PriceImpactModel:
+    return PriceImpactModel(
+        buy_beta0=0.0,
+        buy_beta1=0.0,
+        sell_beta0=0.0,
+        sell_beta1=0.0,
+        buy_capacity_usdt=np.inf,
+        sell_capacity_usdt=np.inf,
+        quote_to_usdt=quote_to_usdt,
+        num_trades=0,
+    )
+
+
+_IMPACT_SAMPLE_COLUMNS = [
+    "trade_time",
+    "price_first",
+    "price_last",
+    "notional_quote",
+    "notional_usdt",
+    "side",
+    "impact_bps",
+]
+
+
+def _empty_impact_samples() -> pd.DataFrame:
+    return pd.DataFrame(columns=_IMPACT_SAMPLE_COLUMNS)
+
+
+def aggregate_trades_to_orders(trades: pd.DataFrame, quote_to_usdt: float = 1.0) -> pd.DataFrame:
     """
-    Fit non-negative OLS coefficients for `y = intercept + slope * x`.
+    Aggregate fills sharing the same trade_time into meta-orders.
 
-    Handles low-information edge cases where robust OLS is not meaningful.
+    Each group represents fills from a single market order walking through
+    the order book.  We record the first and last fill price, total notional
+    (in both quote and USDT), and net side (buy vs sell initiated).
     """
-    if x.size == 0:
-        return 0.0, 0.0
-    if x.size == 1 or np.allclose(x, x[0]):
-        slope = float(np.median(y / np.maximum(x, 1e-9)))
-        return 0.0, max(0.0, slope)
+    if trades.empty:
+        return _empty_impact_samples()
 
-    design = np.column_stack([np.ones_like(x), x])
-    beta = np.linalg.lstsq(design, y, rcond=None)[0]
-    intercept = max(0.0, float(beta[0]))
-    slope = max(0.0, float(beta[1]))
-    return intercept, slope
+    required = {TRADE_TIME, PRICE, QUANTITY, IS_BUYER_MAKER}
+    if not required.issubset(trades.columns):
+        return _empty_impact_samples()
+
+    df = trades.copy()
+    df[PRICE] = pd.to_numeric(df[PRICE], errors="coerce")
+    df[QUANTITY] = pd.to_numeric(df[QUANTITY], errors="coerce")
+    df = df.dropna(subset=[TRADE_TIME, PRICE, QUANTITY])
+    if df.empty:
+        return _empty_impact_samples()
+
+    df["quote_notional"] = df[PRICE] * df[QUANTITY]
+    # is_buyer_maker=True means taker sell, False means taker buy
+    df["signed_notional"] = np.where(df[IS_BUYER_MAKER], -df["quote_notional"], df["quote_notional"])
+
+    grouped = df.groupby(TRADE_TIME, sort=True).agg(
+        price_first=(PRICE, "first"),
+        price_last=(PRICE, "last"),
+        total_quote_notional=("quote_notional", "sum"),
+        net_signed_notional=("signed_notional", "sum"),
+    )
+    grouped = grouped[grouped["total_quote_notional"] > 0].copy()
+    if grouped.empty:
+        return _empty_impact_samples()
+
+    grouped["side"] = np.where(grouped["net_signed_notional"] >= 0, 1, -1)
+    grouped["notional_quote"] = grouped["total_quote_notional"]
+    grouped["notional_usdt"] = grouped["notional_quote"] * quote_to_usdt
+    grouped["impact_bps"] = grouped["side"] * (grouped["price_last"] / grouped["price_first"] - 1.0) * 1e4
+    grouped["impact_bps"] = grouped["impact_bps"].clip(lower=0.0)
+
+    result = grouped.reset_index().rename(columns={TRADE_TIME: "trade_time"})
+    return result[_IMPACT_SAMPLE_COLUMNS].reset_index(drop=True)
 
 
-def _fit_side_model(
-    df_side: pd.DataFrame, fallback_capacity: float, liquidity_quantile: float
-) -> tuple[float, float, float]:
+def _fit_side(
+    df_side: pd.DataFrame,
+    liquidity_quantile: float,
+    fallback_capacity_usdt: float,
+) -> tuple[float, float, float, dict]:
     """
-    Fit impact regression and liquidity capacity for a single execution side.
-    """
-    if df_side.empty:
-        return 0.0, 0.0, fallback_capacity
+    Fit sqrt regression for one side in USDT space: I(Q) = max(0, a + beta * sqrt(Q_usdt)).
 
-    x = np.sqrt(df_side["notional_quote"].to_numpy(dtype=float))
-    y = df_side["impact_bps"].to_numpy(dtype=float)
-    intercept, slope = _fit_linear_regression(x=x, y=y)
-    capacity = float(df_side["notional_quote"].quantile(liquidity_quantile))
-    if not np.isfinite(capacity) or capacity <= 0:
-        capacity = fallback_capacity
-    return intercept, slope, capacity
+    Returns (beta0, beta1, capacity_usdt, diagnostics).
+    """
+    side_name = "buy" if not df_side.empty and df_side["side"].iloc[0] >= 0 else "sell"
+    if df_side.empty or df_side["notional_usdt"].max() <= 0:
+        return 0.0, 0.0, fallback_capacity_usdt, _side_diagnostics(side_name, 0, 0.0, 0.0)
+
+    notionals_usdt = df_side["notional_usdt"].to_numpy(dtype=float)
+    impacts = df_side["impact_bps"].to_numpy(dtype=float)
+
+    valid = notionals_usdt > 0
+    notionals_usdt = notionals_usdt[valid]
+    impacts = impacts[valid]
+
+    if len(notionals_usdt) == 0:
+        return 0.0, 0.0, fallback_capacity_usdt, _side_diagnostics(side_name, 0, 0.0, 0.0)
+
+    beta0, beta1 = _fit_sqrt_regression(notionals_usdt, impacts)
+
+    capacity_usdt = float(np.quantile(notionals_usdt, liquidity_quantile))
+    if not np.isfinite(capacity_usdt) or capacity_usdt <= 0:
+        capacity_usdt = fallback_capacity_usdt
+
+    median_impact = float(np.median(impacts))
+    max_impact = float(np.max(impacts))
+    diag = _side_diagnostics(side_name, len(notionals_usdt), median_impact, max_impact)
+    diag["beta0"] = beta0
+    diag["beta1"] = beta1
+    return beta0, beta1, capacity_usdt, diag
+
+
+def _side_diagnostics(
+    side_name: str,
+    num_trades: int,
+    median_impact_bps: float,
+    max_impact_bps: float,
+) -> dict:
+    return {
+        "side": side_name,
+        "num_trades": num_trades,
+        "median_impact_bps": median_impact_bps,
+        "max_impact_bps": max_impact_bps,
+    }
 
 
 def fit_price_impact_model(
     trades: pd.DataFrame,
     liquidity_quantile: float = 0.9,
+    quote_to_usdt: float = 1.0,
 ) -> PriceImpactModel:
     """
-    Fit a side-aware market-impact model from historical trades.
+    Fit a side-aware sqrt market-impact model from trade-level data.
 
-    Trades are grouped by exact `TRADE_TIME` to approximate short execution bars.
-    For each bar we derive signed side, total notional, and realised close-to-open
-    impact, then fit independent buy/sell regressions:
-
-        impact_bps = intercept + slope * sqrt(notional_quote)
-
-    A side-specific liquidity capacity is set to the given notional quantile and
-    later used to cap fillable notional in simulation.
+    Trades sharing the same execution timestamp are aggregated into meta-orders.
+    Notionals are converted to USDT so the impact curve is stable across
+    BTC price regimes. Impact is modelled as I(Q) = max(0, a + beta * sqrt(Q_usdt)).
     """
-    if trades.empty:
-        return PriceImpactModel(
-            buy_intercept_bps=0.0,
-            buy_slope_bps_per_sqrt_notional=0.0,
-            sell_intercept_bps=0.0,
-            sell_slope_bps_per_sqrt_notional=0.0,
-            buy_capacity_quote=np.inf,
-            sell_capacity_quote=np.inf,
-            num_bars=0,
-        )
+    return fit_price_impact_model_with_diagnostics(
+        trades=trades,
+        liquidity_quantile=liquidity_quantile,
+        quote_to_usdt=quote_to_usdt,
+    ).model
 
-    df = trades[[TRADE_TIME, PRICE, QUANTITY, IS_BUYER_MAKER]].copy()
-    df[TRADE_TIME] = pd.to_datetime(df[TRADE_TIME])
-    df = df.sort_values(TRADE_TIME).reset_index(drop=True)
 
-    # Aggressor buy -> is_buyer_maker=False, aggressor sell -> True
-    df["side"] = np.where(df[IS_BUYER_MAKER].astype(bool), -1, 1)
-    df["quote_abs"] = df[PRICE].astype(float) * df[QUANTITY].astype(float)
-    df["quantity_sign"] = df[QUANTITY].astype(float) * df["side"]
+def fit_price_impact_model_with_diagnostics(
+    trades: pd.DataFrame,
+    liquidity_quantile: float = 0.9,
+    quote_to_usdt: float = 1.0,
+) -> PriceImpactFitResult:
+    samples = aggregate_trades_to_orders(trades=trades, quote_to_usdt=quote_to_usdt)
+    if samples.empty:
+        empty = _empty_price_impact_model(quote_to_usdt=quote_to_usdt)
+        diagnostics = pd.DataFrame([
+            _side_diagnostics("buy", 0, 0.0, 0.0),
+            _side_diagnostics("sell", 0, 0.0, 0.0),
+        ])
+        return PriceImpactFitResult(model=empty, samples=samples, diagnostics=diagnostics)
 
-    grouped = (
-        df.groupby(TRADE_TIME, sort=True)
-        .agg(
-            open_price=(PRICE, "first"),
-            close_price=(PRICE, "last"),
-            notional_quote=("quote_abs", "sum"),
-            sum_quantity=(QUANTITY, "sum"),
-            quantity_sign=("quantity_sign", "sum"),
-        )
-        .reset_index()
-    )
-    grouped = grouped[grouped["sum_quantity"] > 0].copy()
-    if grouped.empty:
-        return PriceImpactModel(
-            buy_intercept_bps=0.0,
-            buy_slope_bps_per_sqrt_notional=0.0,
-            sell_intercept_bps=0.0,
-            sell_slope_bps_per_sqrt_notional=0.0,
-            buy_capacity_quote=np.inf,
-            sell_capacity_quote=np.inf,
-            num_bars=0,
-        )
+    notionals_usdt = samples["notional_usdt"].to_numpy(dtype=float)
+    fallback_capacity_usdt = float(np.quantile(notionals_usdt[notionals_usdt > 0], liquidity_quantile))
+    if not np.isfinite(fallback_capacity_usdt) or fallback_capacity_usdt <= 0:
+        fallback_capacity_usdt = np.inf
 
-    grouped["side"] = np.where(grouped["quantity_sign"] >= 0.0, 1, -1)
-    grouped["impact_bps"] = grouped["side"] * (grouped["close_price"] / grouped["open_price"] - 1.0) * 1e4
-    grouped["impact_bps"] = grouped["impact_bps"].clip(lower=0.0)
+    buy_df = samples[samples["side"] == 1]
+    sell_df = samples[samples["side"] == -1]
 
-    fallback_capacity: float = float(grouped["notional_quote"].quantile(liquidity_quantile))
-    if not np.isfinite(fallback_capacity) or fallback_capacity <= 0:
-        fallback_capacity = np.inf
-
-    buy_df = grouped[grouped["side"] == 1]
-    sell_df = grouped[grouped["side"] == -1]
-
-    buy_intercept, buy_slope, buy_capacity = _fit_side_model(
+    buy_b0, buy_b1, buy_cap, buy_diag = _fit_side(
         df_side=buy_df,
-        fallback_capacity=fallback_capacity,
         liquidity_quantile=liquidity_quantile,
+        fallback_capacity_usdt=fallback_capacity_usdt,
     )
-    sell_intercept, sell_slope, sell_capacity = _fit_side_model(
+    sell_b0, sell_b1, sell_cap, sell_diag = _fit_side(
         df_side=sell_df,
-        fallback_capacity=fallback_capacity,
         liquidity_quantile=liquidity_quantile,
+        fallback_capacity_usdt=fallback_capacity_usdt,
     )
 
-    return PriceImpactModel(
-        buy_intercept_bps=buy_intercept,
-        buy_slope_bps_per_sqrt_notional=buy_slope,
-        sell_intercept_bps=sell_intercept,
-        sell_slope_bps_per_sqrt_notional=sell_slope,
-        buy_capacity_quote=buy_capacity,
-        sell_capacity_quote=sell_capacity,
-        num_bars=int(grouped.shape[0]),
+    model = PriceImpactModel(
+        buy_beta0=buy_b0,
+        buy_beta1=buy_b1,
+        sell_beta0=sell_b0,
+        sell_beta1=sell_b1,
+        buy_capacity_usdt=buy_cap,
+        sell_capacity_usdt=sell_cap,
+        quote_to_usdt=quote_to_usdt,
+        num_trades=int(samples.shape[0]),
     )
+    diagnostics = pd.DataFrame([buy_diag, sell_diag])
+    return PriceImpactFitResult(model=model, samples=samples, diagnostics=diagnostics)

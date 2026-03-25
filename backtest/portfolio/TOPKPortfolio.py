@@ -39,7 +39,7 @@ class TOPKPortfolio(ImplementsPortfolio):
         use_price_impact: bool = False,
         order_notional_quote: float = 0.0,
         order_notional_usdt: float = 1.0,
-        impact_lookback_days: int = 30,
+        impact_lookback_days: int = 14,
         impact_liquidity_quantile: float = 0.9,
         indicative_price_provider: Optional[QuoteToUSDTProvider] = None,
     ):
@@ -67,10 +67,12 @@ class TOPKPortfolio(ImplementsPortfolio):
             load_trades=self.load_trades,
             lookback_days=self.config.impact_lookback_days,
             liquidity_quantile=self.config.impact_liquidity_quantile,
+            indicative_price_provider=self._indicative_price_provider,
         )
-        self._manipulated_impact_model_provider = ManipulatedImpactModelProvider(
+        self._manipulated_impact_provider = ManipulatedImpactModelProvider(
             load_trades=self.load_trades,
             liquidity_quantile=self.config.impact_liquidity_quantile,
+            indicative_price_provider=self._indicative_price_provider,
         )
         self._vwap_estimator = VWAPEstimator(indicative_price_provider=self._indicative_price_provider)
 
@@ -111,18 +113,6 @@ class TOPKPortfolio(ImplementsPortfolio):
 
     def _get_impact_model(self, pump: PumpEvent, cp: CurrencyPair) -> PriceImpactModel:
         return self._impact_model_provider.get_impact_model(pump=pump, currency_pair=cp)
-
-    def _get_manipulated_exit_impact_model(
-        self,
-        pump: PumpEvent,
-        cp: CurrencyPair,
-        exit_ts: datetime,
-    ) -> PriceImpactModel:
-        return self._manipulated_impact_model_provider.get_impact_model(
-            pump=pump,
-            currency_pair=cp,
-            end_exclusive=exit_ts,
-        )
 
     def _build_order_intent(
         self,
@@ -177,12 +167,20 @@ class TOPKPortfolio(ImplementsPortfolio):
         exit_impact_model: Optional[PriceImpactModel] = None
         if self.config.use_price_impact:
             entry_impact_model = self._get_impact_model(pump=intent.pump, cp=intent.currency_pair)
-            if intent.is_manipulated_asset:
-                exit_impact_model = self._get_manipulated_exit_impact_model(
-                    pump=intent.pump,
-                    cp=intent.currency_pair,
-                    exit_ts=intent.exit_ts,
-                )
+            if intent.is_manipulated_asset and intent.exit_ts is not None:
+                # For the pumped asset, exit happens during the manipulation window
+                # where liquidity regime differs from pre-pump. Use a separate model
+                # fitted on the manipulation window when sufficient kline data is available;
+                # otherwise fall back to the pre-pump model.
+                try:
+                    candidate = self._manipulated_impact_provider.get_impact_model(
+                        pump=intent.pump,
+                        currency_pair=intent.currency_pair,
+                        end_exclusive=intent.exit_ts,
+                    )
+                    exit_impact_model = candidate if candidate.num_trades > 0 else entry_impact_model
+                except Exception:
+                    exit_impact_model = entry_impact_model
             else:
                 exit_impact_model = entry_impact_model
 
@@ -205,6 +203,8 @@ class TOPKPortfolio(ImplementsPortfolio):
             exit_filled_notional_usdt=execution.filled_notional_usdt_exit,
             entry_impact_bps=execution.entry_impact_bps,
             exit_impact_bps=execution.exit_impact_bps,
+            entry_impact_num_bars=entry_impact_model.num_trades if entry_impact_model is not None else 0,
+            exit_impact_num_bars=exit_impact_model.num_trades if exit_impact_model is not None else 0,
             fill_ratio=execution.fill_ratio,
         )
 
@@ -268,7 +268,8 @@ class TOPKPortfolio(ImplementsPortfolio):
         """
         Sweep order notionals in USDT and re-run full backtest with impact enabled.
 
-        Returns aggregate portfolio PnL metrics for each tested investment size.
+        Returns aggregate portfolio PnL and execution diagnostics for each tested
+        intended investment size.
         """
         rows: List[Dict[str, float]] = []
         prev_order_notional_quote: float = self.config.order_notional_quote
@@ -279,17 +280,48 @@ class TOPKPortfolio(ImplementsPortfolio):
             self.config.use_price_impact = True
             self.config.order_notional_quote = 0.0
             for quantity_usdt in quantities_usdt:
-                self.config.order_notional_usdt = float(quantity_usdt)
+                quantity_usdt_value: float = float(quantity_usdt)
+                self.config.order_notional_usdt = quantity_usdt_value
                 pnls: List[float] = []
+                roes: List[float] = []
+                fill_ratios: List[float] = []
+                entry_impacts_bps: List[float] = []
+                exit_impacts_bps: List[float] = []
+                entry_impact_num_bars: List[float] = []
+                exit_impact_num_bars: List[float] = []
+                executed_notionals_usdt: List[float] = []
 
                 for pump in dataset.get_pumps():
                     stats = self.evaluate_for_pump(dataset=dataset, pump=pump)
                     pnls.append(stats.pnl)
+                    if quantity_usdt_value > 0:
+                        roes.append(stats.pnl / quantity_usdt_value)
+                    fill_ratios.append(stats.mean_fill_ratio)
+                    entry_impacts_bps.append(stats.mean_entry_impact_bps)
+                    exit_impacts_bps.append(stats.mean_exit_impact_bps)
+                    entry_impact_num_bars.append(stats.mean_entry_impact_num_bars)
+                    exit_impact_num_bars.append(stats.mean_exit_impact_num_bars)
+                    executed_notionals_usdt.append(stats.executed_notional_usdt)
                 rows.append(
                     {
-                        "quantity_usdt": float(quantity_usdt),
+                        "quantity_usdt": quantity_usdt_value,
                         "overall_pnl": float(np.sum(pnls)),
                         "mean_pnl": float(np.mean(pnls)) if pnls else 0.0,
+                        "median_pnl": float(np.median(pnls)) if pnls else 0.0,
+                        "mean_roe": float(np.mean(roes)) if roes else 0.0,
+                        "median_roe": float(np.median(roes)) if roes else 0.0,
+                        "mean_fill_ratio": float(np.mean(fill_ratios)) if fill_ratios else 0.0,
+                        "mean_entry_impact_bps": float(np.mean(entry_impacts_bps)) if entry_impacts_bps else 0.0,
+                        "mean_exit_impact_bps": float(np.mean(exit_impacts_bps)) if exit_impacts_bps else 0.0,
+                        "mean_entry_impact_num_bars": (
+                            float(np.mean(entry_impact_num_bars)) if entry_impact_num_bars else 0.0
+                        ),
+                        "mean_exit_impact_num_bars": (
+                            float(np.mean(exit_impact_num_bars)) if exit_impact_num_bars else 0.0
+                        ),
+                        "mean_executed_notional_usdt": (
+                            float(np.mean(executed_notionals_usdt)) if executed_notionals_usdt else 0.0
+                        ),
                     }
                 )
         finally:
@@ -308,7 +340,7 @@ def evaluate_topk_pnl_for_quantities(
     quantities_quote: Optional[List[float]] = None,
     buy_before: timedelta = timedelta(minutes=15),
     sell_after: timedelta = timedelta(minutes=1),
-    impact_lookback_days: int = 30,
+    impact_lookback_days: int = 14,
     impact_liquidity_quantile: float = 0.9,
 ) -> pd.DataFrame:
     """

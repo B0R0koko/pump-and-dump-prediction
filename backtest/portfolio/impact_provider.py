@@ -1,10 +1,13 @@
 from datetime import datetime, timedelta
-from typing import Callable, Dict, Tuple
+from typing import Callable, Dict, Optional, Tuple
 
 import pandas as pd
 
-from backtest.portfolio.PriceImpact import PriceImpactModel, fit_price_impact_model
-from backtest.portfolio.interfaces import ImpactModelProvider
+from backtest.portfolio.PriceImpact import (
+    PriceImpactModel,
+    fit_price_impact_model,
+)
+from backtest.portfolio.interfaces import ImpactModelProvider, QuoteToUSDTProvider
 from core.currency_pair import CurrencyPair
 from core.pump_event import PumpEvent
 from core.time_utils import Bounds
@@ -14,22 +17,33 @@ LoadTradesFn = Callable[[Bounds, CurrencyPair], pd.DataFrame]
 
 class LookbackImpactModelProvider(ImpactModelProvider):
     """
-    Caches and provides impact models fit on a fixed lookback window per (asset, pump time).
+    Cache and provide impact models fit on a fixed lookback per asset/pump
+    using trade-level data, with notionals normalised to USDT via a
+    QuoteToUSDTProvider.
     """
 
-    def __init__(self, load_trades: LoadTradesFn, lookback_days: int, liquidity_quantile: float):
-        """
-        Build provider that fits models from trailing trade history.
-
-        Args:
-            load_trades: Function used to fetch historical trades for bounds/pair.
-            lookback_days: Number of trailing days before pump time to fit on.
-            liquidity_quantile: Quantile used to estimate executable notional cap.
-        """
+    def __init__(
+        self,
+        load_trades: LoadTradesFn,
+        lookback_days: int,
+        liquidity_quantile: float,
+        indicative_price_provider: Optional[QuoteToUSDTProvider] = None,
+    ):
         self._load_trades: LoadTradesFn = load_trades
         self.lookback_days: int = lookback_days
         self.liquidity_quantile: float = liquidity_quantile
+        self._indicative_price_provider: Optional[QuoteToUSDTProvider] = indicative_price_provider
         self._cache: Dict[Tuple[str, datetime], PriceImpactModel] = {}
+
+    def _get_quote_to_usdt(self, currency_pair: CurrencyPair, ts: datetime) -> float:
+        if self._indicative_price_provider is None:
+            return 1.0
+        try:
+            return self._indicative_price_provider.get_quote_to_usdt_indicative_price(
+                quote_asset=currency_pair.term, ts=ts,
+            )
+        except Exception:
+            return 1.0
 
     def get_impact_model(self, pump: PumpEvent, currency_pair: CurrencyPair) -> PriceImpactModel:
         """
@@ -43,7 +57,14 @@ class LookbackImpactModelProvider(ImpactModelProvider):
             start_inclusive=pump.time - timedelta(days=self.lookback_days),
             end_exclusive=pump.time,
         )
-        trades_lookback = self._load_trades(bounds=bounds, currency_pair=currency_pair)
-        model = fit_price_impact_model(trades=trades_lookback, liquidity_quantile=self.liquidity_quantile)
+
+        trades_lookback = self._load_trades(bounds, currency_pair)
+        quote_to_usdt = self._get_quote_to_usdt(currency_pair=currency_pair, ts=pump.time)
+        model = fit_price_impact_model(
+            trades=trades_lookback,
+            liquidity_quantile=self.liquidity_quantile,
+            quote_to_usdt=quote_to_usdt,
+        )
+
         self._cache[cache_key] = model
         return model

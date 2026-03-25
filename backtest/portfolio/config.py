@@ -14,7 +14,7 @@ class PortfolioExecutionConfig:
     use_price_impact: bool = False
     order_notional_quote: float = 0.0
     order_notional_usdt: float = 1.0
-    impact_lookback_days: int = 30
+    impact_lookback_days: int = 14
     impact_liquidity_quantile: float = 0.9
 
     def __post_init__(self) -> None:

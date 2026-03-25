@@ -8,6 +8,7 @@ from backtest.portfolio.TOPKPortfolio import TOPKPortfolio, evaluate_topk_pnl_fo
 from backtest.portfolio.config import PortfolioExecutionConfig
 from backtest.portfolio.execution_engine import ExecutionEngine
 from backtest.portfolio.impact_provider import LookbackImpactModelProvider
+from backtest.portfolio.kline_loader import MinuteKlineLoader
 from backtest.portfolio.models import ExecutionResult, OrderIntent
 from backtest.portfolio.manipulated_impact_provider import ManipulatedImpactModelProvider
 from backtest.portfolio.pnl import PnLCalculator, USDTPnLCalculator
@@ -27,6 +28,7 @@ __all__ = [
     "ExecutionEngine",
     "PriceImpactModel",
     "LookbackImpactModelProvider",
+    "MinuteKlineLoader",
     "ManipulatedImpactModelProvider",
     "NotionalSizer",
     "PnLCalculator",
