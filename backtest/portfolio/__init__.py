@@ -3,7 +3,7 @@ Portfolio construction, execution simulation, and PnL evaluation components.
 """
 
 from backtest.portfolio.BasePortfolio import Portfolio, PortfolioStats, Transaction
-from backtest.portfolio.PriceImpact import PriceImpactModel, fit_price_impact_model
+from backtest.portfolio.PriceImpact import PriceImpactModel, fit_price_impact_model, fit_price_impact_model_from_klines
 from backtest.portfolio.TOPKPortfolio import TOPKPortfolio, evaluate_topk_pnl_for_quantities, portfolio_pnl_objective
 from backtest.portfolio.config import PortfolioExecutionConfig
 from backtest.portfolio.execution_engine import ExecutionEngine
@@ -35,6 +35,7 @@ __all__ = [
     "USDTPnLCalculator",
     "VWAPEstimator",
     "fit_price_impact_model",
+    "fit_price_impact_model_from_klines",
     "evaluate_topk_pnl_for_quantities",
     "portfolio_pnl_objective",
 ]

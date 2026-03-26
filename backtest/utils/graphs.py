@@ -218,30 +218,80 @@ def plot_impact_regression(
     save_path: Optional[str] = None,
 ) -> plt.Figure:
     """Scatter + fitted sqrt impact curve for buy and sell sides."""
-    fig, axes = plt.subplots(1, 2, figsize=(14, 4.5), sharey=True)
-    for ax, side, label, color in [
-        (axes[0], 1, "Buy", "tab:blue"),
-        (axes[1], -1, "Sell", "tab:orange"),
-    ]:
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5), sharey=True)
+
+    sides = [
+        (axes[0], 1, "Buy", "#4C72B0"),
+        (axes[1], -1, "Sell", "#DD8452"),
+    ]
+
+    # First pass: scatter points and record per-side x ranges
+    side_data = {}
+    for ax, side, label, color in sides:
         a = model.buy_beta0 if side == 1 else model.sell_beta0
         b = model.buy_beta1 if side == 1 else model.sell_beta1
         side_df = samples[samples["side"] == side]
+        side_data[side] = (a, b, side_df)
 
-        ax.scatter(side_df["notional_usdt"], side_df["impact_bps"], s=16, alpha=0.25, color=color, edgecolors="none")
-        if len(side_df) > 0:
-            curve_x = np.linspace(0, side_df["notional_usdt"].quantile(0.99), 200)
-            curve_y = np.maximum(0, a + b * np.sqrt(curve_x))
-            ax.plot(curve_x, curve_y, color="black", linewidth=2, label=f"a={a:.2f}, $\\beta$={b:.4f}")
-            if a < 0 and b > 0:
-                q_star = (a / b) ** 2
-                ax.axvline(q_star, color="red", linestyle="--", alpha=0.6, label=f"Q*={q_star:.0f} USDT")
-        ax.set_title(f"{label} side (n={len(side_df)})")
-        ax.set_xlabel("Order size (USDT)")
-        ax.grid(alpha=0.3)
-        ax.legend(loc="upper left")
+        ax.scatter(
+            side_df["notional_usdt"],
+            side_df["impact_bps"],
+            s=14,
+            alpha=0.25,
+            color=color,
+            edgecolors="none",
+            rasterized=True,
+        )
+        ax.set_xlim(left=0)
 
-    axes[0].set_ylabel("Impact (bps)")
-    plt.suptitle(f"Sqrt impact model: {currency_pair_name} before {pump_time:%Y-%m-%d %H:%M}", y=1.04)
+    # Second pass: draw regression lines spanning the full x-axis
+    for ax, side, label, color in sides:
+        a, b, side_df = side_data[side]
+        if len(side_df) == 0:
+            ax.set_title(f"{label} side  (n=0)", fontsize=12)
+            continue
+
+        x_max = ax.get_xlim()[1]
+        curve_x = np.linspace(0, x_max, 500)
+        curve_y = a + b * np.sqrt(curve_x)
+
+        # R² calculation
+        x_obs = side_df["notional_usdt"].values
+        y_obs = side_df["impact_bps"].values
+        y_pred = np.maximum(0, a + b * np.sqrt(x_obs))
+        ss_res = np.sum((y_obs - y_pred) ** 2)
+        ss_tot = np.sum((y_obs - np.mean(y_obs)) ** 2)
+        r2 = 1 - ss_res / ss_tot if ss_tot > 0 else 0.0
+
+        ax.plot(
+            curve_x,
+            curve_y,
+            color="black",
+            linewidth=2.0,
+            label=f"$a$={a:.2f},  $\\beta$={b:.4f},  $R^2$={r2:.3f}",
+            zorder=5,
+        )
+
+        if a < 0 and b > 0:
+            q_star = (a / b) ** 2
+            if q_star <= x_max:
+                ax.axvline(
+                    q_star, color="#C44E52", linestyle="--", linewidth=1.5, alpha=0.7, label=f"$Q^*$={q_star:.0f} USDT"
+                )
+
+        ax.set_title(f"{label} side  (n={len(side_df):,})", fontsize=12)
+        ax.set_xlabel("Net volume (USDT)", fontsize=11)
+        ax.grid(alpha=0.25, linestyle="--")
+        ax.legend(loc="upper left", fontsize=10, framealpha=0.9)
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+
+    axes[0].set_ylabel("Impact (bps)", fontsize=11)
+    fig.suptitle(
+        f"Sqrt impact model: {currency_pair_name} before {pump_time:%Y-%m-%d %H:%M}",
+        fontsize=13,
+        fontweight="bold",
+    )
     plt.tight_layout()
     if save_path:
         plt.savefig(save_path, dpi=300, bbox_inches="tight")

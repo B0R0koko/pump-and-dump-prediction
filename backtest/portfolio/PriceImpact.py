@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import lsq_linear
 
-from core.columns import IS_BUYER_MAKER, PRICE, QUANTITY, TRADE_TIME
+from core.columns import CLOSE_PRICE, IS_BUYER_MAKER, OPEN_TIME, PRICE, QUANTITY, QUOTE_ASSET_VOLUME, TAKER_BUY_QUOTE_ASSET_VOLUME, TRADE_TIME
 
 
 def _fit_sqrt_regression(notionals: np.ndarray, impacts: np.ndarray) -> tuple[float, float]:
@@ -182,6 +182,80 @@ def aggregate_trades_to_orders(trades: pd.DataFrame, quote_to_usdt: float = 1.0)
     return result[_IMPACT_SAMPLE_COLUMNS].reset_index(drop=True)
 
 
+def trades_to_1m_klines(trades: pd.DataFrame) -> pd.DataFrame:
+    """Resample tick-level trades into 1-minute candles with buy/sell volume split."""
+    if trades.empty:
+        return pd.DataFrame(columns=[OPEN_TIME, CLOSE_PRICE, QUOTE_ASSET_VOLUME, TAKER_BUY_QUOTE_ASSET_VOLUME])
+
+    df = trades.copy()
+    df[PRICE] = pd.to_numeric(df[PRICE], errors="coerce")
+    df[QUANTITY] = pd.to_numeric(df[QUANTITY], errors="coerce")
+    df = df.dropna(subset=[TRADE_TIME, PRICE, QUANTITY])
+    if df.empty:
+        return pd.DataFrame(columns=[OPEN_TIME, CLOSE_PRICE, QUOTE_ASSET_VOLUME, TAKER_BUY_QUOTE_ASSET_VOLUME])
+
+    df["quote_notional"] = df[PRICE] * df[QUANTITY]
+    # is_buyer_maker=True → taker sell; False → taker buy
+    df["buy_notional"] = np.where(df[IS_BUYER_MAKER], 0.0, df["quote_notional"])
+
+    df = df.set_index(pd.DatetimeIndex(df[TRADE_TIME]))
+    resampled = df.resample("1min").agg(
+        close_price=(PRICE, "last"),
+        quote_asset_volume=("quote_notional", "sum"),
+        taker_buy_quote_asset_volume=("buy_notional", "sum"),
+    )
+    resampled = resampled.dropna(subset=["close_price"])
+    resampled = resampled[resampled["quote_asset_volume"] > 0]
+    resampled.index.name = OPEN_TIME
+    return resampled.reset_index()
+
+
+def aggregate_klines_to_samples(klines: pd.DataFrame, quote_to_usdt: float = 1.0) -> pd.DataFrame:
+    """
+    Build impact samples from 1-minute candles using net volume.
+
+    Net buy volume = 2 * taker_buy_quote_volume - total_quote_volume.
+    If positive → buy sample; if negative → sell sample.
+    Impact = (close - prev_close) / prev_close in bps, aligned with the sign of net volume.
+    """
+    if klines.empty:
+        return _empty_impact_samples()
+
+    required = {OPEN_TIME, CLOSE_PRICE, QUOTE_ASSET_VOLUME, TAKER_BUY_QUOTE_ASSET_VOLUME}
+    if not required.issubset(klines.columns):
+        return _empty_impact_samples()
+
+    df = klines.copy()
+    for col in [CLOSE_PRICE, QUOTE_ASSET_VOLUME, TAKER_BUY_QUOTE_ASSET_VOLUME]:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+    df = df.dropna(subset=[OPEN_TIME, CLOSE_PRICE, QUOTE_ASSET_VOLUME, TAKER_BUY_QUOTE_ASSET_VOLUME])
+    df = df.sort_values(OPEN_TIME).reset_index(drop=True)
+
+    if len(df) < 2:
+        return _empty_impact_samples()
+
+    prev_close = df[CLOSE_PRICE].shift(1)
+    net_buy_volume = 2 * df[TAKER_BUY_QUOTE_ASSET_VOLUME] - df[QUOTE_ASSET_VOLUME]
+    price_return_bps = (df[CLOSE_PRICE] / prev_close - 1.0) * 1e4
+
+    # Drop first row (no previous close) and zero net volume rows
+    valid = prev_close.notna() & (prev_close > 0) & (net_buy_volume != 0)
+    df = df[valid].copy()
+    net_buy_volume = net_buy_volume[valid]
+    price_return_bps = price_return_bps[valid]
+
+    df["side"] = np.where(net_buy_volume > 0, 1, -1)
+    df["notional_quote"] = np.abs(net_buy_volume)
+    df["notional_usdt"] = df["notional_quote"] * quote_to_usdt
+    # For buys: positive return = positive impact; for sells: negative return = positive impact
+    df["impact_bps"] = (df["side"] * price_return_bps).clip(lower=0.0)
+    df["trade_time"] = df[OPEN_TIME]
+    df["price_first"] = prev_close[valid].values
+    df["price_last"] = df[CLOSE_PRICE].values
+
+    return df[_IMPACT_SAMPLE_COLUMNS].reset_index(drop=True)
+
+
 def _fit_side(
     df_side: pd.DataFrame,
     liquidity_quantile: float,
@@ -259,6 +333,14 @@ def fit_price_impact_model_with_diagnostics(
     quote_to_usdt: float = 1.0,
 ) -> PriceImpactFitResult:
     samples = aggregate_trades_to_orders(trades=trades, quote_to_usdt=quote_to_usdt)
+    return _fit_from_samples(samples, liquidity_quantile, quote_to_usdt)
+
+
+def _fit_from_samples(
+    samples: pd.DataFrame,
+    liquidity_quantile: float,
+    quote_to_usdt: float,
+) -> PriceImpactFitResult:
     if samples.empty:
         empty = _empty_price_impact_model(quote_to_usdt=quote_to_usdt)
         diagnostics = pd.DataFrame([
@@ -268,7 +350,8 @@ def fit_price_impact_model_with_diagnostics(
         return PriceImpactFitResult(model=empty, samples=samples, diagnostics=diagnostics)
 
     notionals_usdt = samples["notional_usdt"].to_numpy(dtype=float)
-    fallback_capacity_usdt = float(np.quantile(notionals_usdt[notionals_usdt > 0], liquidity_quantile))
+    positive = notionals_usdt > 0
+    fallback_capacity_usdt = float(np.quantile(notionals_usdt[positive], liquidity_quantile)) if positive.any() else np.inf
     if not np.isfinite(fallback_capacity_usdt) or fallback_capacity_usdt <= 0:
         fallback_capacity_usdt = np.inf
 
@@ -298,3 +381,30 @@ def fit_price_impact_model_with_diagnostics(
     )
     diagnostics = pd.DataFrame([buy_diag, sell_diag])
     return PriceImpactFitResult(model=model, samples=samples, diagnostics=diagnostics)
+
+
+def fit_price_impact_model_from_klines(
+    klines: pd.DataFrame,
+    liquidity_quantile: float = 0.9,
+    quote_to_usdt: float = 1.0,
+) -> PriceImpactModel:
+    """
+    Fit a side-aware sqrt market-impact model from 1-minute klines.
+
+    Uses net buy volume (taker_buy - taker_sell) per candle as Q, and
+    close-to-close price change as the impact signal.
+    """
+    return fit_price_impact_model_from_klines_with_diagnostics(
+        klines=klines,
+        liquidity_quantile=liquidity_quantile,
+        quote_to_usdt=quote_to_usdt,
+    ).model
+
+
+def fit_price_impact_model_from_klines_with_diagnostics(
+    klines: pd.DataFrame,
+    liquidity_quantile: float = 0.9,
+    quote_to_usdt: float = 1.0,
+) -> PriceImpactFitResult:
+    samples = aggregate_klines_to_samples(klines=klines, quote_to_usdt=quote_to_usdt)
+    return _fit_from_samples(samples, liquidity_quantile, quote_to_usdt)

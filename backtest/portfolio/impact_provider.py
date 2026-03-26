@@ -5,7 +5,8 @@ import pandas as pd
 
 from backtest.portfolio.PriceImpact import (
     PriceImpactModel,
-    fit_price_impact_model,
+    fit_price_impact_model_from_klines,
+    trades_to_1m_klines,
 )
 from backtest.portfolio.interfaces import ImpactModelProvider, QuoteToUSDTProvider
 from core.currency_pair import CurrencyPair
@@ -17,8 +18,10 @@ LoadTradesFn = Callable[[Bounds, CurrencyPair], pd.DataFrame]
 
 class LookbackImpactModelProvider(ImpactModelProvider):
     """
-    Cache and provide impact models fit on a fixed lookback per asset/pump
-    using trade-level data, with notionals normalised to USDT via a
+    Cache and provide impact models fit on a fixed lookback per asset/pump.
+
+    Loads trade-level data, resamples into 1-minute candles, and fits using
+    net volume as the order flow proxy. Notionals normalised to USDT via a
     QuoteToUSDTProvider.
     """
 
@@ -58,10 +61,11 @@ class LookbackImpactModelProvider(ImpactModelProvider):
             end_exclusive=pump.time,
         )
 
-        trades_lookback = self._load_trades(bounds, currency_pair)
+        trades = self._load_trades(bounds, currency_pair)
+        klines = trades_to_1m_klines(trades)
         quote_to_usdt = self._get_quote_to_usdt(currency_pair=currency_pair, ts=pump.time)
-        model = fit_price_impact_model(
-            trades=trades_lookback,
+        model = fit_price_impact_model_from_klines(
+            klines=klines,
             liquidity_quantile=self.liquidity_quantile,
             quote_to_usdt=quote_to_usdt,
         )

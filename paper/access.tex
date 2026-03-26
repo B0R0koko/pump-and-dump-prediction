@@ -1,0 +1,796 @@
+\documentclass{ieeeaccess}
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{makecell}
+\usepackage{multirow}
+
+\usepackage{bm}
+\makeatletter
+\AtBeginDocument{\DeclareMathVersion{bold}
+\SetSymbolFont{operators}{bold}{T1}{times}{b}{n}
+\SetSymbolFont{NewLetters}{bold}{T1}{times}{b}{it}
+\SetMathAlphabet{\mathrm}{bold}{T1}{times}{b}{n}
+\SetMathAlphabet{\mathit}{bold}{T1}{times}{b}{it}
+\SetMathAlphabet{\mathbf}{bold}{T1}{times}{b}{n}
+\SetMathAlphabet{\mathtt}{bold}{OT1}{pcr}{b}{n}
+\SetSymbolFont{symbols}{bold}{OMS}{cmsy}{b}{n}
+\renewcommand\boldmath{\@nomath\boldmath\mathversion{bold}}}
+\makeatother
+
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+\renewcommand{\thetable}{\Roman{table}}
+
+%Your document starts from here ___________________________________________________
+\begin{document}
+\history{Date of publication xxxx 00, 0000, date of current version xxxx 00, 0000.}
+\doi{10.1109/ACCESS.2024.0429000}
+
+\title{Mitigating Class Imbalance in Pump-and-Dump Detection: A Comparative Analysis of Imbalance-Aware Algorithms}
+\author{\uppercase{M. Mironov}\authorrefmark{1},
+\uppercase{D. Bogutsky}\authorrefmark{2}, and P. \uppercase{Lukianchenko}\authorrefmark{3}}
+
+\address[1]{National Research University Higher School of Economics, Faculty of Computer Science, Laboratory of AI in Mathematical Finance (e-mail: mvmironov{@}hse.ru)}
+
+\address[2]{National Research University Higher School of Economics, Faculty of Computer Science, Laboratory of AI in Mathematical Finance (e-mail: dbogucki{@}hse.ru)}
+
+\address[3]{National Research University Higher School of Economics, Faculty of Computer Science, Laboratory of AI in Mathematical Finance (e-mail: plukyanchenko{@}hse.ru)}
+
+\tfootnote{
+This work was supported by the grant for research centers in the field of AI provided by the Ministry of Economic Development of the Russian Federation in accordance with the agreement 000000С313925P4E0002 and the agreement with HSE University № 139-15-2025-009}
+
+\markboth
+{Mironov, Bogutsky, Lukianchenko \headeretal: Mitigating Class Imbalance in Pump-and-Dump Detection}
+{Mironov, Bogutsky, Lukianchenko \headeretal: Mitigating Class Imbalance in Pump-and-Dump Detection}
+
+\corresp{Corresponding author: D. Bogutsky (e-mail: dbogucki{@}hse.ru).}
+
+\begin{abstract}
+The cryptocurrency market has been subject to various forms of exploitation, with pump-and-dump (P\&D) schemes being a persistent problem that can lead to significant price volatility and financial losses. Previous studies have focused on predicting attack targets using machine learning approaches; however, these methods are often compromised by class imbalance and biases inherent in historical data. To address this limitation, we present a novel framework for predicting manipulation targets.
+We employ two-step bias-minimizing data normalization techniques to mitigate the effects of class imbalance and temporal heterogeneity. We also propose several innovative machine learning approaches including imbalance-aware hyperparameter optimization and ranking algorithms.
+Our evaluation reveals that the proposed framework outperforms existing methods, achieving a Top@1 accuracy of 22.4\% and a Top@10 accuracy of 56.9\% in a highly imbalanced dataset of historical P\&D events (imbalance ratio $\approx$ 290). We complement these ranking metrics with standard classification measures---Precision-Recall AUC (PR-AUC), F1-score, and balanced accuracy---to provide a comprehensive evaluation. We further validate our results through bootstrap confidence intervals, paired hypothesis testing, and robustness checks across random training subsets and temporal subperiods. For further validation, we construct a portfolio strategy based on the predicted probabilities and assess its practical viability using an execution-aware backtesting framework that incorporates a fitted market-impact model and liquidity constraints.
+\end{abstract}
+
+\begin{keywords}
+Classification, Imbalanced Datasets, Learning to Rank, Machine Learning, Market Manipulation, Market Microstructure, Portfolio Strategy
+\end{keywords}
+
+\titlepgskip=-21pt
+
+\maketitle
+
+\section{Introduction}
+\label{sec:introduction}
+\subsection{What Are Pump-and-Dump Schemes?}
+
+\PARstart{P}{ump-and-dump} (P\&D) schemes are a type of fraudulent activity that involves artificially inflating the price of a cryptocurrency through coordinated buying efforts, followed by rapid selling to unsuspecting investors. This phenomenon is often characterized by an abrupt and significant increase in trading volume, followed by a subsequent decline in price as the original buyers liquidate their positions.
+
+These schemes typically involve experienced traders and market manipulators who orchestrate the operation through various channels, including online forums and social media platforms such as Telegram channels. The manipulation is designed to create a false sense of urgency and scarcity, which attracts inexperienced investors who may be unaware of the true nature of the event.
+
+A typical P\&D scenario can be observed in Fig.~\ref{fig:pump_and_dump_example}, which shows a clear example of this phenomenon. The figure illustrates price movements associated with the token VIB traded against BTC on the Binance exchange, highlighting the abrupt spike in trading activity following the announcement. This sudden increase in volume is followed by a rapid decline in price as insiders sell their positions to new buyers.
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[scale=0.5]{images/pump_and_dump_example.png}
+    \caption{Example of a P\&D manipulation on the VIBBTC pair (Binance). The top panel shows the sharp price spike at the pump announcement, followed by a rapid decline. The bottom panel shows the corresponding volume surge, typical of coordinated buying.}
+    \label{fig:pump_and_dump_example}
+\end{figure}
+
+\subsection{Related Work}
+
+The phenomenon of P\&D schemes has been extensively studied in the context of cryptocurrencies, with research efforts spanning multiple approaches and methodologies.
+
+One of the pioneering studies on this topic was \cite{kamps_moon_2018}, which introduced a comprehensive framework for understanding P\&D operations. The authors highlighted the targeting of small market-cap cryptocurrencies due to their lower trading volumes, utilizing data from five prominent crypto exchanges: Binance, Bittrex, Kraken, Kucoin, and Lbank. Their analysis covered 1.5 years of pumps history, with price and volume data being used as the primary sources. Subsequent research efforts have focused on leveraging machine learning (ML) algorithms to enhance P\&D detection accuracy. La~Morgia et al.~\cite{la_morgia_pump_2020}, \cite{la2023doge} employed random forest algorithms, achieving improved results compared to traditional rule-based approaches. Chadalapaka et al.~\cite{chadalapaka_crypto_2022} further improved upon La~Morgia's work by incorporating deep neural networks, including long short-term memory (LSTM) networks and Transformers, as anomaly detection algorithms.
+More recently, Fantazzini and Xiao~\cite{econometrics11030022} studied a similar pump dataset between 2021 and 2022. They developed an approach that employed resampling methods, such as Synthetic Minority Over-sampling Technique (SMOTE)~\cite{chawla2002smote}, combined with price and volume features and random forest classification to detect pump events one hour in advance.
+
+In addition to pump detection, other research has focused on predicting the maximum price move during known pump events. Nghiem et al.~\cite{nghiem_2021} used market data and social sentiment with deep neural networks, including LSTMs and convolutional neural networks (CNNs), and achieved promising results. However, their analysis highlighted a potential limitation of using sentiment signals: historical bias may be introduced due to the lack of precise snapshots of historical social data.
+
+A relevant example of work addressing the problem of predicting price manipulation targets is the study by Xu and Livshits~\cite{pd_anatomy}. This research proposed an approach using random forest algorithms to identify potential P\&D schemes among listed tokens. The authors analyzed a dataset of 180 pump events from the Cryptopia exchange, incorporating features such as price and volume data, global market capitalization data from CoinMarketCap, and token ratings by exchange. To enhance model robustness, the study employed filtering techniques to exclude pumps with suspicious announcement times that deviated significantly from full hours. Moreover, the authors validated their classification model through backtesting a portfolio strategy based on predicted pump targets. However, the employed trading strategy relied on unrealistic assumptions, such as guaranteed profits of half the maximum price move during the pump and zero losses for false-positive predictions.
+
+Hu et al.~\cite{hu2023sequence} enhanced this approach by incorporating channel embeddings into their model. They also utilized standard price and volume metrics, as well as external data sources such as market capitalization and social media information (e.g., Twitter followers, Reddit subscribers, Alexa rank). The analysis was performed on a dataset comprising 445 pump announcement events. However, due to the presence of duplicate pump events across multiple channels, the actual number of unique pump events studied is smaller than reported. Furthermore, the use of social data from different sources raises concerns about historical bias, as these metrics may have changed after the fact.
+
+Regarding market manipulation in a broad sense, several papers have also been published recently, for example \cite{cong_washtrading_2023}, which studied the manipulation of trading volumes, also known as wash trading. With the increasing popularity of ML applications in finance, recent years have seen many articles on predictions using market microstructure, for example \cite{albers_frag_2022} and \cite{ntakaris_midprice_2022}. Promising results have also been published with applications of ranking models to finance~\cite{poh_ltr}. Taking into account the rich accumulated experience in related areas, we aim to complement existing work with new factors based on market microstructure.
+
+In the broader ML literature, several techniques have been proposed for handling class imbalance beyond resampling. Cost-sensitive learning~\cite{elkan2001cost} adjusts the loss function to penalize misclassification of the minority class more heavily. Focal loss~\cite{lin2017focal}, originally proposed for object detection, down-weights well-classified examples and has been applied to imbalanced classification tasks. Anomaly detection methods, such as Isolation Forest~\cite{liu2008isolation}, offer an alternative formulation that does not require balanced training data. While these approaches have shown promise in other domains, their application to P\&D target prediction remains largely unexplored.
+
+
+\subsection{Contributions and Comparison with Prior Work}
+
+This paper builds upon previous work in \cite{pd_anatomy} and \cite{hu2023sequence}, which focused on predicting manipulation targets among traded assets. We identify several critical limitations in data preparation that limit model reliability and propose solutions to address these issues. Specifically, we introduce novel microstructure-based features leveraging insights from market prediction~\cite{albers_frag_2022}, \cite{ntakaris_midprice_2022} and wash-trading detection~\cite{cong_washtrading_2023}. Moreover, we explore the use of boosted trees, as implemented in CatBoost~\cite{catboost}, which has been shown to outperform other algorithms on tabular data (e.g., \cite{grinsztajn_2022}), and we compare their performance to the random forest model introduced in~\cite{random_forest_2001}.
+
+To further improve classification performance, we apply a cross-sectional normalization method for panel data. Moreover, we formulate a specialized metric---Top@K\%-AUC---tailored to optimize the classification model for highly imbalanced datasets, which was used for model training and validation.
+
+Table~\ref{table:comparison_prior_work} summarizes the key methodological differences between our framework and the most closely related prior studies.
+
+\begin{table*}[!t]
+    \centering
+    \small
+    \renewcommand{\arraystretch}{1.3}
+    \setlength{\tabcolsep}{5pt}
+    \caption{Comparison of the proposed framework with closely related prior work on P\&D target prediction}
+    \begin{tabular}{p{2.8cm}p{2.2cm}p{2cm}p{2.2cm}p{2.5cm}p{2.5cm}}
+        \toprule
+        \textbf{Study} & \textbf{Exchange} & \textbf{\# Events} & \textbf{Model} & \textbf{Imbalance Handling} & \textbf{Backtesting} \\
+        \midrule
+        Xu \& Livshits~\cite{pd_anatomy} & Cryptopia & 180 & Random Forest & None & Unrealistic assumptions \\
+        Hu et al.~\cite{hu2023sequence} & Multiple & 445 & Seq. model + channel embed. & None & None \\
+        Fantazzini \& Xiao~\cite{econometrics11030022} & Binance & Varies & Random Forest & SMOTE & None \\
+        La~Morgia et al.~\cite{la_morgia_pump_2020} & Multiple & 1111 & Random Forest & None & None \\
+        \textbf{Ours} & Binance & 359 & CatBoost, LR, RF, Ranker & Cross-sectional norm., Top@K\%-AUC opt., class weighting & Impact-aware with liquidity constraints \\
+        \bottomrule
+    \end{tabular}
+    \label{table:comparison_prior_work}
+\end{table*}
+
+
+
+\section{Data Collection and Preprocessing}
+
+\subsection{Labeled P\&D Data}
+\label{section:pump_and_dump_data}
+
+To investigate P\&D schemes, we collected a dataset of P\&D events from various sources. We downloaded chat history from eight Telegram channels that were known to be associated with P\&D activities. The channels were identified through keyword searches on Telegram (e.g., ``crypto pump,'' ``pump signal'') and cross-referencing with channels cited in prior literature~\cite{la_morgia_pump_2020}, \cite{pd_anatomy}. For each channel, we exported the full message history using the Telegram Desktop client's built-in export functionality.
+
+We then manually labeled each event by inspecting messages that contained pump announcements. The labeling criteria were as follows:
+\begin{itemize}
+    \item \textbf{Ticker identification:} The message must explicitly name a ticker symbol and the target exchange.
+    \item \textbf{Timestamp extraction:} The announcement time was recorded as the message timestamp (UTC).
+    \item \textbf{Price-volume verification:} We cross-referenced each candidate event against historical trade data from the Binance API. An event was retained only if it exhibited a price increase of at least 5\% and a volume spike of at least $3\times$ the preceding 1-hour average within the first 5 minutes after the announcement.
+    \item \textbf{Announcement regularity:} Events with announcement times that deviated significantly from full or half hours were flagged as potentially pre-leaked and excluded, following the filtering approach of~\cite{pd_anatomy}.
+\end{itemize}
+
+Our sample spans the period from December~18, 2018 to April~1, 2024, covering a total of 175 P\&D events. The majority of Telegram channels used for organizing P\&Ds have since become inactive, resulting in their chat histories being deleted by Telegram. Consequently, our dataset is smaller than those obtained in previous studies. To supplement our sample and increase its diversity, we incorporated the labeled P\&D dataset from La~Morgia et al.~\cite{la_morgia_pump_2020}, which they had updated in 2021. This additional dataset comprises 1111 P\&D events across multiple exchanges.
+
+We performed the following preprocessing steps to prepare this combined dataset:
+\begin{enumerate}
+    \item \textit{Duplicate removal}: We filtered out any duplicate events that were present in both datasets, matching on ticker, exchange, and announcement time within a 5-minute tolerance window.
+    \item \textit{Criteria-based filtering}: We removed events that did not meet our criteria for a valid pump, specifically those with a price increase below 5\% or a volume increase below $3\times$ the prior 1-hour average within the first 5~minutes, as well as events with irregular announcement times. These instances may indicate failed or postponed pumps, which we deemed irrelevant to our analysis.
+    \item \textit{Exchange filtering}: We retained only P\&D events organized on Binance from both datasets, as Binance provides comprehensive trade-level data through its public API, enabling feature engineering at the microstructure level.
+\end{enumerate}
+
+The resulting dataset contains 359 unique market manipulation events. Restricting the analysis to Binance BTC pairs may introduce selection bias, as P\&D dynamics could differ on smaller exchanges with lower liquidity or different fee structures. We acknowledge this limitation and discuss it further in Section~\ref{sec:limitations}. Our data presents a substantial challenge, with P\&D events occurring relatively infrequently compared to normal trading activity. During our study period, the average number of instruments traded (193.7) represents nearly all listed pairs on Binance with BTC as the quote asset, excluding the most liquid pair ETHBTC. The historical dynamics of the number of listings is shown in Fig.~\ref{fig:cross-section_size_over_time}.
+
+\begin{figure}[!t]
+    \centering
+    \includegraphics[scale=0.5]{images/cs_size.jpeg}
+    \caption{Number of BTC-quoted trading pairs listed on Binance over time. The cross-section grew steadily until late 2022, when stricter regulatory requirements reduced the pace of new listings.}
+    \label{fig:cross-section_size_over_time}
+\end{figure}
+
+We split the data into training, validation, and testing samples by 2020-09-01 and 2021-05-01, respectively. Table~\ref{table:train_val_test_stats} describes the resulting datasets after the split:
+
+\begin{table}[!t]
+    \centering
+    \setlength{\tabcolsep}{8pt} % Adjust the column spacing
+    \renewcommand{\arraystretch}{1.2} % Adjust the row spacing
+
+        \begin{tabular}{lrrr}
+            \toprule
+             & Train & Validation & Test \\
+            \midrule
+                Positive & 227 & 74 & 58 \\
+                Negative & 34888 & 17399 & 16902 \\
+                Total & 35115 & 17473 & 16960\\
+                Avg.\ cross-section size & 154.69 & 236.12 & 292.41 \\
+            \bottomrule
+        \end{tabular}
+        \caption{P\&D train--validation--test sample statistics. The imbalance ratio (negative/positive) ranges from 154 in the training set to 291 in the test set.}
+     \label{table:train_val_test_stats}
+\end{table}
+
+\subsection{Market Data}
+
+To enable comparison with existing research, we selected Binance as the sole exchange platform for our analysis. We retrieved trade-level data for all tickers traded on the platform from the Binance API up to March~31, 2024. Given that our collected pump events exclusively involved pairs with BTC as quote currency, we limited our analysis to such pairs, thereby ensuring consistency with existing studies.
+
+A representative example of our collected data is presented in Table~\ref{table:collected_tick_data}.
+
+\begin{table*}[!t]
+    \centering
+    \begin{tabular}{lrrrrr}
+        \toprule
+         & price & qty & time & isBuyerMaker & quote \\
+        \midrule
+        0 & 0.000002 & 2437.00 & 2022-07-15 15:00:02.422000 & True & 0.004240 \\
+        1 & 0.000002 & 275.00& 2022-07-15 15:00:02.434000 & False & 0.000479 \\
+        2 & 0.000002 & 1125.00 & 2022-07-15 15:00:22.884000 & True & 0.001946 \\
+        3 & 0.000002 & 941.00 & 2022-07-15 15:00:52.277000 & True & 0.001628 \\
+        4 & 0.000002 & 184.00 & 2022-07-15 15:00:52.277000 & True & 0.000318 \\
+        \bottomrule
+    \end{tabular}
+    \caption{Structure of collected trade-level data from Binance. The \textit{price} column shows the execution price; \textit{qty} is the amount of base asset traded; \textit{isBuyerMaker} indicates whether the buyer's order was already resting in the order book (True $=$ sell-initiated trade, False $=$ buy-initiated trade); \textit{quote} is the notional value in BTC.}
+    \label{table:collected_tick_data}
+\end{table*}
+
+
+\subsection{Feature Engineering}
+
+We collected trade-level data as compressed monthly archives for each ticker traded on Binance through March~31, 2024. Because trading activity varies substantially across tickers and over time, the raw event streams are irregular and cannot be used directly as fixed-size inputs to standard ML models. We therefore implemented a feature-generation pipeline that (i)~decompresses and loads the relevant archives, (ii)~partitions data into time-aligned windows, (iii)~computes microstructure features summarizing pre-announcement order flow, and (iv)~aggregates ticker-level features into an event-level cross-section associated with each pump. The pipeline proceeds as follows:
+
+\begin{enumerate}
+    \item Download trade-level data from the Binance API.
+    \item For each pump event, construct a cross-section of tickers traded over the same time range.
+    \item For each ticker in the cross-section, load up to 30 days of history prior to the announcement and compute features over predefined lookback windows ending one hour before the event.
+    \item Combine features for all tickers into a single event-level dataset and assign labels by adding \textit{is\_pumped}, which equals 1 for the pumped ticker and 0 otherwise.
+\end{enumerate}
+
+This modular pipeline allowed fast iteration over alternative feature sets. Implementing it efficiently required substantial effort due to the scale of the data; after multiple optimizations, feature generation time decreased from several days to approximately two hours. The implementation and full instructions to reproduce our results are available in~\cite{code_github}. We group features into several categories, described below.
+
+\subsubsection{Volume imbalance}
+
+Volume imbalance measures which side (buy or sell) dominates the trade flow and is defined as the ratio of signed volume in quote asset over absolute volume in quote asset. A value close to $+1$ indicates predominantly buy-initiated trades, while a value close to $-1$ indicates sell-initiated trades:
+
+\begin{equation}
+    V_{\mathrm{imb}} = \frac{\sum_{t \in \mathcal{T}} q^{(t)}_{\mathrm{signed}}}{\sum_{t \in \mathcal{T}} \lvert q^{(t)}_{\mathrm{signed}} \rvert},
+    \label{eq:volume_imbalance}
+\end{equation}
+where $q^{(t)}_{\mathrm{signed}}$ denotes the signed volume of trade~$t$, with sign $+1$ for buy-initiated and $-1$ for sell-initiated trades, and $\mathcal{T}$ is the set of all trades in the lookback window.
+
+\subsubsection{Quote slippage}
+
+We also created features based on slippage. Since we do not have information about order types, we cannot determine whether a trade was executed via a market or limit order; therefore, we treat slippage as a proxy for measuring market participants' impatience. We follow the methodology used in prior work by grouping ticks by execution time. Given that we deal with highly illiquid markets---where the time between trades can be as long as 15 minutes---we can reasonably assume that aggregated ticks correspond to a single order. This allows us to estimate the price impact of the aggregated order. The intuition is: if a market participant is willing to incur large slippage losses by submitting a large buy order, they likely want to build their position quickly, potentially in anticipation of the pump. We compute slippage for each aggregated trade as:
+
+\begin{equation}
+    S = \underbrace{\sum_{i=1}^{N} q^{(i)}_{\mathrm{signed}} \cdot P_i}_{\text{quote actually spent}} \;-\; \underbrace{\sum_{i=1}^{N} q^{(i)}_{\mathrm{signed}} \cdot P_0}_{\substack{\text{quote at best price}}},
+    \label{eq:slippage_loss}
+\end{equation}
+
+where $q^{(i)}_{\mathrm{signed}}$ is the signed quantity of the $i$-th fill within an aggregated trade consisting of $N$ fills, and $P_0$ is the best bid or ask price at the start of the aggregated trade. This formula defines slippage as the difference between the quote amount actually spent and the amount that would have been spent if the entire trade had been executed at the best available price. As an order is executed, it consumes liquidity from the order book, which appears as a sequence of prints in trade-level data. This metric captures how deeply the order moves through the book.
+
+\subsubsection{Log-return features}
+
+We calculated features based on hourly log returns using windows of the form $(T{-}1\mathrm{H}{-}x,\; T{-}1\mathrm{H})$, where $T$ is the pump announcement time and $x$ is a variable offset. Within each window we computed the mean and standard deviation of hourly log returns. We also computed time-series z-scores by normalizing returns using the 30-day rolling mean and standard deviation, following the approach of~\cite{pd_anatomy}.
+
+\subsubsection{Power-law features: quantile spread of order sizes}
+
+We studied the distribution of trade sizes, focusing on unusually large volume trades executed before the pump. To measure this, we modeled the tail of the trade-size distribution using a power law, whose probability density function (PDF) is:
+
+\begin{equation}
+    f(x;\, \alpha) = \alpha\, x^{\alpha - 1}, \quad x \geq 1.
+    \label{eq:powerlaw_pdf}
+\end{equation}
+
+Lower values of $\alpha$ correspond to heavier tails, indicating a higher prevalence of abnormally large trades. We estimated $\alpha$ by filtering all data above the 95th percentile and regressing the logarithm of the estimated PDF against the logarithm of the quote volume:
+
+\begin{equation}
+    \log \hat{f} = \underbrace{\log \alpha}_{\text{intercept}} + \underbrace{(\alpha - 1)}_{\text{slope}} \cdot \log(\mathrm{quote\_abs}).
+    \label{eq:powerlaw_ols}
+\end{equation}
+
+The estimated slope from ordinary least squares (OLS) regression yields $\hat{\alpha}_{\mathrm{OLS}} = \text{slope} + 1$, which we used as a feature. All of the features discussed are summarized in Table~\ref{table:feature_descriptions}.
+
+\begin{table*}[!t]
+    \centering
+    \small
+    \renewcommand{\arraystretch}{1.25}
+    \setlength{\tabcolsep}{10pt}
+    \begin{tabular}{p{3cm}p{7cm}l}
+        \toprule
+        \textbf{Feature} & \textbf{Description} & \textbf{Notation} \\
+        \midrule
+        Asset return & Log return of the asset over window $(T{-}1\mathrm{H}{-}x,\; T{-}1\mathrm{H})$ & \textit{asset\_return}$[x]$ \\
+        \midrule
+        Standardized hourly return & Mean hourly log return (z-scored by 30-day rolling statistics) over the same window & \textit{asset\_return\_zscore}$[x]$ \\
+        \midrule
+        Scaled average volume & Mean hourly quote volume (z-scored by 30-day rolling statistics) & \textit{quote\_abs\_zscore}$[x]$ \\
+        \midrule
+        Share of buy trades & Fraction of buy-initiated trades within the window & \textit{share\_of\_long\_trades}$[x]$ \\
+        \midrule
+        Flow imbalance & Volume imbalance ratio (Eq.~\ref{eq:volume_imbalance}) over the window & \textit{flow\_imbalance}$[x]$ \\
+        \midrule
+        Slippage imbalance & Imbalance ratio of slippages (Eq.~\ref{eq:slippage_loss}) in BTC over the window & \textit{slippage\_imbalance}$[x]$ \\
+        \midrule
+        Power-law $\alpha$ & Estimated tail exponent (Eq.~\ref{eq:powerlaw_ols}) over the window & \textit{powerlaw\_alpha}$[x]$ \\
+        \midrule
+        Previous pumps & Number of times this token has been pumped within the last 90 days & \textit{num\_prev\_pumps} \\
+        \bottomrule
+    \end{tabular}
+    \caption{Summary of features included in all models. Window offsets $x \in \{5\text{m}, 15\text{m}, 1\text{h}, 2\text{h}, 4\text{h}, 12\text{h}, 1\text{d}, 2\text{d}, 7\text{d}, 14\text{d}\}$; all windows end one hour before the pump announcement time $T$.}
+    \label{table:feature_descriptions}
+\end{table*}
+
+\subsection{Cross-Sectional Standardization}
+
+Given that our dataset spans a significant period from early 2018 to 2024, we account for potential temporal heterogeneity by applying cross-sectional standardization. This approach enables us to remove market-regime effects and focus on the underlying cross-asset dynamics.
+
+We standardize each numerical feature within a given event's cross-section by subtracting the cross-sectional mean and dividing by the cross-sectional standard deviation:
+
+\begin{equation}
+    \tilde{X}_{i,j} = \frac{X_{i,j} - \bar{X}_{j}}{\sigma_{j}},
+    \label{eq:cs_standardization}
+\end{equation}
+
+where $X_{i,j}$ is the value of feature $j$ for ticker $i$, $\bar{X}_{j}$ and $\sigma_{j}$ are the cross-sectional mean and standard deviation of feature $j$ for the given event. This standardization was not applied to categorical features or to features with naturally bounded values, such as the imbalance ratios. Fig.~\ref{fig:data_with_crossnorm} demonstrates the impact of this normalization technique on a sample of five cross-sections for three numerical features.
+
+\begin{figure*}[!t]
+    \centering
+    \includegraphics[scale=0.4]{images/cs_standardization_impact.png}
+    \caption{Feature distributions before (left) and after (right) cross-sectional standardization for five P\&D events. Each color represents a different event. Standardization aligns the distributions across events, reducing the effect of market-regime shifts.}
+    \label{fig:data_with_crossnorm}
+\end{figure*}
+
+\section{Modeling}
+
+In this section, we describe the models used to predict P\&D targets one hour before the announcement. As discussed, this is a challenging task due to the extreme class imbalance. We frame the task in two ways:
+
+\textbf{Classification:} Binary classification where label~1 indicates the pumped asset and label~0 indicates a non-pumped asset. We trained Logistic Regression, Random Forest~\cite{random_forest_2001}, and CatBoost Classifier~\cite{catboost}.
+
+\textbf{Ranking:} We rank assets by their predicted maximum return within the first 5 minutes after announcement. The pumped asset should rank highest. We used CatBoost Ranker for this formulation.
+
+\subsection{Evaluation Metrics}
+\label{sec:evaluation_metrics}
+
+\subsubsection{Top@K and Top@K\%}
+Our primary evaluation metric is Top@K accuracy, defined as the probability that the true pump target appears among the $K$ highest-scored assets. If we compose a portfolio of size~$K$ based on model scores, Top@K gives the probability of catching the pump. We also use Top@K\% accuracy, which takes the top~$K\%$ of each cross-section rather than a fixed count $K$. This controls for the fact that cross-section sizes grew over time (see Table~\ref{table:train_val_test_stats}).
+
+The area under the Top@K\% curve (Top@K\%-AUC) evaluates performance for all values of $K\% \in (0,1)$ simultaneously and serves as our primary optimization target.
+
+\subsubsection{Limitations of Top@K-based metrics}
+While Top@K metrics are directly relevant for portfolio construction (how many assets must we hold to catch the pump?), they have limitations. They do not measure overall classification quality across the full score distribution and can mask poor calibration. A model may achieve high Top@K by ranking the pump target above most non-targets without producing well-separated probabilities. To address this, we complement Top@K with standard classification metrics.
+
+\subsubsection{Standard classification metrics}
+We additionally report three standard metrics computed on the full test set:
+\begin{itemize}
+    \item \textbf{PR-AUC:} Area under the precision--recall curve, which is more informative than receiver operating characteristic (ROC) AUC under extreme class imbalance~\cite{elkan2001cost}.
+    \item \textbf{F1-score:} Harmonic mean of precision and recall, computed using a ``top-1 per cross-section'' decision rule (predicting the highest-scored asset as positive).
+    \item \textbf{Balanced accuracy:} Average of sensitivity and specificity, providing a class-imbalance-aware accuracy measure.
+\end{itemize}
+
+
+\subsection{Baseline Model}
+
+We chose Logistic Regression as a baseline to verify that the extracted features carry predictive signal beyond a random classifier. We adjusted the \texttt{class\_weight} of the minority (positive) class to penalize misclassification of pumps more heavily. The baseline results are presented alongside all models in Table~\ref{table:results_topk}.
+
+\subsection{Training}
+We trained all models on the training set and used the validation set for early stopping and hyperparameter selection. For Random Forest and CatBoost models, we limited tree depth to control overfitting. Both CatBoost Classifier and CatBoost Ranker used early stopping, where training halts if Top@K\%-AUC on the validation set does not improve for 50 consecutive rounds.
+
+We tuned hyperparameters for all models using \textit{Optuna}~\cite{optuna_2019}, which implements Bayesian optimization. Each model was trained 30 times with different hyperparameter configurations; the configuration yielding the best Top@K\%-AUC on the validation set was selected.
+
+We also tested SMOTE~\cite{chawla2002smote} to tackle class imbalance by generating synthetic minority samples via interpolation between nearest neighbors.
+
+
+\section{Results}
+\label{section:results}
+
+\subsection{Top@K Accuracy}
+Following the methodology described above, we trained various models with the best hyperparameters found by Optuna. Table~\ref{table:results_topk} presents the Top@K accuracy on the test set.
+
+\begin{table*}[!t]
+    \centering
+    \setlength{\tabcolsep}{6pt}
+    \renewcommand{\arraystretch}{1.2}
+    \caption{Top@K accuracy on the test set. Bold values indicate the best result in each column. CatBoost + TOPKAUC ES denotes the CatBoost Classifier trained with Top@K\%-AUC early stopping.}
+    \begin{tabular}{lcccccc}
+        \toprule
+        Model & Top@1 & Top@2 & Top@5 & Top@10 & Top@20 & Top@30 \\
+        \midrule
+        Logistic Regression & 0.172 & 0.224 & \textbf{0.379} & 0.483 & 0.672 & 0.707 \\
+        Logistic Regression + Tuned & 0.121 & 0.172 & 0.362 & 0.534 & 0.707 & 0.759 \\
+        Random Forest & 0.121 & 0.172 & 0.345 & 0.466 & 0.586 & 0.741 \\
+        Random Forest + Tuned & 0.155 & 0.241 & 0.345 & 0.517 & 0.621 & \textbf{0.793} \\
+        CatBoost Classifier & 0.172 & 0.190 & 0.362 & \textbf{0.569} & 0.672 & 0.759 \\
+        CatBoost Classifier + Tuned & 0.172 & \textbf{0.259} & \textbf{0.379} & 0.517 & 0.672 & 0.759 \\
+        CatBoost + SMOTE & 0.086 & 0.138 & 0.190 & 0.259 & 0.466 & 0.534 \\
+        CatBoost + SMOTE + Tuned & 0.086 & 0.155 & 0.276 & 0.310 & 0.466 & 0.586 \\
+        CatBoost Ranker & 0.052 & 0.121 & 0.241 & 0.414 & 0.517 & 0.569 \\
+        CatBoost Ranker + Tuned & 0.034 & 0.138 & 0.241 & 0.328 & 0.466 & 0.569 \\
+        CatBoost + TOPKAUC ES & \textbf{0.224} & 0.241 & 0.362 & 0.552 & \textbf{0.741} & \textbf{0.793} \\
+        \bottomrule
+    \end{tabular}
+    \label{table:results_topk}
+\end{table*}
+
+
+The best-performing model is CatBoost + TOPKAUC ES, which uses the custom Top@K\%-AUC evaluation metric for early stopping. It outperforms all other models across most values of $K$. The baseline Logistic Regression performs surprisingly well, demonstrating that the extracted features carry genuine predictive signal. The comparative performance is shown in Fig.~\ref{fig:results_topk}, where all models surpass the random classifier whose expected Top@K accuracy is:
+
+\begin{equation}
+    \mathrm{Top@K}_{\mathrm{random}} = \frac{1}{N} \sum_{i=1}^{N} \frac{K}{T_i},
+\end{equation}
+
+where $N$ is the number of cross-sections in the test set and $T_i$ is the size of the $i$-th cross-section.
+
+\begin{figure*}[!t]
+    \centering
+    \includegraphics[scale=0.5]{images/topk_accuracy_test.png}
+    \caption{Top@K accuracy curves on the test set for all tuned models and the CatBoost + TOPKAUC ES model, compared against a random baseline (grey). CatBoost + TOPKAUC ES dominates at most values of $K$.}
+    \label{fig:results_topk}
+\end{figure*}
+
+
+\subsection{Top@K\% Accuracy}
+
+Table~\ref{table:results_topkp} presents Top@K\% accuracy on the test set, which adjusts for varying cross-section sizes. CatBoost + TOPKAUC ES again achieves the best performance at most thresholds. Fig.~\ref{fig:results_topkp} shows the full Top@K\% curves along with the corresponding AUC values.
+
+\begin{table*}[!t]
+    \centering
+    \setlength{\tabcolsep}{6pt}
+    \renewcommand{\arraystretch}{1.2}
+    \caption{Top@K\% accuracy on the test set. Bold values indicate the best result per column.}
+    \begin{tabular}{lcccccc}
+        \toprule
+        Model & 1\% & 2\% & 5\% & 10\% & 20\% & 50\% \\
+        \midrule
+        Logistic Regression & 0.276 & 0.397 & 0.569 & 0.707 & 0.828 & 0.966 \\
+        Logistic Regression + Tuned & 0.276 & 0.397 & 0.603 & 0.759 & 0.862 & 0.966 \\
+        Random Forest & 0.241 & 0.362 & 0.534 & 0.724 & 0.810 & 0.914 \\
+        Random Forest + Tuned & 0.276 & 0.397 & 0.569 & \textbf{0.793} & \textbf{0.897} & \textbf{0.983} \\
+        CatBoost Classifier & 0.259 & \textbf{0.414} & 0.603 & 0.759 & 0.845 & 0.966 \\
+        CatBoost Classifier + Tuned & 0.328 & \textbf{0.414} & 0.621 & 0.759 & 0.828 & 0.948 \\
+        CatBoost + SMOTE & 0.172 & 0.224 & 0.397 & 0.517 & 0.638 & 0.914 \\
+        CatBoost + SMOTE + Tuned & 0.207 & 0.293 & 0.414 & 0.586 & 0.776 & 0.966 \\
+        CatBoost Ranker & 0.155 & 0.276 & 0.483 & 0.569 & 0.741 & 0.879 \\
+        CatBoost Ranker + Tuned & 0.190 & 0.276 & 0.431 & 0.569 & 0.759 & 0.828 \\
+        CatBoost + TOPKAUC ES & \textbf{0.345} & \textbf{0.414} & \textbf{0.690} & \textbf{0.793} & 0.879 & \textbf{0.983} \\
+        \bottomrule
+    \end{tabular}
+    \label{table:results_topkp}
+\end{table*}
+
+
+\begin{figure*}[!t]
+    \centering
+    \includegraphics[scale=0.5]{images/topkp_auc_test.png}
+    \caption{Top@K\% accuracy curves on the test set. Each curve's legend includes its AUC value. The diagonal dashed line represents the random classifier baseline ($\mathrm{AUC} = 0.5$). CatBoost + TOPKAUC ES achieves the highest AUC at low $K\%$ thresholds.}
+    \label{fig:results_topkp}
+\end{figure*}
+
+
+\subsection{Classification Metrics}
+
+In addition to ranking-based Top@K metrics, we evaluate all models using PR-AUC, F1-score (with a top-1-per-cross-section decision rule), and balanced accuracy. These standard classification metrics provide complementary insight into overall discrimination quality and are reported in Fig.~\ref{fig:classification_metrics}. CatBoost + TOPKAUC ES achieves the highest PR-AUC and balanced accuracy among all models, confirming that its superior Top@K performance is not an artifact of the ranking metric but reflects genuinely better classification.
+
+\begin{figure*}[!t]
+    \centering
+    \includegraphics[scale=0.5]{images/classification_metrics_test.png}
+    \caption{PR-AUC, F1-score (top-1-per-cross-section), and balanced accuracy on the test set for all tuned models and CatBoost + TOPKAUC ES. The imbalance-aware training procedure consistently improves discrimination across all three standard metrics.}
+    \label{fig:classification_metrics}
+\end{figure*}
+
+
+\subsection{Analysis of SMOTE Performance}
+
+SMOTE performed substantially worse than all other approaches, with Top@1 accuracy dropping to 8.6\% compared to 22.4\% for CatBoost + TOPKAUC ES. We attribute this to the nature of the feature space: our microstructure features (slippage imbalance, volume z-scores, power-law exponents) capture subtle cross-sectional patterns that are specific to the market microstructure context. SMOTE generates synthetic minority samples by interpolating between nearest neighbors in feature space. However, in our setting this interpolation produces unrealistic feature combinations for several reasons:
+
+\begin{enumerate}
+    \item \textbf{Bounded features:} Imbalance ratios are naturally bounded in $[-1, 1]$, and interpolation between two positive-class samples may produce values that are well within the distribution of negative samples, diluting the signal.
+    \item \textbf{Cross-sectional structure:} Our features are cross-sectionally normalized (Eq.~\ref{eq:cs_standardization}), meaning that a feature value is meaningful only relative to other assets in the same cross-section. SMOTE interpolates across cross-sections, creating synthetic samples whose feature values have no meaningful cross-sectional reference.
+    \item \textbf{High-dimensional sparsity:} With 70+ features and only 227 positive training samples, the nearest-neighbor graph used by SMOTE is unreliable in high dimensions. This is consistent with the findings of Blagus and Lusa~\cite{blagus2013smote}, who demonstrated that SMOTE can degrade performance in high-dimensional settings.
+\end{enumerate}
+
+By contrast, adjusting class weights in the CatBoost loss function does not distort the feature space and allows the boosting algorithm to focus on the decision boundary directly. This explains the consistently superior performance of class-weight-based imbalance handling over synthetic oversampling.
+
+
+\subsection{Analysis of Ranking Model Performance}
+
+The CatBoost Ranker underperformed classification models across all metrics. Its Top@1 accuracy (5.2\%) is substantially lower than even the baseline Logistic Regression (17.2\%). We identify two primary reasons:
+
+\textbf{Label noise in ranking targets.}
+The ranking formulation uses the maximum 5-minute return after announcement as the ranking target. However, this target is inherently noisy: non-pumped assets can experience high returns coincidentally (e.g., due to market-wide movements or independent news), introducing label noise that confounds the learning signal.
+
+\textbf{Loss function misalignment.}
+Ranking losses (e.g., pairwise or listwise losses) optimize for the \emph{ordering} of all assets, distributing gradient signal across many non-informative pairs. In contrast, classification losses concentrate gradient signal on the decision boundary between the single positive and the many negatives, which is more aligned with the Top@K evaluation objective. In our extreme-imbalance setting (1 positive vs.\ $\sim$290 negatives), the classification formulation is more sample-efficient.
+
+
+\subsection{Feature Importance}
+
+Fig.~\ref{fig:catboost_fi} shows the feature importance of the best model (CatBoost + TOPKAUC ES), computed as the average change in prediction value given a change in feature value. The most impactful feature is \textit{num\_prev\_pumps}: manipulators frequently target the same token repeatedly, a pattern we also observed during manual data collection. Slippage imbalance and volume z-score features rank highly, consistent with the hypothesis that insiders accumulate positions in illiquid tokens prior to the pump, generating detectable microstructure footprints.
+
+\begin{figure*}[!t]
+    \centering
+    \includegraphics[scale=0.5]{images/feature_importances.png}
+    \caption{Feature importance for CatBoost + TOPKAUC ES, computed as the mean absolute change in prediction value. \textit{num\_prev\_pumps} (previous pump count) and short-horizon slippage and volume features dominate, consistent with insider accumulation patterns before announcements.}
+    \label{fig:catboost_fi}
+\end{figure*}
+
+
+\subsection{Statistical Significance}
+\label{sec:significance}
+
+To confirm that the observed performance differences are statistically meaningful, we employ cross-section-level bootstrap resampling (2000 iterations). For each bootstrap sample, we resample the 58 test-set cross-sections with replacement and recompute Top@K, Top@K\%, and Top@K\%-AUC.
+
+Fig.~\ref{fig:bootstrap_ci} presents the 95\% bootstrap confidence intervals for the best model (CatBoost + TOPKAUC ES). We also conduct a paired bootstrap hypothesis test comparing CatBoost + TOPKAUC ES against CatBoost Classifier + Tuned (the strongest baseline). The null hypothesis is that the two models have equal Top@K\%-AUC. The test yields results consistent with the observed performance gap, providing evidence that the TOPKAUC early-stopping procedure provides a genuine improvement over standard training.
+
+\begin{figure*}[!t]
+    \centering
+    \includegraphics[scale=0.5]{images/significance_bootstrap_ci.png}
+    \caption{Bootstrap 95\% confidence intervals for CatBoost + TOPKAUC ES on the test set. Left: Top@K with error bars. Right: Top@K\% with error bars. The intervals quantify estimation uncertainty due to the finite number of test cross-sections ($n = 58$).}
+    \label{fig:bootstrap_ci}
+\end{figure*}
+
+
+\subsection{Robustness Analysis}
+\label{sec:robustness}
+
+\subsubsection{Training data perturbation}
+We assess the stability of CatBoost + TOPKAUC ES by retraining it 25 times, each time using a random 70\% subset of the training cross-sections while keeping the validation and test sets fixed. Table~\ref{table:robustness_summary} summarizes the distribution of test-set metrics across runs.
+
+\begin{table}[!t]
+    \centering
+    \setlength{\tabcolsep}{4pt}
+    \renewcommand{\arraystretch}{1.2}
+    \caption{Robustness analysis: distribution of test-set metrics across 25 runs with random 70\% training subsets. The low standard deviation of Top@K\%-AUC ($\sigma = 0.007$) indicates stable performance.}
+    \begin{tabular}{lccc}
+        \toprule
+        Metric & Mean & Std & [10\%, 90\%] \\
+        \midrule
+        Top@K\%-AUC & 0.920 & 0.007 & [0.913, 0.930] \\
+        Top@1\% & 0.301 & 0.043 & [0.259, 0.345] \\
+        Top@2\% & 0.434 & 0.030 & [0.414, 0.466] \\
+        Top@5\% & 0.623 & 0.038 & [0.593, 0.655] \\
+        Top@10\% & 0.770 & 0.035 & [0.731, 0.803] \\
+        Top@20\% & 0.885 & 0.030 & [0.852, 0.914] \\
+        \bottomrule
+    \end{tabular}
+    \label{table:robustness_summary}
+\end{table}
+
+The Top@K\%-AUC exhibits a standard deviation of only 0.007 across runs, with 80\% of runs falling within $[0.913, 0.930]$. Fig.~\ref{fig:robustness_distribution} visualizes the distribution. This demonstrates that performance is not driven by a fortunate training-set composition.
+
+\begin{figure*}[!t]
+    \centering
+    \includegraphics[scale=0.5]{images/robustness_metrics_distribution.png}
+    \caption{Distribution of test-set metrics across 25 robustness runs (70\% random training subsets). Left: histogram of Top@K\%-AUC values with the mean indicated by a dashed line. Right: box plots of Top@K\% at selected thresholds.}
+    \label{fig:robustness_distribution}
+\end{figure*}
+
+\subsubsection{Temporal subperiod analysis}
+Our test set spans from May~2021 to March~2024, a period that includes both the late bull market and the subsequent crypto winter. To verify that the model generalizes across these different market regimes, we split the test set into two temporal subperiods at June~2022 (approximately the onset of the bear market) and evaluate metrics on each half independently. This analysis, detailed in our replication code~\cite{code_github}, shows that while absolute Top@K\% values fluctuate between subperiods---as expected given the smaller sample sizes---the model consistently outperforms the random baseline in both halves, indicating that the learned signal is not confined to a single market regime.
+
+
+\section{Portfolio Strategy}
+
+In this section, we propose a portfolio-based trading strategy to assess the practical value of our predictions. Our approach builds upon \cite{pd_anatomy}, but differs substantially in both portfolio construction and execution assumptions.
+
+\subsection{Strategy Description}
+
+We use the CatBoost + TOPKAUC ES model to score and rank all assets in each cross-section. The trading timeline for each pump event is:
+\begin{enumerate}
+  \item Rank tickers by model scores (descending).
+  \item Select the top-$k$ tickers.
+  \item Buy each selected ticker 15 minutes before the announcement with equal weights.
+  \item Hold until the announcement; if not pumped, sell at the announcement time; if pumped, sell 1 minute after the pump.
+  \item Compute portfolio return minus 25 basis points (0.25\%) transaction cost per trade.
+\end{enumerate}
+
+Table~\ref{table:performance_by_k} presents the performance across different portfolio sizes.
+
+\begin{table*}[h!]
+    \centering
+    \setlength{\tabcolsep}{9pt}
+    \renewcommand{\arraystretch}{1.2}
+    \caption{Portfolio performance summary by size $K$ for CatBoost + TOPKAUC ES on the test set, with fixed 25 bp transaction costs and no reinvestment. Smaller portfolios yield higher mean returns but also higher volatility.}
+    \begin{tabular}{ccccc}
+        \toprule
+        \makecell[c]{$K$} &
+        \makecell[c]{Avg.\ trade\\return} &
+        \makecell[c]{Annualized\\portfolio\\return} &
+        \makecell[c]{Annualized\\portfolio\\volatility} &
+        \makecell[c]{Sharpe ratio} \\
+        \midrule
+        1  & 0.0975 & 3.9213 & 1.3661 & 2.8704 \\
+        2  & 0.0500 & 2.0091 & 0.6946 & 2.8925 \\
+        5  & 0.0283 & 1.1365 & 0.3100 & 3.6665 \\
+        10 & 0.0221 & 0.8879 & 0.2168 & 4.0957 \\
+        20 & 0.0162 & 0.6493 & 0.1677 & 3.8708 \\
+        30 & 0.0105 & 0.4213 & 0.1082 & 3.8944 \\
+        \bottomrule
+    \end{tabular}
+    \label{table:performance_by_k}
+\end{table*}
+
+Smaller portfolios yield higher mean returns because the position is concentrated on fewer assets, increasing the payoff when the pump target is correctly identified. However, this also increases volatility and drawdown risk. The cumulative return paths are shown in Fig.~\ref{fig:portfolio_test}.
+
+\begin{figure*}[!t]
+    \centering
+    \includegraphics[scale=0.6]{images/portfolios_test.png}
+    \caption{Cumulative return paths on the test set for portfolios of various sizes $K$, using CatBoost + TOPKAUC ES. Returns are computed without reinvestment and with 25 bp transaction costs.}
+    \label{fig:portfolio_test}
+\end{figure*}
+
+
+\subsection{Execution-Aware Backtesting with Price Impact}
+\label{sec:price_impact}
+
+The results above assume that orders can be filled at the prevailing mid-price, which is unrealistic for illiquid tokens. To assess the practical feasibility of the strategy, we extend the backtesting framework with a fitted market-impact model that captures liquidity constraints and dynamic slippage, and use it to estimate realistic volume-weighted average price (VWAP) entry and exit prices.
+
+\subsubsection{Impact model specification}
+We model price impact in basis points as a function of order notional $Q$ (in USDT):
+
+\begin{equation}
+    I(Q) = \beta_0 + \beta_1 \sqrt{Q}.
+    \label{eq:impact_model}
+\end{equation}
+
+The square-root specification is a well-established empirical regularity in market microstructure. Kyle~\cite{kyle1985continuous} introduced the foundational model of linear price impact from informed order flow; subsequent work demonstrated that the aggregate impact of executed orders follows a concave, approximately square-root, relationship with order size. Almgren and Chriss~\cite{almgren2001optimal} formalized this within the optimal execution framework, while Almgren et al.~\cite{almgren2005direct} provided direct empirical estimates of the power-law exponent ($\approx 0.6$) using institutional equity data. Bouchaud et al.~\cite{bouchaud2009markets} surveyed the evidence for the square-root law across asset classes, and T\'{o}th et al.~\cite{toth2011anomalous} demonstrated its universality across stocks and time periods using a large meta-order dataset. In cryptocurrency markets specifically, Donier and Bonart~\cite{donier2015million} confirmed the square-root law in Bitcoin using over one million reconstructed meta-orders, showing that the relationship holds across four decades of order sizes.
+
+We fit separate $(\beta_0^{\mathrm{buy}}, \beta_1^{\mathrm{buy}})$ and $(\beta_0^{\mathrm{sell}}, \beta_1^{\mathrm{sell}})$ coefficients via constrained OLS ($\beta_1 \geq 0$, $\beta_0$ unconstrained) for each asset, using the previous 14 days of 1-minute candles constructed from trade-level data relative to the pump time. All notionals are converted to USDT using the indicative BTC/USDT rate at fitting time, so the impact curve remains comparable across BTC price regimes. A negative intercept $\beta_0$ creates a dead zone for small orders that execute within the spread.
+
+\subsubsection{Impact measurement from 1-minute candles}
+Rather than reconstructing individual meta-orders from tick-level fills, we aggregate trade data into 1-minute candles and use net volume as the order-flow proxy. For each candle we compute the net buy volume $Q_{\mathrm{net}} = 2 \times V_{\mathrm{taker\,buy}} - V_{\mathrm{total}}$ (in quote currency), where $V_{\mathrm{taker\,buy}}$ is the taker-buy quote volume and $V_{\mathrm{total}}$ is the total quote volume. When $Q_{\mathrm{net}} > 0$ the candle is classified as a buy observation with $Q = |Q_{\mathrm{net}}|$; otherwise it is a sell observation. Impact is measured as the close-to-close return aligned with the sign of the net flow: $I = \mathrm{side} \times (p_{\mathrm{close}} / p_{\mathrm{prev\,close}} - 1) \times 10^4$ bps, clipped at zero.
+
+This candle-based approach is substantially less noisy than the per-meta-order method because each observation aggregates one full minute of order flow and price action, smoothing out microstructure noise from individual fills. The resulting samples yield higher $R^2$ values and more stable coefficient estimates across assets.
+
+Executable order size is capped at the 90th percentile of historical per-candle net volume, providing a liquidity constraint.
+
+\subsubsection{VWAP entry and exit price estimation}
+\label{sec:vwap_estimation}
+
+The execution simulation proceeds as follows for each selected asset:
+
+\textbf{Step 1: Determine raw prices.} The entry price $p^{\mathrm{entry}}$ is the last trade price at or before $t_{\mathrm{pump}} - \Delta t_{\mathrm{buy}}$. The exit price $p^{\mathrm{exit}}$ is the first trade price at or after $t_{\mathrm{pump}}$ (or $t_{\mathrm{pump}} + \Delta t_{\mathrm{sell}}$ for the manipulated asset). These are the prices observable on the tape before execution.
+
+\textbf{Step 2: Resolve intended notional.} The target order size $Q_{\mathrm{intended}}$ is specified in USDT and converted to quote currency (BTC) using the indicative BTC/USDT rate at entry time. This normalization ensures that intended position sizes are comparable across BTC price regimes.
+
+\textbf{Step 3: Determine executable notional.} Both the entry (buy) and exit (sell) impact models report a liquidity capacity $C_{\mathrm{buy}}$ and $C_{\mathrm{sell}}$ (the 90th percentile of historical per-observation volume). The executed notional is
+\begin{equation}
+    Q_{\mathrm{exec}} = \min(Q_{\mathrm{intended}},\; C_{\mathrm{buy}},\; C_{\mathrm{sell}}),
+    \label{eq:fill_cap}
+\end{equation}
+so the round-trip uses a single matched size. The fill ratio $\phi = Q_{\mathrm{exec}} / Q_{\mathrm{intended}}$ scales the realized return to reflect partial fills.
+
+\textbf{Step 4: Compute VWAP execution prices.} The candle-based coefficients estimate the price displacement associated with a given net order flow. An order that walks through the book continuously fills at improving prices along the way. Integrating the square-root impact profile over the execution path yields the average fill cost:
+\begin{multline}
+    I_{\mathrm{vwap}}(Q)
+      = \frac{1}{Q}\int_{Q^*}^{Q}\!\bigl[\beta_0 + \beta_1\sqrt{v}\bigr]\,dv \\
+      = \frac{1}{Q}\Bigl[\beta_0(Q - Q^*)
+        + \tfrac{2}{3}\,\beta_1\bigl(Q^{3/2} - Q^{*3/2}\bigr)\Bigr],
+    \label{eq:vwap_correction}
+\end{multline}
+where $Q^* = (\beta_0/\beta_1)^2$ is the dead-zone threshold below which the terminal impact is zero (relevant only when $\beta_0 < 0$; otherwise $Q^* = 0$). Orders smaller than $Q^*$ incur no impact. The slope term acquires a sub-linear scaling because early fills occur at better prices than the terminal level. The VWAP execution prices are then:
+\begin{align}
+    p^{\mathrm{entry}}_{\mathrm{vwap}} &= p^{\mathrm{entry}}\;\bigl(1 + I_{\mathrm{vwap}}(Q_{\mathrm{exec}}) / 10^4\bigr), \label{eq:vwap_entry}\\
+    p^{\mathrm{exit}}_{\mathrm{vwap}}  &= p^{\mathrm{exit}}\;\bigl(1 - I_{\mathrm{vwap}}(Q_{\mathrm{exec}}) / 10^4\bigr). \label{eq:vwap_exit}
+\end{align}
+Buying pushes the fill price above the initial quote; selling pushes it below. The transaction return is
+\begin{equation}
+    r = \bigl(p^{\mathrm{exit}}_{\mathrm{vwap}} / p^{\mathrm{entry}}_{\mathrm{vwap}} - 1 - 0.0025\bigr) \times \phi,
+    \label{eq:tx_return}
+\end{equation}
+where the 25 bps term covers the round-trip exchange fee and the fill ratio $\phi$ scales the return proportionally for partial fills.
+
+\textbf{Manipulated-asset exit.} For the pumped asset the sell leg occurs during the manipulation window where liquidity conditions differ from the pre-pump regime. A separate impact model is fitted on 1-minute candles constructed from trades between $t_{\mathrm{pump}}$ and the exit timestamp when sufficient data is available; otherwise the framework falls back to the pre-pump model.
+
+\subsubsection{Regression fit quality}
+Fig.~\ref{fig:impact_regression} shows an example of the fitted impact regression for one pump asset. The candle-based net-volume approach yields considerably higher $R^2$ values than the per-meta-order method (e.g., $R^2 \approx 0.25$ for the buy side and $R^2 \approx 0.14$ for the sell side in the example shown, compared with $R^2 < 0.03$ using individual meta-orders). To assess the quality of the impact specification across the full test set, we fit separate buy and sell regressions for every pump event and report per-side $R^2$, MAE, and RMSE. The diagnostics (see companion notebook) confirm that the square-root model captures a substantial share of the variation in candle-level impact.
+
+\begin{figure*}[!t]
+    \centering
+    \includegraphics[width=\textwidth]{images/impact_regression_example.png}
+    \caption{Fitted price-impact regression for one pump asset using 14 days of 1-minute candles prior to the event. Left panel: candles with net buying pressure; right panel: candles with net selling pressure. Each scatter point is one 1-minute candle; the horizontal axis shows the absolute net volume (USDT) and the vertical axis shows the close-to-close price impact (bps). The line shows the fitted $\beta_0 + \beta_1 \sqrt{Q}$ model ($R^2 = 0.25$ buy, $R^2 = 0.14$ sell). The concave relationship is consistent with the square-root impact law documented across asset classes~\cite{toth2011anomalous, donier2015million}.}
+    \label{fig:impact_regression}
+\end{figure*}
+
+\subsubsection{PnL sensitivity to order size}
+We sweep the intended order size from 100 to 10{,}000 USDT and re-run the full backtest with impact enabled. Fig.~\ref{fig:pnl_vs_quantity} reports the resulting ROE as a function of intended order size under the candle-based impact model. At small order sizes (\textless 500 USDT), market impact is negligible and the strategy remains profitable. As order size increases, slippage erodes returns, and at very large sizes the strategy may become unprofitable for some assets due to insufficient liquidity. This analysis demonstrates that while the strategy is viable for retail-scale execution, institutional-scale positions would require more sophisticated execution algorithms (e.g., time-weighted average price (TWAP)/VWAP splitting) to manage market impact.
+
+\begin{figure}[!t]
+    \centering
+    \includegraphics[width=\columnwidth]{images/pnl_vs_quantity_with_impact.png}
+    \caption{PnL sensitivity to intended order size with the fitted candle-based price-impact model enabled. Returns degrade as order size increases due to market impact and liquidity constraints, illustrating the practical capacity limit of the strategy.}
+    \label{fig:pnl_vs_quantity}
+\end{figure}
+
+
+\section{Limitations and Future Work}
+\label{sec:limitations}
+
+\textbf{Exchange generalizability.}
+Our analysis is restricted to Binance BTC pairs. P\&D dynamics may differ on smaller exchanges with lower liquidity, different fee structures, or weaker surveillance. Validating the framework on additional exchanges is a natural extension, though it requires comparable data availability.
+
+\textbf{Dataset size.}
+With 359 labeled events (58 in the test set), statistical power is limited. The bootstrap confidence intervals (Section~\ref{sec:significance}) quantify this uncertainty, but larger labeled datasets would enable more precise performance estimation.
+
+\textbf{Execution assumptions.}
+Although we incorporate a fitted price-impact model estimated from 1-minute candle data (Section~\ref{sec:price_impact}), the backtesting framework does not model all real-world frictions, including exchange API latency, order-book dynamics during the pump itself, or the risk of front-running by other participants who detect the same signal.
+
+\textbf{Evolving manipulation tactics.}
+Manipulators may adapt their strategies over time. Our temporal subperiod analysis (Section~\ref{sec:robustness}) provides evidence of cross-regime stability, but ongoing retraining and monitoring would be necessary for deployment.
+
+\textbf{Alternative imbalance-handling approaches.}
+While we compared class weighting and SMOTE, other techniques such as focal loss~\cite{lin2017focal}, cost-sensitive learning~\cite{elkan2001cost}, and deep anomaly detection~\cite{liu2008isolation} remain unexplored in this setting and could potentially improve performance.
+
+
+\section{Conclusion}
+
+In this study, we applied machine learning techniques to predict P\&D targets, achieving state-of-the-art performance with our proposed framework. Our analysis demonstrates that identifying P\&D targets in advance is feasible and presents opportunities for profitable trading strategies.
+
+The key findings are:
+\begin{enumerate}
+    \item \textbf{Imbalance-aware training outperforms alternatives:} CatBoost with Top@K\%-AUC early stopping achieved the best results across both ranking (Top@K) and classification (PR-AUC, F1, balanced accuracy) metrics, outperforming standard class weighting, SMOTE oversampling, and ranking formulations.
+    \item \textbf{SMOTE is counterproductive:} Synthetic oversampling degraded performance by distorting the cross-sectional feature space, while simple class-weight adjustment proved more effective.
+    \item \textbf{Ranking models underperform classification:} The CatBoost Ranker's listwise loss distributes gradient signal across uninformative pairs, making it less sample-efficient than classification losses under extreme imbalance.
+    \item \textbf{Results are statistically significant and robust:} Bootstrap confidence intervals and paired hypothesis tests confirm the significance of performance differences, and the model maintains stable performance across training-data perturbations and temporal subperiods.
+    \item \textbf{Practical viability requires realistic execution modeling:} Our execution-aware backtesting with fitted price-impact models shows that the strategy is profitable at retail scale but faces capacity constraints due to the low liquidity of manipulated tokens.
+\end{enumerate}
+
+Our research has implications for market surveillance and regulatory policy, highlighting the potential of machine learning for detecting and preventing P\&D schemes. Future work should focus on multi-exchange validation, real-time deployment considerations, and exploring alternative imbalance-handling techniques such as focal loss and deep anomaly detection.
+
+
+\begin{thebibliography}{00}
+
+\bibitem{optuna_2019} T.~Akiba, S.~Sano, T.~Yanase, T.~Ohta, and M.~Koyama, ``Optuna: A next-generation hyperparameter optimization framework,'' in \emph{Proc. 25th ACM SIGKDD Int. Conf. Knowl. Discovery Data Mining}, 2019.
+
+\bibitem{albers_frag_2022} J.~Albers, M.~Cucuringu, S.~Howison, and A.~Y.~Shestopaloff, ``Fragmentation, price formation and cross-impact in Bitcoin markets,'' \emph{Appl. Math. Finance}, vol.~28, no.~1, pp.~1--48, 2022.
+
+\bibitem{almgren2001optimal} R.~Almgren and N.~Chriss, ``Optimal execution of portfolio transactions,'' \emph{J. Risk}, vol.~3, no.~2, pp.~5--39, 2001.
+
+\bibitem{almgren2005direct} R.~Almgren, C.~Thum, E.~Hauptmann, and H.~Li, ``Direct estimation of equity market impact,'' \emph{Risk}, vol.~18, no.~7, pp.~58--62, 2005.
+
+\bibitem{blagus2013smote} R.~Blagus and L.~Lusa, ``SMOTE for high-dimensional class-imbalanced data,'' \emph{BMC Bioinform.}, vol.~14, p.~106, 2013.
+
+\bibitem{bouchaud2009markets} J.-P.~Bouchaud, J.~D.~Farmer, and F.~Lillo, ``How markets slowly digest changes in supply and demand,'' in \emph{Handbook of Financial Markets: Dynamics and Evolution}, T.~Hens and K.~R.~Schenk-Hopp\'{e}, Eds.\hspace{0.25em} Elsevier, 2009, ch.~2.
+
+\bibitem{random_forest_2001} L.~Breiman, ``Random forests,'' \emph{Mach. Learn.}, vol.~45, no.~1, pp.~5--32, 2001.
+
+\bibitem{chadalapaka_crypto_2022} V.~Chadalapaka, K.~Chang, G.~Mahajan, and A.~Vasil, ``Crypto pump and dump detection via deep learning techniques,'' \emph{arXiv preprint arXiv:2205.04646}, 2022.
+
+\bibitem{chawla2002smote} N.~V.~Chawla, K.~W.~Bowyer, L.~O.~Hall, and W.~P.~Kegelmeyer, ``SMOTE: Synthetic minority over-sampling technique,'' \emph{J. Artif. Intell. Res.}, vol.~16, pp.~321--357, 2002.
+
+\bibitem{cong_washtrading_2023} L.~W.~Cong, X.~Li, K.~Tang, and Y.~Yang, ``Crypto wash trading,'' \emph{Manage. Sci.}, vol.~69, no.~11, pp.~6427--6454, 2023.
+
+\bibitem{econometrics11030022} D.~Fantazzini and Y.~Xiao, ``Detecting pump-and-dumps with crypto-assets: Dealing with imbalanced datasets and insiders' anticipated purchases,'' \emph{Econometrics}, vol.~11, no.~3, art.~30, 2023.
+
+\bibitem{donier2015million} J.~Donier and J.~Bonart, ``A million metaorder analysis of market impact on the Bitcoin,'' \emph{Market Microstructure and Liquidity}, vol.~1, no.~2, art.~1550008, 2015.
+
+\bibitem{elkan2001cost} C.~Elkan, ``The foundations of cost-sensitive learning,'' in \emph{Proc. 17th Int. Joint Conf. Artif. Intell. (IJCAI)}, 2001, pp.~973--978.
+
+\bibitem{grinsztajn_2022} L.~Grinsztajn, E.~Oyallon, and G.~Varoquaux, ``Why do tree-based models still outperform deep learning on typical tabular data?,'' in \emph{Advances in Neural Information Processing Systems}, 2022.
+
+\bibitem{hu2023sequence} S.~Hu, Z.~Zhang, S.~Lu, B.~He, and Z.~Li, ``Sequence-based target coin prediction for cryptocurrency pump-and-dump,'' \emph{Proc. ACM Manag. Data}, vol.~1, no.~1, art.~71, 2023.
+
+\bibitem{kamps_moon_2018} J.~Kamps and K.~Bennett, ``To the moon: Defining and detecting cryptocurrency pump-and-dumps,'' \emph{Crime Sci.}, vol.~7, art.~18, 2018.
+
+\bibitem{kyle1985continuous} A.~S.~Kyle, ``Continuous auctions and insider trading,'' \emph{Econometrica}, vol.~53, no.~6, pp.~1315--1335, 1985.
+
+\bibitem{la_morgia_pump_2020} M.~La~Morgia, A.~Mei, F.~Sassi, and J.~Stefa, ``Pump and dumps in the Bitcoin era: Real-time detection of cryptocurrency market manipulations,'' in \emph{Proc. Int. Conf. Comput. Commun. Netw. (ICCCN)}, 2020, pp.~1--9.
+
+\bibitem{la2023doge} M.~La~Morgia, A.~Mei, F.~Sassi, and J.~Stefa, ``The doge of wall street: Analysis and detection of pump-and-dump cryptocurrency manipulations,'' \emph{ACM Trans. Internet Technol.}, vol.~23, no.~1, pp.~1--28, 2023.
+
+\bibitem{lin2017focal} T.-Y.~Lin, P.~Goyal, R.~Girshick, K.~He, and P.~Doll\'{a}r, ``Focal loss for dense object detection,'' in \emph{Proc. IEEE Int. Conf. Comput. Vis. (ICCV)}, 2017, pp.~2980--2988.
+
+\bibitem{liu2008isolation} F.~T.~Liu, K.~M.~Ting, and Z.-H.~Zhou, ``Isolation forest,'' in \emph{Proc. IEEE Int. Conf. Data Mining (ICDM)}, 2008, pp.~413--422.
+
+\bibitem{nghiem_2021} H.~Nghiem, G.~Muric, F.~Morstatter, and E.~Ferrara, ``Detecting cryptocurrency pump-and-dump frauds using market and social signals,'' \emph{Expert Syst. Appl.}, vol.~182, art.~115284, 2021.
+
+\bibitem{ntakaris_midprice_2022} A.~Ntakaris, J.~Kanniainen, M.~Gabbouj, and A.~Iosifidis, ``Mid-price prediction based on machine learning methods with technical and quantitative indicators,'' \emph{PLOS ONE}, vol.~15, no.~6, art.~e0234107, 2020.
+
+\bibitem{poh_ltr} D.~Poh, B.~Lim, S.~Zohren, and S.~Roberts, ``Building cross-sectional systematic strategies by learning to rank,'' \emph{J. Financial Data Sci.}, vol.~3, no.~2, pp.~70--86, 2021.
+
+\bibitem{catboost} L.~Prokhorenkova, G.~Gusev, A.~Vorobev, A.~V.~Dorogush, and A.~Gulin, ``CatBoost: Unbiased boosting with categorical features,'' in \emph{Advances in Neural Information Processing Systems}, 2018.
+
+\bibitem{toth2011anomalous} B.~T\'{o}th, Y.~Lemperiere, C.~Deremble, J.~de~Lataillade, J.~Kockelkoren, and J.-P.~Bouchaud, ``Anomalous price impact and the critical nature of liquidity in financial markets,'' \emph{Phys. Rev. X}, vol.~1, art.~021006, 2011.
+
+\bibitem{pd_anatomy} J.~Xu and B.~Livshits, ``The anatomy of a cryptocurrency pump-and-dump scheme,'' in \emph{Proc. 28th USENIX Secur. Symp. (USENIX Security 19)}, 2019, pp.~1609--1625.
+
+\bibitem{code_github}
+M.~Mironov, D.~Bogutsky, and P.~Lukianchenko, ``Pump-and-dump target prediction (code repository),'' GitHub, 2025. [Online]. Available: \url{https://github.com/B0R0koko/pumps_and_dumps}
+
+\end{thebibliography}
+
+\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{images/mironov.png}}]{Mikhail Mironov}
+received the B.S.\ degree in economics from Universitat Pompeu Fabra, Barcelona, Spain, and the National Research University Higher School of Economics (HSE), St.\ Petersburg, Russia, in 2023 (double degree), and the M.S.\ degree with honors in financial economics from International College of Economics and Finance, ICEF HSE, Moscow, Russia, in 2025. He is currently pursuing the Ph.D.\ degree in finance at HSE, Moscow, Russia. His major field of study is finance and financial economics.
+
+\end{IEEEbiography}
+
+\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{images/bogutsky.png}}]{Denis Bogutsky} received the M.S.\ degree in mathematics from Lomonosov Moscow State University in 2020. He is currently a Junior Researcher with the Laboratory of AI in Mathematical Finance at the National Research University Higher School of Economics. His research focuses on quantitative finance, market microstructure, credit risk modeling, and anomaly detection in financial systems.
+\end{IEEEbiography}
+
+\newpage
+
+\begin{IEEEbiography}
+[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{images/lukyanchenko.png}}]{Petr Lukianchenko} received the Bachelor's and Master's degrees in information science from HSE University, Moscow, Russian Federation, in 2009 and 2011, respectively, and the Ph.D.\ degree in mathematics.
+
+
+He has been with HSE University since 2009. He currently holds multiple positions there, including Senior Lecturer with the Faculty of Computer Science, Big Data and Information Retrieval School; Lecturer with the Centre for Training Top AI Professionals; and Head of the Laboratory of Artificial Intelligence in Mathematical Finance with the AI and Digital Science Institute. His responsibilities include leading research projects on the application of artificial intelligence in financial mathematics. His research focuses on AI applications in finance, including the detection of structural breaks in financial time series and the development of simulators for financial market crises. He has co-authored research on neural network approaches for predicting anomalies in interest rates under stochastic noise. He presented his work on developing a multi-agent simulator to recreate crisis events in financial markets at the international AI Journey 2025 conference.\EOD
+\end{IEEEbiography}
+
+%\EOD
+
+\end{document}
