@@ -15,12 +15,9 @@ class PortfolioExecutionConfig:
     order_notional_quote: float = 0.0
     order_notional_usdt: float = 1.0
     impact_lookback_days: int = 14
-    impact_liquidity_quantile: float = 0.9
 
     def __post_init__(self) -> None:
         if self.portfolio_size <= 0:
             raise ValueError("portfolio_size must be positive")
         if self.impact_lookback_days <= 0:
             raise ValueError("impact_lookback_days must be positive")
-        if not (0 < self.impact_liquidity_quantile <= 1):
-            raise ValueError("impact_liquidity_quantile must be in (0, 1]")

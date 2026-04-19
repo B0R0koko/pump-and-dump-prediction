@@ -30,6 +30,7 @@ _BASE_PARAMS: Dict[str, Any] = {
     "max_iter": 500,
     "verbose": False,
     "solver": "liblinear",
+    "random_state": 42,
 }
 
 
@@ -85,7 +86,7 @@ class LogisticRegressionPipeline(BasePipeline):
         logging.info("Running <optimize_parameters> for LogisticRegressionPipeline")
         sample: Sample = self.create_sample()
         study: Study = create_study(study_name="LogisticRegressionPipelineStudy", start_new=True)
-        study.optimize(partial(_objective, sample=sample), n_trials=20)
+        study.optimize(partial(_objective, sample=sample), n_trials=100)
         return study
 
     def train(self, sample: Sample, tuned: bool = True) -> LogisticRegressionModel:

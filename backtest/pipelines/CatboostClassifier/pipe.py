@@ -24,6 +24,7 @@ _BASE_PARAMS: Dict[str, Any] = {
     "num_boost_round": 1000,
     "auto_class_weights": "Balanced",
     "verbose": False,
+    "random_seed": 42,
 }
 
 
@@ -73,7 +74,7 @@ class CatboostClassifierPipeline(BasePipeline):
         logging.info("Running <optimize_parameters> for CatboostClassifierPipeline")
         sample: Sample = self.create_sample()
         study: Study = create_study(study_name="CatboostClassifierPipelineStudy", start_new=True)
-        study.optimize(partial(_objective, sample=sample), n_trials=20)
+        study.optimize(partial(_objective, sample=sample), n_trials=100)
         return study
 
     def train(self, sample: Sample, tuned: bool = True) -> CatboostClassifierModel:

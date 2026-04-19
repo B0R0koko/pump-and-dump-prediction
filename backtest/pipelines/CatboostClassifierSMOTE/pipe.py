@@ -33,6 +33,7 @@ _BASE_PARAMS: Dict[str, Any] = {
     "sampling_frequency": "PerTree",
     "num_boost_round": 1000,
     "verbose": False,
+    "random_seed": 42,
 }
 
 
@@ -74,7 +75,7 @@ class CatboostClassifierSMOTEPipeline(BasePipeline):
         Apply the SMOTE algorithm to the Dataset
         """
         logging.info("Applying SMOTE")
-        X, y = SMOTE().fit_resample(X=df[self.feature_set.regressors], y=df[self.feature_set.target])
+        X, y = SMOTE(random_state=42).fit_resample(X=df[self.feature_set.regressors], y=df[self.feature_set.target])
         df_train: pd.DataFrame = X
         df_train[self.feature_set.target] = y
         return df_train
@@ -105,7 +106,7 @@ class CatboostClassifierSMOTEPipeline(BasePipeline):
         logging.info("Running <optimize_parameters> for CatboostClassifierSMOTEPipeline")
         sample: Sample = self.create_sample()
         study: Study = create_study(study_name="CatboostClassifierSMOTEPipelineStudy", start_new=True)
-        study.optimize(partial(_objective, sample=sample), n_trials=20)
+        study.optimize(partial(_objective, sample=sample), n_trials=100)
         return study
 
     def train(self, sample: Sample, tuned: bool = True) -> CatboostClassifierModel:

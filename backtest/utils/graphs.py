@@ -101,12 +101,14 @@ def plot_topk_accuracy(
     bins: Sequence[int] = (1, 2, 3, 5, 10, 20, 30),
     save_path: Optional[str] = None,
 ) -> plt.Figure:
-    """Plot Top@K accuracy curves with optional random baseline."""
+    """Plot Top@K accuracy curves with optional random baseline, anchored at (K=0, 0)."""
     fig = plt.figure(figsize=(10, 6))
     ax = fig.add_subplot()
-    df_topk[cols].plot(ax=ax, marker="o")
+    origin = pd.DataFrame(0.0, index=[0], columns=cols)
+    df_plot = pd.concat([origin, df_topk[cols].sort_index()])
+    df_plot.plot(ax=ax, marker="o")
     if random_baseline is not None:
-        plt.plot(list(bins), random_baseline, color="grey", marker="o", label="RandomModel")
+        plt.plot([0, *bins], [0.0, *random_baseline], color="grey", marker="o", label="RandomModel")
     plt.legend()
     plt.ylabel("TOPK accuracy")
     plt.xlabel("K")
@@ -122,10 +124,11 @@ def plot_topk_percent_curves(
     df_topkp: pd.DataFrame,
     cols: List[str],
     auc_scores: Dict[str, float],
+    max_k_percent: float = 0.20,
     save_path: Optional[str] = None,
 ) -> plt.Figure:
-    """Plot Top@K% accuracy curves with AUC in legend."""
-    X = np.arange(0, 1.01, 0.01)
+    """Plot Top@K% accuracy curves with AUC in legend over ``K% in [0, max_k_percent]``."""
+    X = np.linspace(0, max_k_percent, 101)
     legends = [f"{c} - {auc_scores.get(c, 0):.3f}" for c in cols]
 
     fig, ax = plt.subplots(figsize=(10, 6))
@@ -135,6 +138,7 @@ def plot_topk_percent_curves(
     ax.set_xlabel("K%")
     ax.set_ylabel("TOPK% accuracy")
     ax.set_title("TOPK% Accuracy vs K%")
+    ax.set_xlim(0, max_k_percent)
     ax.grid()
     plt.tight_layout()
     if save_path:
@@ -191,14 +195,35 @@ def plot_pnl_sensitivity(
     save_path: Optional[str] = None,
 ) -> plt.Figure:
     """PnL sensitivity to intended order size with price impact."""
+    if "cumulative_roe" in df_pnl.columns:
+        metric_col = "cumulative_roe"
+        metric_label = "Cumulative test-sample ROE"
+        title = "Cumulative test-sample ROE by intended order size with price impact"
+    elif "cumulative_roe_pct" in df_pnl.columns:
+        metric_col = "cumulative_roe_pct"
+        metric_label = "Cumulative test-sample ROE (%)"
+        title = "Cumulative test-sample ROE by intended order size with price impact"
+    elif "mean_roe" in df_pnl.columns:
+        metric_col = "mean_roe"
+        metric_label = "Mean ROE"
+        title = "PnL sensitivity to intended order size with trade-level price impact"
+    elif "mean_roe_pct" in df_pnl.columns:
+        metric_col = "mean_roe_pct"
+        metric_label = "Mean ROE (%)"
+        title = "PnL sensitivity to intended order size with trade-level price impact"
+    else:
+        raise KeyError(
+            "df_pnl must contain one of 'cumulative_roe', 'cumulative_roe_pct', 'mean_roe', or 'mean_roe_pct'"
+        )
+
     fig, ax = plt.subplots(figsize=(10, 5))
-    ax.plot(df_pnl["quantity_usdt"], df_pnl["mean_roe_pct"], color="tab:blue", linewidth=2, marker="o", label="Mean ROE (%)")
+    ax.plot(df_pnl["quantity_usdt"], df_pnl[metric_col], color="tab:blue", linewidth=2, marker="o", label=metric_label)
     ax.set_xscale("log")
     ax.set_xlabel("Intended order size (USDT)")
-    ax.set_ylabel("Mean ROE (%)")
+    ax.set_ylabel(metric_label)
     ax.grid(alpha=0.3)
     ax.legend()
-    plt.title("PnL sensitivity to intended order size with trade-level price impact")
+    plt.title(title)
     plt.tight_layout()
     if save_path:
         plt.savefig(save_path)
@@ -217,7 +242,8 @@ def plot_impact_regression(
     pump_time: "datetime",  # noqa: F821
     save_path: Optional[str] = None,
 ) -> plt.Figure:
-    """Scatter + fitted sqrt impact curve for buy and sell sides."""
+    """Scatter + fitted sqrt impact curve for buy and sell sides (single beta, no intercept)."""
+    b = model.beta
     fig, axes = plt.subplots(1, 2, figsize=(14, 5), sharey=True)
 
     sides = [
@@ -225,13 +251,11 @@ def plot_impact_regression(
         (axes[1], -1, "Sell", "#DD8452"),
     ]
 
-    # First pass: scatter points and record per-side x ranges
+    # First pass: scatter points
     side_data = {}
     for ax, side, label, color in sides:
-        a = model.buy_beta0 if side == 1 else model.sell_beta0
-        b = model.buy_beta1 if side == 1 else model.sell_beta1
         side_df = samples[samples["side"] == side]
-        side_data[side] = (a, b, side_df)
+        side_data[side] = side_df
 
         ax.scatter(
             side_df["notional_usdt"],
@@ -244,21 +268,21 @@ def plot_impact_regression(
         )
         ax.set_xlim(left=0)
 
-    # Second pass: draw regression lines spanning the full x-axis
+    # Second pass: draw regression line spanning the full x-axis
     for ax, side, label, color in sides:
-        a, b, side_df = side_data[side]
+        side_df = side_data[side]
         if len(side_df) == 0:
             ax.set_title(f"{label} side  (n=0)", fontsize=12)
             continue
 
         x_max = ax.get_xlim()[1]
         curve_x = np.linspace(0, x_max, 500)
-        curve_y = a + b * np.sqrt(curve_x)
+        curve_y = b * np.sqrt(curve_x)
 
         # R² calculation
         x_obs = side_df["notional_usdt"].values
         y_obs = side_df["impact_bps"].values
-        y_pred = np.maximum(0, a + b * np.sqrt(x_obs))
+        y_pred = b * np.sqrt(x_obs)
         ss_res = np.sum((y_obs - y_pred) ** 2)
         ss_tot = np.sum((y_obs - np.mean(y_obs)) ** 2)
         r2 = 1 - ss_res / ss_tot if ss_tot > 0 else 0.0
@@ -268,16 +292,9 @@ def plot_impact_regression(
             curve_y,
             color="black",
             linewidth=2.0,
-            label=f"$a$={a:.2f},  $\\beta$={b:.4f},  $R^2$={r2:.3f}",
+            label=f"$\\beta$={b:.4f},  $R^2$={r2:.3f}",
             zorder=5,
         )
-
-        if a < 0 and b > 0:
-            q_star = (a / b) ** 2
-            if q_star <= x_max:
-                ax.axvline(
-                    q_star, color="#C44E52", linestyle="--", linewidth=1.5, alpha=0.7, label=f"$Q^*$={q_star:.0f} USDT"
-                )
 
         ax.set_title(f"{label} side  (n={len(side_df):,})", fontsize=12)
         ax.set_xlabel("Net volume (USDT)", fontsize=11)
@@ -292,6 +309,70 @@ def plot_impact_regression(
         fontsize=13,
         fontweight="bold",
     )
+    plt.tight_layout()
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches="tight")
+    return fig
+
+
+def plot_exit_impact_regression(
+    model: "PriceImpactModel",  # noqa: F821
+    samples: pd.DataFrame,
+    currency_pair_name: str,
+    pump_time: "datetime",  # noqa: F821
+    save_path: Optional[str] = None,
+) -> plt.Figure:
+    """Scatter + fitted sqrt impact curve for sell-only exit during manipulation window."""
+    b = model.beta
+    fig, ax = plt.subplots(figsize=(8, 5))
+
+    sell_df = samples[samples["side"] == -1] if "side" in samples.columns else samples
+
+    ax.scatter(
+        sell_df["notional_usdt"],
+        sell_df["impact_bps"],
+        s=14,
+        alpha=0.35,
+        color="#C44E52",
+        edgecolors="none",
+        rasterized=True,
+        label="Sell candles (5s)",
+    )
+    ax.set_xlim(left=0)
+
+    if len(sell_df) > 0:
+        x_max = ax.get_xlim()[1]
+        curve_x = np.linspace(0, x_max, 500)
+        curve_y = b * np.sqrt(curve_x)
+
+        x_obs = sell_df["notional_usdt"].values
+        y_obs = sell_df["impact_bps"].values
+        y_pred = b * np.sqrt(x_obs)
+        ss_res = np.sum((y_obs - y_pred) ** 2)
+        ss_tot = np.sum((y_obs - np.mean(y_obs)) ** 2)
+        r2 = 1 - ss_res / ss_tot if ss_tot > 0 else 0.0
+
+        ax.plot(
+            curve_x,
+            curve_y,
+            color="black",
+            linewidth=2.0,
+            label=f"$\\beta$={b:.4f},  $R^2$={r2:.3f}",
+            zorder=5,
+        )
+
+    ax.set_title(
+        f"Exit impact (sell-only, 5s candles): {currency_pair_name}\n"
+        f"10 min after pump at {pump_time:%Y-%m-%d %H:%M}  (n={len(sell_df):,})",
+        fontsize=12,
+    )
+    ax.set_xlabel("Net sell volume (USDT)", fontsize=11)
+    ax.set_ylabel("Absolute impact (bps)", fontsize=11)
+    ax.grid(alpha=0.25, linestyle="--")
+    ax.legend(loc="upper left", fontsize=10, framealpha=0.9)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+
     plt.tight_layout()
     if save_path:
         plt.savefig(save_path, dpi=300, bbox_inches="tight")

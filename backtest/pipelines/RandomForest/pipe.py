@@ -16,7 +16,7 @@ from backtest.utils.sample import DatasetType, Sample, Dataset
 from core.paths import SQLITE_URL
 from core.utils import configure_logging
 
-_BASE_PARAMS: Dict[str, Any] = {"criterion": "gini", "n_jobs": -1, "verbose": False}
+_BASE_PARAMS: Dict[str, Any] = {"criterion": "gini", "n_jobs": -1, "verbose": False, "random_state": 42}
 
 
 def _objective(trial: Trial, sample: Sample) -> float:
@@ -57,7 +57,7 @@ class RandomForestPipeline(BasePipeline):
         logging.info("Running <optimize_parameters> for RandomForestPipeline")
         sample: Sample = self.create_sample()
         study: Study = create_study(study_name="RandomForestPipelineStudy", start_new=True)
-        study.optimize(partial(_objective, sample=sample), n_trials=20)
+        study.optimize(partial(_objective, sample=sample), n_trials=100)
 
     def train(self, sample: Sample, tuned: bool = True) -> RandomForestModel:
         model_params: Dict[str, Any] = _BASE_PARAMS

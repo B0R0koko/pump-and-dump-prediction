@@ -7,89 +7,64 @@ from scipy.optimize import lsq_linear
 from core.columns import CLOSE_PRICE, IS_BUYER_MAKER, OPEN_TIME, PRICE, QUANTITY, QUOTE_ASSET_VOLUME, TAKER_BUY_QUOTE_ASSET_VOLUME, TRADE_TIME
 
 
-def _fit_sqrt_regression(notionals: np.ndarray, impacts: np.ndarray) -> tuple[float, float]:
-    """Constrained OLS for I(Q) = max(0, a + beta * sqrt(Q)).
+def _fit_sqrt_regression(notionals: np.ndarray, impacts: np.ndarray) -> float:
+    """Constrained OLS for I(Q) = beta * sqrt(Q), no intercept.
 
-    The intercept a is unconstrained (negative = dead zone for small Q),
-    while beta is constrained >= 0 (impact increases with size).
+    beta >= 0 is enforced so impact is non-negative and monotonically increasing.
     """
     if len(notionals) == 0:
-        return 0.0, 0.0
-    X = np.column_stack([np.ones(len(notionals)), np.sqrt(notionals)])
-    result = lsq_linear(X, impacts, bounds=([-np.inf, 0.0], [np.inf, np.inf]))
-    return float(result.x[0]), float(result.x[1])
+        return 0.0
+    X = np.sqrt(notionals).reshape(-1, 1)
+    result = lsq_linear(X, impacts, bounds=([0.0], [np.inf]))
+    return float(result.x[0])
 
 
 @dataclass(frozen=True)
 class PriceImpactModel:
     """
-    Square-root market-impact model: I(Q) = max(0, a + beta * sqrt(Q)).
+    Square-root market-impact model: I(Q) = beta * sqrt(Q).
 
-    Regression is fitted in USDT-normalised notional space so the impact
-    curve is comparable across time (BTC price regimes). The public interface
-    accepts notionals in quote currency; the model converts internally using
-    the stored ``quote_to_usdt`` rate from fitting time.
+    A single beta is fitted on pooled absolute impacts from both buy and sell
+    candles (no intercept, no side separation). Regression is fitted in
+    USDT-normalised notional space so the impact curve is comparable across
+    time (BTC price regimes). The public interface accepts notionals in quote
+    currency; the model converts internally using the stored ``quote_to_usdt``
+    rate from fitting time.
 
-    The intercept a can be negative, creating a dead zone for small orders
-    that execute within the spread. beta >= 0 is enforced during fitting.
+    ``num_samples`` and ``sample_frequency`` describe the regression inputs:
+    the number of candle samples (or aggregated meta-orders) used to fit beta,
+    and the candle frequency those samples were aggregated at (e.g. ``"5min"``
+    for pre-pump lookback or ``"5s"`` for manipulation-window exits). Trade-
+    level fits record ``"trade"`` as the frequency.
     """
 
-    buy_beta0: float
-    buy_beta1: float
-    sell_beta0: float
-    sell_beta1: float
-    buy_capacity_usdt: float
-    sell_capacity_usdt: float
+    beta: float
     quote_to_usdt: float
-    num_trades: int
+    num_samples: int
+    sample_frequency: str = "unknown"
 
     def predict_impact_bps(self, side: int, notional_quote: float) -> float:
-        """Terminal impact: I(Q) = max(0, a + beta * sqrt(Q_usdt))."""
+        """Terminal impact: I(Q) = beta * sqrt(Q_usdt)."""
         if notional_quote <= 0:
             return 0.0
         q_usdt = notional_quote * self.quote_to_usdt
-        a, b = (self.buy_beta0, self.buy_beta1) if side >= 0 else (self.sell_beta0, self.sell_beta1)
-        return max(0.0, a + b * np.sqrt(q_usdt))
-
-    def _impact_threshold_usdt(self, a: float, b: float) -> float:
-        """USDT notional below which impact is zero: Q* = (a/b)^2 when a < 0."""
-        if a >= 0 or b <= 0:
-            return 0.0
-        return (a / b) ** 2
+        return self.beta * np.sqrt(q_usdt)
 
     def predict_vwap_impact_bps(self, side: int, notional_quote: float) -> float:
         """
-        VWAP impact accounting for the dead zone, in USDT space.
+        VWAP impact in USDT space.
 
-        I_vwap(Q) = (1/Q) * integral from Q* to Q of (a + beta*sqrt(q)) dq
-                   = (1/Q) * [a*(Q - Q*) + 2/3*beta*(Q^1.5 - Q*^1.5)]
-
-        where Q* = (a/beta)^2 is the USDT threshold below which impact is zero.
+        I_vwap(Q) = (1/Q) * integral from 0 to Q of beta*sqrt(q) dq
+                   = 2/3 * beta * sqrt(Q)
         """
         if notional_quote <= 0:
             return 0.0
         q_usdt = notional_quote * self.quote_to_usdt
-        a, b = (self.buy_beta0, self.buy_beta1) if side >= 0 else (self.sell_beta0, self.sell_beta1)
-        q_star = self._impact_threshold_usdt(a, b)
-        if q_usdt <= q_star:
-            return 0.0
-        integral = a * (q_usdt - q_star) + (2.0 / 3.0) * b * (q_usdt**1.5 - q_star**1.5)
-        return max(0.0, integral / q_usdt)
-
-    def estimate_fill_notional(self, side: int, intended_notional_quote: float) -> float:
-        """Cap intended notional by side-specific USDT liquidity capacity."""
-        if intended_notional_quote <= 0:
-            return 0.0
-        intended_usdt = intended_notional_quote * self.quote_to_usdt
-        capacity_usdt = self.buy_capacity_usdt if side >= 0 else self.sell_capacity_usdt
-        if not np.isfinite(capacity_usdt) or capacity_usdt <= 0:
-            return float(intended_notional_quote)
-        filled_usdt = min(intended_usdt, capacity_usdt)
-        return float(filled_usdt / self.quote_to_usdt)
+        return (2.0 / 3.0) * self.beta * np.sqrt(q_usdt)
 
     def estimate_vwap_price(self, base_price: float, side: int, notional_quote: float) -> tuple[float, float]:
         """
-        VWAP execution price (Eqs. 10-11).
+        VWAP execution price.
 
         Entry (side=1):  p_vwap = p * (1 + I_vwap / 1e4)
         Exit  (side=-1): p_vwap = p * (1 - I_vwap / 1e4)
@@ -108,16 +83,12 @@ class PriceImpactFitResult:
     diagnostics: pd.DataFrame
 
 
-def _empty_price_impact_model(quote_to_usdt: float = 1.0) -> PriceImpactModel:
+def _empty_price_impact_model(quote_to_usdt: float = 1.0, sample_frequency: str = "unknown") -> PriceImpactModel:
     return PriceImpactModel(
-        buy_beta0=0.0,
-        buy_beta1=0.0,
-        sell_beta0=0.0,
-        sell_beta1=0.0,
-        buy_capacity_usdt=np.inf,
-        sell_capacity_usdt=np.inf,
+        beta=0.0,
         quote_to_usdt=quote_to_usdt,
-        num_trades=0,
+        num_samples=0,
+        sample_frequency=sample_frequency,
     )
 
 
@@ -175,15 +146,21 @@ def aggregate_trades_to_orders(trades: pd.DataFrame, quote_to_usdt: float = 1.0)
     grouped["side"] = np.where(grouped["net_signed_notional"] >= 0, 1, -1)
     grouped["notional_quote"] = grouped["total_quote_notional"]
     grouped["notional_usdt"] = grouped["notional_quote"] * quote_to_usdt
-    grouped["impact_bps"] = grouped["side"] * (grouped["price_last"] / grouped["price_first"] - 1.0) * 1e4
-    grouped["impact_bps"] = grouped["impact_bps"].clip(lower=0.0)
+    # Absolute impact: take abs of price return regardless of side
+    grouped["impact_bps"] = np.abs(grouped["price_last"] / grouped["price_first"] - 1.0) * 1e4
 
     result = grouped.reset_index().rename(columns={TRADE_TIME: "trade_time"})
     return result[_IMPACT_SAMPLE_COLUMNS].reset_index(drop=True)
 
 
-def trades_to_1m_klines(trades: pd.DataFrame) -> pd.DataFrame:
-    """Resample tick-level trades into 1-minute candles with buy/sell volume split."""
+def trades_to_klines(trades: pd.DataFrame, freq: str = "5min") -> pd.DataFrame:
+    """Resample tick-level trades into candles with buy/sell volume split.
+
+    Parameters
+    ----------
+    freq : str
+        Pandas resample frequency string, e.g. ``"5min"``, ``"1min"``, ``"5s"``.
+    """
     if trades.empty:
         return pd.DataFrame(columns=[OPEN_TIME, CLOSE_PRICE, QUOTE_ASSET_VOLUME, TAKER_BUY_QUOTE_ASSET_VOLUME])
 
@@ -199,7 +176,7 @@ def trades_to_1m_klines(trades: pd.DataFrame) -> pd.DataFrame:
     df["buy_notional"] = np.where(df[IS_BUYER_MAKER], 0.0, df["quote_notional"])
 
     df = df.set_index(pd.DatetimeIndex(df[TRADE_TIME]))
-    resampled = df.resample("1min").agg(
+    resampled = df.resample(freq).agg(
         close_price=(PRICE, "last"),
         quote_asset_volume=("quote_notional", "sum"),
         taker_buy_quote_asset_volume=("buy_notional", "sum"),
@@ -210,13 +187,22 @@ def trades_to_1m_klines(trades: pd.DataFrame) -> pd.DataFrame:
     return resampled.reset_index()
 
 
-def aggregate_klines_to_samples(klines: pd.DataFrame, quote_to_usdt: float = 1.0) -> pd.DataFrame:
-    """
-    Build impact samples from 1-minute candles using net volume.
+# Backward-compatible alias
+trades_to_1m_klines = trades_to_klines
 
-    Net buy volume = 2 * taker_buy_quote_volume - total_quote_volume.
-    If positive → buy sample; if negative → sell sample.
-    Impact = (close - prev_close) / prev_close in bps, aligned with the sign of net volume.
+
+def aggregate_klines_to_samples(
+    klines: pd.DataFrame,
+    quote_to_usdt: float = 1.0,
+    sell_only: bool = False,
+) -> pd.DataFrame:
+    """
+    Build impact samples from candles using absolute net volume and absolute impact.
+
+    Parameters
+    ----------
+    sell_only : bool
+        If True, keep only candles with net selling pressure (negative net buy volume).
     """
     if klines.empty:
         return _empty_impact_samples()
@@ -245,64 +231,39 @@ def aggregate_klines_to_samples(klines: pd.DataFrame, quote_to_usdt: float = 1.0
     price_return_bps = price_return_bps[valid]
 
     df["side"] = np.where(net_buy_volume > 0, 1, -1)
-    df["notional_quote"] = np.abs(net_buy_volume)
+
+    if sell_only:
+        sell_mask = df["side"] == -1
+        df = df[sell_mask].copy()
+        net_buy_volume = net_buy_volume[valid][sell_mask]
+        price_return_bps = price_return_bps[valid][sell_mask]
+        prev_close_vals = prev_close[valid][sell_mask].values
+    else:
+        prev_close_vals = prev_close[valid].values
+
+    if df.empty:
+        return _empty_impact_samples()
+
+    df["notional_quote"] = np.abs(net_buy_volume.values)
     df["notional_usdt"] = df["notional_quote"] * quote_to_usdt
-    # For buys: positive return = positive impact; for sells: negative return = positive impact
-    df["impact_bps"] = (df["side"] * price_return_bps).clip(lower=0.0)
+    # Absolute impact: take abs of price return regardless of side
+    df["impact_bps"] = np.abs(price_return_bps.values)
     df["trade_time"] = df[OPEN_TIME]
-    df["price_first"] = prev_close[valid].values
+    df["price_first"] = prev_close_vals
     df["price_last"] = df[CLOSE_PRICE].values
 
     return df[_IMPACT_SAMPLE_COLUMNS].reset_index(drop=True)
 
 
-def _fit_side(
-    df_side: pd.DataFrame,
-    liquidity_quantile: float,
-    fallback_capacity_usdt: float,
-) -> tuple[float, float, float, dict]:
-    """
-    Fit sqrt regression for one side in USDT space: I(Q) = max(0, a + beta * sqrt(Q_usdt)).
-
-    Returns (beta0, beta1, capacity_usdt, diagnostics).
-    """
-    side_name = "buy" if not df_side.empty and df_side["side"].iloc[0] >= 0 else "sell"
-    if df_side.empty or df_side["notional_usdt"].max() <= 0:
-        return 0.0, 0.0, fallback_capacity_usdt, _side_diagnostics(side_name, 0, 0.0, 0.0)
-
-    notionals_usdt = df_side["notional_usdt"].to_numpy(dtype=float)
-    impacts = df_side["impact_bps"].to_numpy(dtype=float)
-
-    valid = notionals_usdt > 0
-    notionals_usdt = notionals_usdt[valid]
-    impacts = impacts[valid]
-
-    if len(notionals_usdt) == 0:
-        return 0.0, 0.0, fallback_capacity_usdt, _side_diagnostics(side_name, 0, 0.0, 0.0)
-
-    beta0, beta1 = _fit_sqrt_regression(notionals_usdt, impacts)
-
-    capacity_usdt = float(np.quantile(notionals_usdt, liquidity_quantile))
-    if not np.isfinite(capacity_usdt) or capacity_usdt <= 0:
-        capacity_usdt = fallback_capacity_usdt
-
-    median_impact = float(np.median(impacts))
-    max_impact = float(np.max(impacts))
-    diag = _side_diagnostics(side_name, len(notionals_usdt), median_impact, max_impact)
-    diag["beta0"] = beta0
-    diag["beta1"] = beta1
-    return beta0, beta1, capacity_usdt, diag
-
-
 def _side_diagnostics(
     side_name: str,
-    num_trades: int,
+    num_samples: int,
     median_impact_bps: float,
     max_impact_bps: float,
 ) -> dict:
     return {
         "side": side_name,
-        "num_trades": num_trades,
+        "num_samples": num_samples,
         "median_impact_bps": median_impact_bps,
         "max_impact_bps": max_impact_bps,
     }
@@ -310,74 +271,61 @@ def _side_diagnostics(
 
 def fit_price_impact_model(
     trades: pd.DataFrame,
-    liquidity_quantile: float = 0.9,
     quote_to_usdt: float = 1.0,
 ) -> PriceImpactModel:
     """
-    Fit a side-aware sqrt market-impact model from trade-level data.
+    Fit a sqrt market-impact model from trade-level data.
 
     Trades sharing the same execution timestamp are aggregated into meta-orders.
-    Notionals are converted to USDT so the impact curve is stable across
-    BTC price regimes. Impact is modelled as I(Q) = max(0, a + beta * sqrt(Q_usdt)).
+    Absolute impacts from both buy and sell sides are pooled and fitted as
+    I(Q) = beta * sqrt(Q_usdt), with no intercept.
     """
     return fit_price_impact_model_with_diagnostics(
         trades=trades,
-        liquidity_quantile=liquidity_quantile,
         quote_to_usdt=quote_to_usdt,
     ).model
 
 
 def fit_price_impact_model_with_diagnostics(
     trades: pd.DataFrame,
-    liquidity_quantile: float = 0.9,
     quote_to_usdt: float = 1.0,
 ) -> PriceImpactFitResult:
     samples = aggregate_trades_to_orders(trades=trades, quote_to_usdt=quote_to_usdt)
-    return _fit_from_samples(samples, liquidity_quantile, quote_to_usdt)
+    return _fit_from_samples(samples, quote_to_usdt, sample_frequency="trade")
 
 
 def _fit_from_samples(
     samples: pd.DataFrame,
-    liquidity_quantile: float,
     quote_to_usdt: float,
+    sample_frequency: str,
 ) -> PriceImpactFitResult:
     if samples.empty:
-        empty = _empty_price_impact_model(quote_to_usdt=quote_to_usdt)
+        empty = _empty_price_impact_model(quote_to_usdt=quote_to_usdt, sample_frequency=sample_frequency)
         diagnostics = pd.DataFrame([
             _side_diagnostics("buy", 0, 0.0, 0.0),
             _side_diagnostics("sell", 0, 0.0, 0.0),
         ])
         return PriceImpactFitResult(model=empty, samples=samples, diagnostics=diagnostics)
 
+    # Pool both sides and fit a single regression: I(Q) = beta * sqrt(Q)
     notionals_usdt = samples["notional_usdt"].to_numpy(dtype=float)
-    positive = notionals_usdt > 0
-    fallback_capacity_usdt = float(np.quantile(notionals_usdt[positive], liquidity_quantile)) if positive.any() else np.inf
-    if not np.isfinite(fallback_capacity_usdt) or fallback_capacity_usdt <= 0:
-        fallback_capacity_usdt = np.inf
+    valid = notionals_usdt > 0
+    impacts = samples["impact_bps"].to_numpy(dtype=float)
+    beta = _fit_sqrt_regression(notionals_usdt[valid], impacts[valid]) if valid.any() else 0.0
 
     buy_df = samples[samples["side"] == 1]
     sell_df = samples[samples["side"] == -1]
 
-    buy_b0, buy_b1, buy_cap, buy_diag = _fit_side(
-        df_side=buy_df,
-        liquidity_quantile=liquidity_quantile,
-        fallback_capacity_usdt=fallback_capacity_usdt,
-    )
-    sell_b0, sell_b1, sell_cap, sell_diag = _fit_side(
-        df_side=sell_df,
-        liquidity_quantile=liquidity_quantile,
-        fallback_capacity_usdt=fallback_capacity_usdt,
-    )
+    buy_diag = _side_diagnostics("buy", len(buy_df), float(buy_df["impact_bps"].median()) if len(buy_df) > 0 else 0.0, float(buy_df["impact_bps"].max()) if len(buy_df) > 0 else 0.0)
+    sell_diag = _side_diagnostics("sell", len(sell_df), float(sell_df["impact_bps"].median()) if len(sell_df) > 0 else 0.0, float(sell_df["impact_bps"].max()) if len(sell_df) > 0 else 0.0)
+    buy_diag["beta"] = beta
+    sell_diag["beta"] = beta
 
     model = PriceImpactModel(
-        buy_beta0=buy_b0,
-        buy_beta1=buy_b1,
-        sell_beta0=sell_b0,
-        sell_beta1=sell_b1,
-        buy_capacity_usdt=buy_cap,
-        sell_capacity_usdt=sell_cap,
+        beta=beta,
         quote_to_usdt=quote_to_usdt,
-        num_trades=int(samples.shape[0]),
+        num_samples=int(samples.shape[0]),
+        sample_frequency=sample_frequency,
     )
     diagnostics = pd.DataFrame([buy_diag, sell_diag])
     return PriceImpactFitResult(model=model, samples=samples, diagnostics=diagnostics)
@@ -385,26 +333,38 @@ def _fit_from_samples(
 
 def fit_price_impact_model_from_klines(
     klines: pd.DataFrame,
-    liquidity_quantile: float = 0.9,
     quote_to_usdt: float = 1.0,
+    sell_only: bool = False,
+    sample_frequency: str = "unknown",
 ) -> PriceImpactModel:
     """
-    Fit a side-aware sqrt market-impact model from 1-minute klines.
+    Fit a sqrt market-impact model from klines (any frequency).
 
-    Uses net buy volume (taker_buy - taker_sell) per candle as Q, and
-    close-to-close price change as the impact signal.
+    Uses absolute net volume per candle as Q and absolute close-to-close
+    price change as the impact signal. Both sides are pooled into a single
+    regression: I(Q) = beta * sqrt(Q_usdt), no intercept.
+
+    Parameters
+    ----------
+    sell_only : bool
+        If True, use only sell-dominated candles for fitting.
+    sample_frequency : str
+        Frequency string describing the candle aggregation used to build
+        ``klines`` (e.g. ``"5min"``, ``"5s"``). Stored on the fitted model.
     """
     return fit_price_impact_model_from_klines_with_diagnostics(
         klines=klines,
-        liquidity_quantile=liquidity_quantile,
         quote_to_usdt=quote_to_usdt,
+        sell_only=sell_only,
+        sample_frequency=sample_frequency,
     ).model
 
 
 def fit_price_impact_model_from_klines_with_diagnostics(
     klines: pd.DataFrame,
-    liquidity_quantile: float = 0.9,
     quote_to_usdt: float = 1.0,
+    sell_only: bool = False,
+    sample_frequency: str = "unknown",
 ) -> PriceImpactFitResult:
-    samples = aggregate_klines_to_samples(klines=klines, quote_to_usdt=quote_to_usdt)
-    return _fit_from_samples(samples, liquidity_quantile, quote_to_usdt)
+    samples = aggregate_klines_to_samples(klines=klines, quote_to_usdt=quote_to_usdt, sell_only=sell_only)
+    return _fit_from_samples(samples, quote_to_usdt, sample_frequency=sample_frequency)

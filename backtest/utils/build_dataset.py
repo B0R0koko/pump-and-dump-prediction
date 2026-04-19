@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 from concurrent.futures import ThreadPoolExecutor
@@ -55,6 +56,14 @@ def create_dataset(max_workers: int | None = None) -> pd.DataFrame:
 
     df: pd.DataFrame = pd.concat(dfs, ignore_index=True)
     logging.warning("No data present for %s pumps", len(skipped_pumps))
+
+    if skipped_pumps:
+        dropped_path: Path = get_root_dir() / "resources/dropped_pumps.json"
+        dropped_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(dropped_path, "w") as f:
+            json.dump([pump.as_dict() for pump in skipped_pumps], f, indent=2)
+        logging.info("Wrote %d dropped pump events to %s", len(skipped_pumps), dropped_path)
+
     return df
 
 

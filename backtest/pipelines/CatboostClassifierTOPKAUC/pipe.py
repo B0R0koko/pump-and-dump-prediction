@@ -1,20 +1,20 @@
 import logging
 from functools import partial
-from typing import Dict, Any
+from typing import Dict, Any, Tuple
 
 import numpy as np
 import optuna
 import pandas as pd
 from catboost import Pool
+from numba import njit
 from optuna import Study, Trial
 from overrides import overrides
-from sklearn.metrics import auc
 
 from backtest.pipelines.BaseModel import BaseModel
 from backtest.pipelines.BasePipeline import BasePipeline
 from backtest.pipelines.CatboostClassifier.model import CatboostClassifierModel
 from backtest.pipelines.study import create_study
-from backtest.utils.columns import COL_PUMP_HASH, COL_PROBAS_PRED, COL_IS_PUMPED
+from backtest.utils.columns import COL_PUMP_HASH, COL_IS_PUMPED
 from backtest.utils.feature_set import FeatureSet
 from backtest.utils.metrics import calculate_topk_percent_auc, calculate_topk_percent
 from backtest.utils.sample import DatasetType, Sample, Dataset
@@ -27,84 +27,133 @@ _BASE_PARAMS: Dict[str, Any] = {
     "num_boost_round": 1000,
     "auto_class_weights": "Balanced",
     "verbose": 10,
+    "random_seed": 42,
 }
 
+_MAX_K_PERCENT: float = 0.20
+_STEP: float = 0.005
+_BINS: np.ndarray = np.arange(0, _MAX_K_PERCENT + _STEP, _STEP).astype(np.float64)
 
-def _compute_topk_percent_auc(probas_pred: np.ndarray, df_val: pd.DataFrame) -> float:
-    df_val[COL_PROBAS_PRED] = probas_pred
 
-    bins: np.ndarray = np.arange(0, 1, 0.01)
-    n_bins = bins.size
-
+@njit(cache=True)
+def _topkauc_kernel(
+        scores_by_group: np.ndarray,
+        is_pumped_by_group: np.ndarray,
+        group_starts: np.ndarray,
+        bins: np.ndarray,
+        num_pumped: int,
+) -> float:
+    """
+    Numba kernel: for each cross-section (contiguous slice defined by ``group_starts``)
+    sort rows by ``scores`` desc, compute a cumulative "any pumped in top-i" indicator,
+    and for each K% bin increment the count if the top-K% contains a pumped sample.
+    Returns the trapezoidal AUC over ``bins`` of the cumulative hit rate (counts /
+    num_pumped). Caller divides by the bin range to obtain the normalised metric.
+    """
+    n_bins = bins.shape[0]
     counts = np.zeros(n_bins, dtype=np.int64)
+    n_groups = group_starts.shape[0] - 1
 
-    num_pumped: int = int(df_val[COL_IS_PUMPED].sum())
-    if num_pumped == 0:
-        return 0.0
-
-    for _, df_cross_section in df_val.groupby(COL_PUMP_HASH, sort=False):
-        df_cross_section = df_cross_section.sort_values(by=COL_PROBAS_PRED, ascending=False)
-
-        is_pumped = df_cross_section[COL_IS_PUMPED].to_numpy(dtype=bool)
-        n_rows = is_pumped.size
+    for g in range(n_groups):
+        start = group_starts[g]
+        end = group_starts[g + 1]
+        n_rows = end - start
         if n_rows == 0:
             continue
 
-        cum_any = np.logical_or.accumulate(is_pumped)
-        ks = np.maximum(1, np.ceil(n_rows * bins).astype(int)) - 1
+        sub_scores = scores_by_group[start:end]
+        sub_pumped = is_pumped_by_group[start:end]
+        order = np.argsort(-sub_scores)
 
-        contains = cum_any[ks]
-        counts += contains.astype(int)
+        any_so_far = False
+        any_arr = np.empty(n_rows, dtype=np.bool_)
+        for i in range(n_rows):
+            if sub_pumped[order[i]]:
+                any_so_far = True
+            any_arr[i] = any_so_far
 
-    return auc(x=bins, y=counts / num_pumped)
+        for b in range(n_bins):
+            k = int(np.ceil(n_rows * bins[b]))
+            if k < 1:
+                continue
+            if k > n_rows:
+                k = n_rows
+            if any_arr[k - 1]:
+                counts[b] += 1
+
+    rates = counts.astype(np.float64) / num_pumped
+    auc_val = 0.0
+    for i in range(n_bins - 1):
+        auc_val += 0.5 * (rates[i] + rates[i + 1]) * (bins[i + 1] - bins[i])
+    return auc_val
+
+
+def _precompute_groups(df: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray, np.ndarray, int]:
+    """
+    Build the permutation and group-boundary arrays consumed by
+    :func:`_topkauc_kernel`. Pandas is used here so the kernel itself can stay
+    pure numpy/numba-compatible. The return tuple is ``(sort_idx, is_pumped_sorted,
+    group_starts, num_pumped)`` where rows sorted by ``sort_idx`` are contiguous
+    per cross-section.
+    """
+    pump_hashes: np.ndarray = df[COL_PUMP_HASH].to_numpy()
+    is_pumped: np.ndarray = df[COL_IS_PUMPED].to_numpy(dtype=np.bool_)
+    codes, _ = pd.factorize(pump_hashes, sort=False)
+    sort_idx: np.ndarray = np.argsort(codes, kind="stable").astype(np.int64)
+    sorted_codes: np.ndarray = codes[sort_idx]
+    is_pumped_sorted: np.ndarray = is_pumped[sort_idx]
+    if sorted_codes.size == 0:
+        group_starts = np.array([0], dtype=np.int64)
+    else:
+        change_points: np.ndarray = np.where(np.diff(sorted_codes) != 0)[0] + 1
+        group_starts = np.concatenate(
+            ([0], change_points, [sorted_codes.size])
+        ).astype(np.int64)
+    num_pumped: int = int(is_pumped.sum())
+    return sort_idx, is_pumped_sorted, group_starts, num_pumped
 
 
 class TOPKPAUCMetric:
     """
-    Custom CatBoost evaluation metric that computes the Top-K Percent AUC score.
+    CatBoost custom eval metric computing Top-K%-AUC over ``K% in (0, _MAX_K_PERCENT]``
+    (normalised to ``(0, 1)``). Higher is better (``is_max_optimal → True``).
 
-    This metric measures how well the model ranks "pumped" samples (positive class)
-    within each pump cross-section. For each pump (identified by `COL_PUMP_HASH`),
-    the method:
-      - Sorts predictions in descending order by predicted probability (`COL_PROBAS_PRED`).
-      - Iterates over percentile bins (0%, 1%, 2%, ..., 99%) to determine how often
-        a "pumped" sample appears within the top-K fraction of predictions.
-      - Computes the normalized AUC (area under the curve) of that cumulative detection
-        curve to produce a single scalar value.
-
-    The metric is designed such that **higher is better** (is_max_optimal → True).
-
-    Notes:
-    ------
-    - Compatible with CatBoost's Python API for custom metrics.
-    - CatBoost expects the `evaluate` method to return a tuple: (metric_value, weight_sum).
-    - Logs the metric value every 10 evaluation iterations for monitoring.
-
-    Parameters
-    ----------
-    df_train : pd.DataFrame
-        Training dataset (used when evaluate() is called on training predictions).
-    df_val : pd.DataFrame
-        Validation dataset (used when evaluate() is called on validation predictions).
+    Precomputes cross-section grouping and is-pumped labels in ``__init__`` so the
+    per-iteration path is a single permutation and a numba-JIT'd kernel call.
     """
 
-    def __init__(self, df_train: pd.DataFrame, df_val: pd.DataFrame):
-        self.df_train: pd.DataFrame = df_train
-        self.df_val: pd.DataFrame = df_val
+    def __init__(self, df_train: pd.DataFrame, df_val: pd.DataFrame) -> None:
+        self._train_ctx: Tuple[np.ndarray, np.ndarray, np.ndarray, int] = _precompute_groups(df_train)
+        self._val_ctx: Tuple[np.ndarray, np.ndarray, np.ndarray, int] = _precompute_groups(df_val)
+        self._train_len: int = len(df_train)
+        self._val_len: int = len(df_val)
 
-    def is_max_optimal(self):
-        return True  # greater is better
+    def is_max_optimal(self) -> bool:
+        return True
 
-    def evaluate(self, approxes, target, weight):
+    def evaluate(self, approxes, target, weight) -> Tuple[float, float]:
         assert len(approxes) == 1
-        probas_pred: np.ndarray = approxes[0]
-        metric: float = _compute_topk_percent_auc(
-            probas_pred=probas_pred,
-            df_val=(self.df_val if len(probas_pred) == len(self.df_val) else self.df_train),
-        )
-        return metric, 1
+        probas_pred: np.ndarray = np.asarray(approxes[0], dtype=np.float64)
 
-    def get_final_error(self, error, weight):
+        if probas_pred.shape[0] == self._val_len:
+            sort_idx, is_pumped_sorted, group_starts, num_pumped = self._val_ctx
+        else:
+            sort_idx, is_pumped_sorted, group_starts, num_pumped = self._train_ctx
+
+        if num_pumped == 0:
+            return 0.0, 1.0
+
+        scores_sorted: np.ndarray = probas_pred[sort_idx]
+        raw_auc: float = _topkauc_kernel(
+            scores_by_group=scores_sorted,
+            is_pumped_by_group=is_pumped_sorted,
+            group_starts=group_starts,
+            bins=_BINS,
+            num_pumped=num_pumped,
+        )
+        return raw_auc / _MAX_K_PERCENT, 1.0
+
+    def get_final_error(self, error, weight) -> float:
         return error
 
 

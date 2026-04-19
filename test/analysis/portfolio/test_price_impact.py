@@ -118,12 +118,12 @@ def test_aggregate_trades_to_orders_classifies_buy_and_sell() -> None:
     assert np.isclose(orders.loc[0, "notional_usdt"], orders.loc[0, "notional_quote"] * 2.0)
 
 
-def test_fit_price_impact_model_produces_monotonic_impact_and_capacities() -> None:
+def test_fit_price_impact_model_produces_monotonic_impact() -> None:
     trades = _build_synthetic_trades()
-    result = fit_price_impact_model_with_diagnostics(trades=trades, liquidity_quantile=0.8, quote_to_usdt=1.0)
+    result = fit_price_impact_model_with_diagnostics(trades=trades, quote_to_usdt=1.0)
     model: PriceImpactModel = result.model
 
-    assert model.num_trades > 0
+    assert model.num_samples > 0
     # Impact should increase with notional (sqrt is monotonic)
     assert model.predict_impact_bps(side=1, notional_quote=5_000) >= model.predict_impact_bps(
         side=1, notional_quote=200
@@ -131,18 +131,15 @@ def test_fit_price_impact_model_produces_monotonic_impact_and_capacities() -> No
     assert model.predict_impact_bps(side=-1, notional_quote=5_000) >= model.predict_impact_bps(
         side=-1, notional_quote=200
     )
-    # Capacity should cap fill notional (capacity is in USDT, converted back to quote)
-    assert model.estimate_fill_notional(side=1, intended_notional_quote=1_000_000) <= model.buy_capacity_usdt / model.quote_to_usdt + 1e-9
-    assert model.estimate_fill_notional(side=-1, intended_notional_quote=1_000_000) <= model.sell_capacity_usdt / model.quote_to_usdt + 1e-9
 
     diagnostics = result.diagnostics.set_index("side")
-    assert diagnostics.loc["buy", "num_trades"] > 0
-    assert diagnostics.loc["sell", "num_trades"] > 0
+    assert diagnostics.loc["buy", "num_samples"] > 0
+    assert diagnostics.loc["sell", "num_samples"] > 0
 
 
 def test_vwap_impact_is_less_than_terminal_impact() -> None:
     trades = _build_synthetic_trades()
-    result = fit_price_impact_model_with_diagnostics(trades=trades, liquidity_quantile=0.9, quote_to_usdt=1.0)
+    result = fit_price_impact_model_with_diagnostics(trades=trades, quote_to_usdt=1.0)
     model = result.model
 
     notional = 5000.0
@@ -152,42 +149,17 @@ def test_vwap_impact_is_less_than_terminal_impact() -> None:
         assert vwap <= terminal + 1e-6, f"VWAP impact should be <= terminal for side={side}"
 
 
-def test_vwap_impact_closed_form_no_dead_zone() -> None:
-    """When a >= 0, VWAP is the standard integral: a + 2/3 * beta * sqrt(Q)."""
+def test_vwap_impact_closed_form() -> None:
+    """VWAP = 2/3 * beta * sqrt(Q) (no intercept)."""
     model = PriceImpactModel(
-        buy_beta0=5.0, buy_beta1=0.3,
-        sell_beta0=4.0, sell_beta1=0.2,
-        buy_capacity_usdt=np.inf, sell_capacity_usdt=np.inf,
-        quote_to_usdt=1.0, num_trades=100,
+        beta=0.3,
+        quote_to_usdt=1.0,
+        num_samples=100,
     )
     Q = 10000.0
-    expected_buy = 5.0 + (2.0 / 3.0) * 0.3 * np.sqrt(Q)
-    expected_sell = 4.0 + (2.0 / 3.0) * 0.2 * np.sqrt(Q)
-    assert np.isclose(model.predict_vwap_impact_bps(side=1, notional_quote=Q), expected_buy)
-    assert np.isclose(model.predict_vwap_impact_bps(side=-1, notional_quote=Q), expected_sell)
-
-
-def test_vwap_impact_with_dead_zone() -> None:
-    """When a < 0, orders below Q* = (a/beta)^2 have zero impact."""
-    model = PriceImpactModel(
-        buy_beta0=-10.0, buy_beta1=1.0,
-        sell_beta0=0.0, sell_beta1=0.0,
-        buy_capacity_usdt=np.inf, sell_capacity_usdt=np.inf,
-        quote_to_usdt=1.0, num_trades=100,
-    )
-    # Q* = (10/1)^2 = 100. Below threshold → zero impact.
-    assert model.predict_impact_bps(side=1, notional_quote=50.0) == 0.0
-    assert model.predict_vwap_impact_bps(side=1, notional_quote=50.0) == 0.0
-
-    # Above threshold → positive impact
-    assert model.predict_impact_bps(side=1, notional_quote=400.0) > 0.0
-    assert model.predict_vwap_impact_bps(side=1, notional_quote=400.0) > 0.0
-
-    # VWAP < terminal (averaging over the dead zone region)
-    Q = 400.0
-    terminal = model.predict_impact_bps(side=1, notional_quote=Q)
-    vwap = model.predict_vwap_impact_bps(side=1, notional_quote=Q)
-    assert vwap < terminal
+    expected = (2.0 / 3.0) * 0.3 * np.sqrt(Q)
+    assert np.isclose(model.predict_vwap_impact_bps(side=1, notional_quote=Q), expected)
+    assert np.isclose(model.predict_vwap_impact_bps(side=-1, notional_quote=Q), expected)
 
 
 def test_usdt_normalised_regression_is_consistent() -> None:
@@ -202,7 +174,7 @@ def test_usdt_normalised_regression_is_consistent() -> None:
     assert abs(impact_1x - impact_2x) < 5.0, f"Same USDT value should give similar impact: {impact_1x} vs {impact_2x}"
 
 
-def test_topk_transaction_applies_price_impact_and_fill_ratio(monkeypatch) -> None:
+def test_topk_transaction_applies_price_impact_to_full_notional(monkeypatch) -> None:
     cp = CurrencyPair.from_string("AAA-BTC")
     pump = PumpEvent(
         currency_pair=cp,
@@ -227,16 +199,11 @@ def test_topk_transaction_applies_price_impact_and_fill_ratio(monkeypatch) -> No
         order_notional_quote=100.0,
         indicative_price_provider=DummyQuoteToUSDTRateProvider(rate=rate),
     )
-    # Constant 10bps impact model with capacity of 50 quote (= 50 * rate USDT)
+    # Choose beta so that terminal impact at the tested notional is ~10 bps.
     impact_model = PriceImpactModel(
-        buy_beta0=10.0,
-        buy_beta1=0.0,
-        sell_beta0=10.0,
-        sell_beta1=0.0,
-        buy_capacity_usdt=50.0 * rate,
-        sell_capacity_usdt=50.0 * rate,
+        beta=10.0 / np.sqrt(100.0 * rate),
         quote_to_usdt=rate,
-        num_trades=100,
+        num_samples=100,
     )
     monkeypatch.setattr(TOPKPortfolio, "_get_impact_model", lambda self, pump, cp: impact_model)
 
@@ -247,11 +214,12 @@ def test_topk_transaction_applies_price_impact_and_fill_ratio(monkeypatch) -> No
     tx = manager.regular_transaction(ts_price=ts_price, pump=pump, cp=cp)
 
     assert tx.entry_price is not None and tx.exit_price is not None
-    assert np.isclose(tx.entry_price, 100.1, atol=0.05)
-    assert np.isclose(tx.exit_price, 109.89, atol=0.05)
-    assert np.isclose(tx.entry_filled_notional_quote, 50.0)
-    assert np.isclose(tx.exit_filled_notional_quote, 50.0)
-    assert np.isclose(tx.fill_ratio, 0.5)
+    # VWAP impact = 2/3 * beta * sqrt(Q_usdt) ≈ 6.67 bps
+    vwap_bps = (2.0 / 3.0) * impact_model.beta * np.sqrt(100.0 * rate)
+    assert np.isclose(tx.entry_price, 100.0 * (1 + vwap_bps / 1e4), atol=0.05)
+    assert np.isclose(tx.exit_price, 110.0 * (1 - vwap_bps / 1e4), atol=0.05)
+    assert np.isclose(tx.entry_filled_notional_quote, 100.0)
+    assert np.isclose(tx.exit_filled_notional_quote, 100.0)
     assert isinstance(DummyModel().rank(dataset=dataset), pd.Series)
 
 
@@ -278,16 +246,11 @@ def test_topk_transaction_converts_usdt_to_quote_before_price_impact(
         order_notional_usdt=100.0,
         indicative_price_provider=DummyQuoteToUSDTRateProvider(rate=rate),
     )
-    # Zero-impact model with infinite capacity
+    # Zero-impact model
     impact_model = PriceImpactModel(
-        buy_beta0=0.0,
-        buy_beta1=0.0,
-        sell_beta0=0.0,
-        sell_beta1=0.0,
-        buy_capacity_usdt=np.inf,
-        sell_capacity_usdt=np.inf,
+        beta=0.0,
         quote_to_usdt=rate,
-        num_trades=10,
+        num_samples=10,
     )
     monkeypatch.setattr(TOPKPortfolio, "_get_impact_model", lambda self, pump, cp: impact_model)
 
@@ -301,7 +264,6 @@ def test_topk_transaction_converts_usdt_to_quote_before_price_impact(
     assert np.isclose(tx.intended_notional_quote, expected_notional_quote)
     assert np.isclose(tx.entry_filled_notional_quote, expected_notional_quote)
     assert np.isclose(tx.exit_filled_notional_quote, expected_notional_quote)
-    assert np.isclose(tx.fill_ratio, 1.0)
 
 
 def test_portfolio_stats_pnl_is_usdt_denominated_when_conversion_available() -> None:
@@ -344,22 +306,23 @@ def test_evaluate_pnl_for_quantities_returns_execution_diagnostics(monkeypatch) 
 
     def fake_evaluate_for_pump(self, dataset, pump):
         intended_usdt = float(self.config.order_notional_usdt)
-        fill_ratio = min(1.0, 500.0 / intended_usdt)
-        executed_usdt = intended_usdt * fill_ratio
+        entry_impact_bps = 2.0 * intended_usdt / 100.0
+        exit_impact_bps = 3.0 * intended_usdt / 100.0
+        entry_price = 100.0 * (1 + entry_impact_bps / 1e4)
+        exit_price = 110.0 * (1 - exit_impact_bps / 1e4)
         tx = Transaction(
             currency_pair=cp,
-            entry_price=100.0,
-            exit_price=110.0,
+            entry_price=entry_price,
+            exit_price=exit_price,
             intended_notional_quote=intended_usdt,
-            entry_filled_notional_quote=executed_usdt,
-            exit_filled_notional_quote=executed_usdt,
-            entry_filled_notional_usdt=executed_usdt,
-            exit_filled_notional_usdt=executed_usdt,
-            entry_impact_bps=2.0 * intended_usdt / 100.0,
-            exit_impact_bps=3.0 * intended_usdt / 100.0,
+            entry_filled_notional_quote=intended_usdt,
+            exit_filled_notional_quote=intended_usdt,
+            entry_filled_notional_usdt=intended_usdt,
+            exit_filled_notional_usdt=intended_usdt,
+            entry_impact_bps=entry_impact_bps,
+            exit_impact_bps=exit_impact_bps,
             entry_impact_num_bars=1440,
             exit_impact_num_bars=60,
-            fill_ratio=fill_ratio,
         )
         return PortfolioStats(portfolio=portfolio, txs=[tx], pump=pump)
 
@@ -368,8 +331,6 @@ def test_evaluate_pnl_for_quantities_returns_execution_diagnostics(monkeypatch) 
     result = manager.evaluate_pnl_for_quantities(dataset=dataset, quantities_usdt=[100.0, 1000.0])
 
     assert list(result["quantity_usdt"]) == [100.0, 1000.0]
-    assert np.isclose(result.loc[0, "mean_fill_ratio"], 1.0)
-    assert np.isclose(result.loc[1, "mean_fill_ratio"], 0.5)
     assert np.isclose(result.loc[0, "mean_executed_notional_usdt"], 100.0)
-    assert np.isclose(result.loc[1, "mean_executed_notional_usdt"], 500.0)
+    assert np.isclose(result.loc[1, "mean_executed_notional_usdt"], 1000.0)
     assert result.loc[0, "mean_roe"] > result.loc[1, "mean_roe"]

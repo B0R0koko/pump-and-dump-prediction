@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Callable, Dict, Optional, Tuple
 
 import pandas as pd
@@ -6,7 +6,7 @@ import pandas as pd
 from backtest.portfolio.PriceImpact import (
     PriceImpactModel,
     fit_price_impact_model_from_klines,
-    trades_to_1m_klines,
+    trades_to_klines,
 )
 from backtest.portfolio.interfaces import QuoteToUSDTProvider
 from core.currency_pair import CurrencyPair
@@ -18,22 +18,24 @@ LoadTradesFn = Callable[[Bounds, CurrencyPair], pd.DataFrame]
 
 class ManipulatedImpactModelProvider:
     """
-    Fit impact models on the realized manipulation window.
+    Fit impact models on the manipulation window using sell-side data only.
 
-    Loads trade-level data, resamples into 1-minute candles, and fits using
-    net volume as the order flow proxy. Notionals normalised to USDT.
+    Loads trade-level data from a 10-minute window starting at the pump time,
+    resamples into 5-second candles, and fits using only sell-dominated candles
+    (negative net buying volume). This captures the liquidity regime during
+    position exit, where buying and selling are not balanced.
     """
+
+    MANIPULATION_WINDOW = timedelta(minutes=10)
 
     def __init__(
         self,
         load_trades: LoadTradesFn,
-        liquidity_quantile: float,
         indicative_price_provider: Optional[QuoteToUSDTProvider] = None,
     ):
         self._load_trades: LoadTradesFn = load_trades
-        self.liquidity_quantile: float = liquidity_quantile
         self._indicative_price_provider: Optional[QuoteToUSDTProvider] = indicative_price_provider
-        self._cache: Dict[Tuple[str, datetime, datetime], PriceImpactModel] = {}
+        self._cache: Dict[Tuple[str, datetime], PriceImpactModel] = {}
 
     def _get_quote_to_usdt(self, currency_pair: CurrencyPair, ts: datetime) -> float:
         if self._indicative_price_provider is None:
@@ -49,27 +51,28 @@ class ManipulatedImpactModelProvider:
         self,
         pump: PumpEvent,
         currency_pair: CurrencyPair,
-        end_exclusive: datetime,
+        end_exclusive: datetime | None = None,
     ) -> PriceImpactModel:
         """
-        Fit an impact model on data observed during the manipulation window.
+        Fit an impact model on sell-side data from the 10-minute manipulation window.
         """
-        cache_key: Tuple[str, datetime, datetime] = (currency_pair.name, pump.time, end_exclusive)
+        cache_key: Tuple[str, datetime] = (currency_pair.name, pump.time)
         if cache_key in self._cache:
             return self._cache[cache_key]
 
         bounds = Bounds(
             start_inclusive=pump.time,
-            end_exclusive=end_exclusive,
+            end_exclusive=pump.time + self.MANIPULATION_WINDOW,
         )
 
         trades = self._load_trades(bounds, currency_pair)
-        klines = trades_to_1m_klines(trades)
+        klines = trades_to_klines(trades, freq="5s")
         quote_to_usdt = self._get_quote_to_usdt(currency_pair=currency_pair, ts=pump.time)
         model = fit_price_impact_model_from_klines(
             klines=klines,
-            liquidity_quantile=self.liquidity_quantile,
             quote_to_usdt=quote_to_usdt,
+            sell_only=True,
+            sample_frequency="5s",
         )
 
         self._cache[cache_key] = model

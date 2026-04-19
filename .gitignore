@@ -1,18 +1,36 @@
-notebooks/images
-notebooks/catboost_info
-notebooks/.ipynb_checkpoints
-**/catboost_info/
+# Python bytecode & caches
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.pytest_cache/
+.ipynb_checkpoints/
 **/.ipynb_checkpoints/
+
+# IDE
+.idea/
+
+# CatBoost training artifacts
+catboost_info/
+**/catboost_info/
+
+# Notebooks (not distributed)
+notebooks/
+
+# Image outputs from runs
 **/images/
 
-# Paper – only keep .tex, .pdf, and author photos
-paper/*.pfb
-paper/*.tfm
-paper/*.map
-paper/*.fd
-paper/*.cls
-paper/*.bst
-paper/*.sty
-paper/*.png
-paper/*.aux
-paper/*.log
+# Paper — keep only the final and highlighted-changes PDFs
+paper/*
+!paper/access.pdf
+!paper/access_highlighted.pdf
+
+# Resources — keep only the pump JSON files
+resources/*
+!resources/pumps.json
+!resources/dropped_pumps.json
+
+# Misc
+presentation
+
+.claude
+CLAUDE.md

@@ -46,18 +46,16 @@ class Transaction:
     exit_impact_bps: float = 0.0
     entry_impact_num_bars: int = 0
     exit_impact_num_bars: int = 0
-    fill_ratio: float = 1.0
 
     @property
     def transaction_return(self) -> float:
         """
         Net fractional return for one round-trip transaction.
 
-        Includes fixed 25 bps trading cost and scales by `fill_ratio` so partial
-        fills contribute proportionally.
+        Includes a fixed 25 bps round-trip trading cost.
         """
         assert self.entry_price is not None and self.exit_price is not None
-        return (self.exit_price / self.entry_price - 1 - 0.0025) * self.fill_ratio
+        return self.exit_price / self.entry_price - 1 - 0.0025
 
     @classmethod
     def empty(cls, currency_pair: CurrencyPair) -> "Transaction":
@@ -106,13 +104,6 @@ class PortfolioStats:
         if np.isclose(total_weight, 0.0):
             return 0.0
         return total_weighted_value / total_weight
-
-    @property
-    def mean_fill_ratio(self) -> float:
-        """
-        Portfolio-weighted average fill ratio across non-empty legs.
-        """
-        return self._weighted_transaction_metric("fill_ratio")
 
     @property
     def mean_entry_impact_bps(self) -> float:

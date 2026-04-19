@@ -11,3 +11,6 @@ mypy:
 
 paper:
     cd paper && pdflatex -interaction=nonstopmode access.tex && pdflatex -interaction=nonstopmode access.tex
+
+presentation:
+    cd presentation && lualatex -interaction=nonstopmode main.tex && lualatex -interaction=nonstopmode main.tex

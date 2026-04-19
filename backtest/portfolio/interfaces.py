@@ -14,8 +14,6 @@ class QuoteToUSDTProvider(Protocol):
 class ExecutionImpactModel(Protocol):
     """Execution-impact abstraction used by the simulation engine."""
 
-    def estimate_fill_notional(self, side: int, intended_notional_quote: float) -> float: ...
-
     def estimate_vwap_price(self, base_price: float, side: int, notional_quote: float) -> tuple[float, float]: ...
 
 

@@ -32,11 +32,17 @@ class USDTPnLCalculator(PnLCalculator):
         conversion; otherwise fall back to raw fractional return.
         """
         if (
-            tx.intended_notional_quote is not None
-            and tx.exit_filled_notional_quote is not None
+            tx.exit_filled_notional_quote is not None
             and tx.exit_filled_notional_usdt is not None
             and tx.exit_filled_notional_quote > 0
         ):
             quote_to_usdt_exit: float = tx.exit_filled_notional_usdt / tx.exit_filled_notional_quote
+            return tx.transaction_return * tx.exit_filled_notional_quote * quote_to_usdt_exit
+        if (
+            tx.intended_notional_quote is not None
+            and tx.exit_filled_notional_usdt is not None
+            and tx.intended_notional_quote > 0
+        ):
+            quote_to_usdt_exit = tx.exit_filled_notional_usdt / tx.intended_notional_quote
             return tx.transaction_return * tx.intended_notional_quote * quote_to_usdt_exit
         return tx.transaction_return

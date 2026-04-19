@@ -101,9 +101,13 @@ def _cross_section_indicator_vectors_topk_percent(
         if is_pumped.size == 0:
             continue
         cum_any: np.ndarray = np.logical_or.accumulate(is_pumped)
-        k_idxs = np.maximum(1, np.ceil(is_pumped.size * bins_array).astype(int)) - 1
-        k_idxs = np.clip(k_idxs, 0, is_pumped.size - 1)
-        vectors[str(pump_hash)] = cum_any[k_idxs].astype(float)
+        k_raw: np.ndarray = np.ceil(is_pumped.size * bins_array).astype(int)
+        positive: np.ndarray = k_raw > 0
+        indicator: np.ndarray = np.zeros(bins_array.size, dtype=bool)
+        if positive.any():
+            k_idxs: np.ndarray = np.clip(k_raw[positive] - 1, 0, is_pumped.size - 1)
+            indicator[positive] = cum_any[k_idxs]
+        vectors[str(pump_hash)] = indicator.astype(float)
 
     if len(vectors) == 0:
         raise ValueError("scored_df has no non-empty cross-sections")
@@ -195,6 +199,7 @@ def _bootstrap_auc_distribution(
     bins: Sequence[float],
     n_bootstrap: int,
     random_state: int,
+    normaliser: float = 1.0,
 ) -> np.ndarray:
     sampled_indices: np.ndarray = _bootstrap_indices(
         n_cross_sections=matrix.shape[0],
@@ -203,7 +208,7 @@ def _bootstrap_auc_distribution(
     )
     bootstrap_curves: np.ndarray = matrix[sampled_indices].mean(axis=1)
     bins_array: np.ndarray = np.array(bins, dtype=float)
-    return np.array([auc(x=bins_array, y=curve) for curve in bootstrap_curves], dtype=float)
+    return np.array([auc(x=bins_array, y=curve) / normaliser for curve in bootstrap_curves], dtype=float)
 
 
 def bootstrap_topk_percent_auc_ci(
@@ -212,9 +217,11 @@ def bootstrap_topk_percent_auc_ci(
     n_bootstrap: int = 1000,
     alpha: float = 0.05,
     random_state: int = 42,
+    max_k_percent: float = 0.20,
+    step: float = 0.005,
 ) -> BootstrapCI:
     if bins is None:
-        bins = np.arange(0, 1.01, 0.005)
+        bins = np.arange(0, max_k_percent + step, step)
 
     _validate_alpha(alpha=alpha)
     _validate_n_bootstrap(n_bootstrap=n_bootstrap)
@@ -223,14 +230,18 @@ def bootstrap_topk_percent_auc_ci(
     order: list[str] = list(vectors.keys())
     matrix: np.ndarray = _matrix_from_vectors(vectors=vectors, order=order)
     bins_array: np.ndarray = np.array(bins, dtype=float)
+    normaliser: float = float(bins_array[-1] - bins_array[0])
+    if normaliser <= 0:
+        raise ValueError(f"bins range must be positive, got {bins_array[0]}..{bins_array[-1]}")
 
     point_curve: np.ndarray = matrix.mean(axis=0)
-    point_estimate: float = float(auc(x=bins_array, y=point_curve))
+    point_estimate: float = float(auc(x=bins_array, y=point_curve)) / normaliser
     bootstrap_aucs: np.ndarray = _bootstrap_auc_distribution(
         matrix=matrix,
         bins=bins,
         n_bootstrap=n_bootstrap,
         random_state=random_state,
+        normaliser=normaliser,
     )
     ci_lower, ci_upper = np.quantile(bootstrap_aucs, [alpha / 2, 1 - alpha / 2])
 
@@ -254,9 +265,11 @@ def paired_bootstrap_topk_percent_auc_test(
     alpha: float = 0.05,
     random_state: int = 42,
     alternative: Literal["two-sided", "greater", "less"] = "two-sided",
+    max_k_percent: float = 0.20,
+    step: float = 0.005,
 ) -> PairedBootstrapTestResult:
     if bins is None:
-        bins = np.arange(0, 1.01, 0.005)
+        bins = np.arange(0, max_k_percent + step, step)
 
     _validate_alpha(alpha=alpha)
     _validate_n_bootstrap(n_bootstrap=n_bootstrap)
@@ -279,10 +292,13 @@ def paired_bootstrap_topk_percent_auc_test(
     matrix_a: np.ndarray = _matrix_from_vectors(vectors=vectors_a, order=order)
     matrix_b: np.ndarray = _matrix_from_vectors(vectors=vectors_b, order=order)
     bins_array: np.ndarray = np.array(bins, dtype=float)
+    normaliser: float = float(bins_array[-1] - bins_array[0])
+    if normaliser <= 0:
+        raise ValueError(f"bins range must be positive, got {bins_array[0]}..{bins_array[-1]}")
 
     observed_diff: float = float(
         auc(x=bins_array, y=matrix_a.mean(axis=0)) - auc(x=bins_array, y=matrix_b.mean(axis=0))
-    )
+    ) / normaliser
 
     sampled_indices: np.ndarray = _bootstrap_indices(
         n_cross_sections=matrix_a.shape[0],
@@ -291,8 +307,12 @@ def paired_bootstrap_topk_percent_auc_test(
     )
     bootstrap_curves_a: np.ndarray = matrix_a[sampled_indices].mean(axis=1)
     bootstrap_curves_b: np.ndarray = matrix_b[sampled_indices].mean(axis=1)
-    auc_dist_a: np.ndarray = np.array([auc(x=bins_array, y=curve) for curve in bootstrap_curves_a], dtype=float)
-    auc_dist_b: np.ndarray = np.array([auc(x=bins_array, y=curve) for curve in bootstrap_curves_b], dtype=float)
+    auc_dist_a: np.ndarray = np.array(
+        [auc(x=bins_array, y=curve) / normaliser for curve in bootstrap_curves_a], dtype=float
+    )
+    auc_dist_b: np.ndarray = np.array(
+        [auc(x=bins_array, y=curve) / normaliser for curve in bootstrap_curves_b], dtype=float
+    )
     diffs: np.ndarray = auc_dist_a - auc_dist_b
 
     ci_lower, ci_upper = np.quantile(diffs, [alpha / 2, 1 - alpha / 2])

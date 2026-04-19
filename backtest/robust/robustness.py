@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from types import MethodType
 from typing import Any, Callable, Dict, Iterable, List, Sequence
@@ -145,10 +146,15 @@ def evaluate_subperiod_metrics(
     date_col: str,
     split_date: str,
     topk_bins: Sequence[float] = (0.01, 0.02, 0.05, 0.1, 0.2),
+    min_pumps: int = 10,
 ) -> pd.DataFrame:
     """
     Split the test set into early and late subperiods by pump event date
     and evaluate Top@K% and Top@K%-AUC on each half independently.
+
+    Subperiods with fewer than ``min_pumps`` pump events are skipped with a
+    warning. Reporting metrics on tiny subperiods (e.g. n=3) produces noisy
+    numbers that are unsafe to interpret as performance differences.
 
     Parameters
     ----------
@@ -162,11 +168,14 @@ def evaluate_subperiod_metrics(
         ISO date string to split the test set into early (<= split_date) and late (> split_date).
     topk_bins : Sequence[float]
         Percentage bins for Top@K% evaluation.
+    min_pumps : int
+        Minimum pump events required for a subperiod to be evaluated.
 
     Returns
     -------
     pd.DataFrame
-        One row per subperiod with metric columns.
+        One row per subperiod with metric columns. Subperiods below
+        ``min_pumps`` are omitted.
     """
     from backtest.utils.sample import Dataset, DatasetType
     from backtest.utils.feature_set import FeatureSet
@@ -184,7 +193,15 @@ def evaluate_subperiod_metrics(
     rows: List[Dict[str, float | int | str]] = []
     for label, hashes in [("early", early_hashes), ("late", late_hashes)]:
         subset = dataset_df[dataset_df[COL_PUMP_HASH].isin(hashes)].reset_index(drop=True)
-        if subset.empty or subset[COL_PUMP_HASH].nunique() == 0:
+        n_pumps = int(subset[COL_PUMP_HASH].nunique()) if not subset.empty else 0
+        if n_pumps < min_pumps:
+            logging.warning(
+                "Skipping '%s' subperiod: only %d pump(s), below min_pumps=%d. "
+                "Metrics on tiny subperiods are unstable.",
+                label,
+                n_pumps,
+                min_pumps,
+            )
             continue
         sub_dataset = Dataset(data=subset, feature_set=feature_set, ds_type=DatasetType.TEST)
         sub_dataset.add_pool()
@@ -192,7 +209,7 @@ def evaluate_subperiod_metrics(
         topk_values: pd.Series = calculate_topk_percent(model=model, dataset=sub_dataset, bins=topk_bins)
         result: Dict[str, float | int | str] = {
             "subperiod": label,
-            "n_pumps": int(subset[COL_PUMP_HASH].nunique()),
+            "n_pumps": n_pumps,
             "n_rows": int(subset.shape[0]),
             "topk_percent_auc": float(topk_pct_auc),
         }

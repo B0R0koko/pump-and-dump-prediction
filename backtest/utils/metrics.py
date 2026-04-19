@@ -56,8 +56,8 @@ def calculate_topk_percent(model: ImplementsRank, dataset: Dataset, bins: Iterab
         n_rows = len(df_cross_section)
 
         for pct_bin in bins:
-            k: int = max(1, int(np.ceil(n_rows * pct_bin)))
-            contains_pump: bool = df_cross_section.iloc[:k][COL_IS_PUMPED].any()
+            k: int = int(np.ceil(n_rows * pct_bin))
+            contains_pump: bool = df_cross_section.iloc[:k][COL_IS_PUMPED].any() if k > 0 else False
             count_by_bins[pct_bin] = count_by_bins.get(pct_bin, 0) + contains_pump
 
     num_pumped: int = _df[_df[COL_IS_PUMPED] == True].shape[0]
@@ -66,13 +66,24 @@ def calculate_topk_percent(model: ImplementsRank, dataset: Dataset, bins: Iterab
     return pd.Series(data=counts / num_pumped, index=bins)
 
 
-def calculate_topk_percent_auc(model: ImplementsRank, dataset: Dataset) -> float:
+def calculate_topk_percent_auc(
+    model: ImplementsRank,
+    dataset: Dataset,
+    max_k_percent: float = 0.20,
+    step: float = 0.005,
+) -> float:
     """
-    :return: If we iterate over all percentages from (0, 1) and compute TOPK% accuracy for each, we can measure overall
-    performance using AUC approach
+    Compute the area under the Top@K% accuracy curve over ``K% in (0, max_k_percent]`` and
+    normalise by the integration range so the result stays in ``(0, 1)``.
+
+    Restricting the range to the steep, low-K% region (default 0-20%) makes the metric
+    much more sensitive to differences between models and hyperparameters. At higher K%
+    all reasonable models saturate near 1.0 and the AUC becomes flat.
     """
-    topk_percentages: pd.Series = calculate_topk_percent(model=model, dataset=dataset, bins=np.arange(0, 1.01, 0.005))
-    return auc(x=topk_percentages.index, y=topk_percentages.values)
+    bins: np.ndarray = np.arange(0, max_k_percent + step, step)
+    topk_percentages: pd.Series = calculate_topk_percent(model=model, dataset=dataset, bins=bins)
+    raw_auc: float = float(auc(x=topk_percentages.index, y=topk_percentages.values))
+    return raw_auc / max_k_percent
 
 
 def _with_scores(model: ImplementsRank, dataset: Dataset) -> pd.DataFrame:

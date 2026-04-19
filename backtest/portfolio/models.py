@@ -34,4 +34,3 @@ class ExecutionResult:
     filled_notional_usdt_exit: float
     entry_impact_bps: float
     exit_impact_bps: float
-    fill_ratio: float

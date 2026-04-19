@@ -40,7 +40,6 @@ class TOPKPortfolio(ImplementsPortfolio):
         order_notional_quote: float = 0.0,
         order_notional_usdt: float = 1.0,
         impact_lookback_days: int = 14,
-        impact_liquidity_quantile: float = 0.9,
         indicative_price_provider: Optional[QuoteToUSDTProvider] = None,
     ):
         effective_config = config or PortfolioExecutionConfig(
@@ -51,7 +50,6 @@ class TOPKPortfolio(ImplementsPortfolio):
             order_notional_quote=order_notional_quote,
             order_notional_usdt=order_notional_usdt,
             impact_lookback_days=impact_lookback_days,
-            impact_liquidity_quantile=impact_liquidity_quantile,
         )
         super().__init__(
             model=model,
@@ -66,12 +64,10 @@ class TOPKPortfolio(ImplementsPortfolio):
         self._impact_model_provider = LookbackImpactModelProvider(
             load_trades=self.load_trades,
             lookback_days=self.config.impact_lookback_days,
-            liquidity_quantile=self.config.impact_liquidity_quantile,
             indicative_price_provider=self._indicative_price_provider,
         )
         self._manipulated_impact_provider = ManipulatedImpactModelProvider(
             load_trades=self.load_trades,
-            liquidity_quantile=self.config.impact_liquidity_quantile,
             indicative_price_provider=self._indicative_price_provider,
         )
         self._vwap_estimator = VWAPEstimator(indicative_price_provider=self._indicative_price_provider)
@@ -178,7 +174,7 @@ class TOPKPortfolio(ImplementsPortfolio):
                         currency_pair=intent.currency_pair,
                         end_exclusive=intent.exit_ts,
                     )
-                    exit_impact_model = candidate if candidate.num_trades > 0 else entry_impact_model
+                    exit_impact_model = candidate if candidate.num_samples > 0 else entry_impact_model
                 except Exception:
                     exit_impact_model = entry_impact_model
             else:
@@ -203,9 +199,8 @@ class TOPKPortfolio(ImplementsPortfolio):
             exit_filled_notional_usdt=execution.filled_notional_usdt_exit,
             entry_impact_bps=execution.entry_impact_bps,
             exit_impact_bps=execution.exit_impact_bps,
-            entry_impact_num_bars=entry_impact_model.num_trades if entry_impact_model is not None else 0,
-            exit_impact_num_bars=exit_impact_model.num_trades if exit_impact_model is not None else 0,
-            fill_ratio=execution.fill_ratio,
+            entry_impact_num_bars=entry_impact_model.num_samples if entry_impact_model is not None else 0,
+            exit_impact_num_bars=exit_impact_model.num_samples if exit_impact_model is not None else 0,
         )
 
     def regular_transaction(self, ts_price: pd.Series, pump: PumpEvent, cp: CurrencyPair) -> Transaction:
@@ -268,8 +263,8 @@ class TOPKPortfolio(ImplementsPortfolio):
         """
         Sweep order notionals in USDT and re-run full backtest with impact enabled.
 
-        Returns aggregate portfolio PnL and execution diagnostics for each tested
-        intended investment size.
+        Returns aggregate portfolio PnL, per-event ROE diagnostics, and no-reinvestment
+        cumulative ROE over the full tested sample for each intended investment size.
         """
         rows: List[Dict[str, float]] = []
         prev_order_notional_quote: float = self.config.order_notional_quote
@@ -284,7 +279,6 @@ class TOPKPortfolio(ImplementsPortfolio):
                 self.config.order_notional_usdt = quantity_usdt_value
                 pnls: List[float] = []
                 roes: List[float] = []
-                fill_ratios: List[float] = []
                 entry_impacts_bps: List[float] = []
                 exit_impacts_bps: List[float] = []
                 entry_impact_num_bars: List[float] = []
@@ -296,21 +290,22 @@ class TOPKPortfolio(ImplementsPortfolio):
                     pnls.append(stats.pnl)
                     if quantity_usdt_value > 0:
                         roes.append(stats.pnl / quantity_usdt_value)
-                    fill_ratios.append(stats.mean_fill_ratio)
                     entry_impacts_bps.append(stats.mean_entry_impact_bps)
                     exit_impacts_bps.append(stats.mean_exit_impact_bps)
                     entry_impact_num_bars.append(stats.mean_entry_impact_num_bars)
                     exit_impact_num_bars.append(stats.mean_exit_impact_num_bars)
                     executed_notionals_usdt.append(stats.executed_notional_usdt)
+                overall_pnl: float = float(np.sum(pnls))
                 rows.append(
                     {
                         "quantity_usdt": quantity_usdt_value,
-                        "overall_pnl": float(np.sum(pnls)),
+                        "num_pumps": float(len(pnls)),
+                        "overall_pnl": overall_pnl,
+                        "cumulative_roe": (overall_pnl / quantity_usdt_value) if quantity_usdt_value > 0 else 0.0,
                         "mean_pnl": float(np.mean(pnls)) if pnls else 0.0,
                         "median_pnl": float(np.median(pnls)) if pnls else 0.0,
                         "mean_roe": float(np.mean(roes)) if roes else 0.0,
                         "median_roe": float(np.median(roes)) if roes else 0.0,
-                        "mean_fill_ratio": float(np.mean(fill_ratios)) if fill_ratios else 0.0,
                         "mean_entry_impact_bps": float(np.mean(entry_impacts_bps)) if entry_impacts_bps else 0.0,
                         "mean_exit_impact_bps": float(np.mean(exit_impacts_bps)) if exit_impacts_bps else 0.0,
                         "mean_entry_impact_num_bars": (
@@ -341,7 +336,6 @@ def evaluate_topk_pnl_for_quantities(
     buy_before: timedelta = timedelta(minutes=15),
     sell_after: timedelta = timedelta(minutes=1),
     impact_lookback_days: int = 14,
-    impact_liquidity_quantile: float = 0.9,
 ) -> pd.DataFrame:
     """
     Backtest top-k strategy over a sweep of order sizes expressed in USDT.
@@ -358,7 +352,6 @@ def evaluate_topk_pnl_for_quantities(
         order_notional_quote=0.0,
         order_notional_usdt=resolved_quantities_usdt[0] if resolved_quantities_usdt else 0.0,
         impact_lookback_days=impact_lookback_days,
-        impact_liquidity_quantile=impact_liquidity_quantile,
     )
     manager = TOPKPortfolio(model=model, config=config)
     return manager.evaluate_pnl_for_quantities(dataset=dataset, quantities_usdt=resolved_quantities_usdt)
