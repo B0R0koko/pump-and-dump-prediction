@@ -25,6 +25,10 @@ This repository contains the code, data manifests, and experiments backing the I
 - **Approach.** Cross-sectionally standardized microstructure features + CatBoost classifier with `Top@K%-AUC` early stopping, evaluated against Logistic Regression, Random Forest, CatBoost Ranker, and CatBoost + SMOTE baselines.
 - **Execution-aware backtest.** Square-root market-impact model (Tóth / Donier–Bonart) fitted per asset from trade-level candles (5-min pre-pump entry, 5-sec sell-only post-pump exit), translated into size-dependent VWAP slippage.
 
+<p align="center">
+  <img src="props/wojak_quant_outplays_bogdanoff.png" alt="Wojak quant builds an ML model that flags an incoming pump-and-dump and sells before the dump, outplaying the Bogdanoff organizers" width="720">
+</p>
+
 ## Main Results
 
 Evaluation on 58 held-out P&D cross-sections (test period > 2021-05-01).
