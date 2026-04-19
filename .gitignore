@@ -1,13 +1,36 @@
-/.gradle/
-/build/
-/buildSrc/.gradle
-/gradlew.bat
-/.idea
-!/.idea/codeStyles
-!/.idea/inspectionProfiles
-**/build
-**/__pycache__/
-/not-so-secret/
-/.env
-/catboost_info/
-/.ipynb_checkpoints/
+# Python bytecode & caches
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.pytest_cache/
+.ipynb_checkpoints/
+**/.ipynb_checkpoints/
+
+# IDE
+.idea/
+
+# CatBoost training artifacts
+catboost_info/
+**/catboost_info/
+
+# Notebooks (not distributed)
+notebooks/
+
+# Image outputs from runs
+**/images/
+
+# Paper — keep only the final and highlighted-changes PDFs
+paper/*
+!paper/access.pdf
+!paper/access_highlighted.pdf
+
+# Resources — keep only the pump JSON files
+resources/*
+!resources/pumps.json
+!resources/dropped_pumps.json
+
+# Misc
+presentation
+
+.claude
+CLAUDE.md

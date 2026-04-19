@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "knowledge-base": {
+      "command": "npx",
+      "args": ["-y", "obsidian-mcp-server"],
+      "env": {
+        "OBSIDIAN_VAULT_PATH": "knowledge-base"
+      }
+    }
+  }
+}

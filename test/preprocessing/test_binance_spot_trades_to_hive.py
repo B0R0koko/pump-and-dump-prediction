@@ -16,7 +16,7 @@ from preprocessing.pipelines.binance_spot_trades_to_hive import BinanceSpotTrade
 def test_binance_spot_trades_to_hive() -> None:
     """
     This test makes sure that the way HiveDataset is created matches the result produced by simply unpacking a csv file
-    and reading it with pandas, we simply compare shapes of two dataframes
+    and reading it with pandas; we simply compare shapes of two dataframes
     """
     configure_logging()
     day: date = date(2021, 6, 16)
@@ -24,7 +24,7 @@ def test_binance_spot_trades_to_hive() -> None:
     currency_pair: CurrencyPair = CurrencyPair.from_string("THETA-BTC")
     zip_file_name: str = "trades@2021-06-16.zip"
 
-    with (tempfile.TemporaryDirectory() as temp_dir):
+    with tempfile.TemporaryDirectory() as temp_dir:
         # Create a hive structure in the test folder
         output_dir: Path = Path(temp_dir)
         pipe: BinanceSpotTrades2Hive = BinanceSpotTrades2Hive(
@@ -36,13 +36,7 @@ def test_binance_spot_trades_to_hive() -> None:
         # Collect the number of rows lazily
         hive: pl.LazyFrame = pl.scan_parquet(source=output_dir, hive_partitioning=True)
 
-        hive_size: int = (
-            hive
-            .filter(
-                (pl.col(SYMBOL) == currency_pair.name)
-            )
-            .select(pl.len()).collect().item()
-        )
+        hive_size: int = hive.filter((pl.col(SYMBOL) == currency_pair.name)).select(pl.len()).collect().item()
 
         # unzip data using pandas by simply unpacking csv file and then reading csv with pandas
         zip_file_path: Path = BINANCE_SPOT_RAW_TRADES.joinpath(currency_pair.name).joinpath(zip_file_name)

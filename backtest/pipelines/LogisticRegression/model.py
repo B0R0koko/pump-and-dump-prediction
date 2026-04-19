@@ -1,0 +1,37 @@
+import logging
+from typing import Optional, Dict, Any
+
+import numpy as np
+import pandas as pd
+from sklearn.linear_model import LogisticRegression
+
+from backtest.pipelines.BaseModel import BaseModel
+from backtest.utils.sample import Dataset, Sample, DatasetType
+
+
+class LogisticRegressionModel(BaseModel):
+
+    def __init__(self, params: Dict[str, Any]):
+        self.params: Dict[str, Any] = params
+        self._model: Optional[LogisticRegression] = None
+
+    def train(self, sample: Sample) -> "LogisticRegressionModel":
+        logging.info("Training model")
+        self._model = LogisticRegression(**self.params)
+        self._model.fit(
+            X=sample.get_data(ds_type=DatasetType.TRAIN),
+            y=sample.get_label(ds_type=DatasetType.TRAIN),
+        )
+        return self
+
+    def predict(self, dataset: Dataset, *args, **kwargs) -> pd.Series:
+        assert self._model is not None, "Model must be fitted first"
+        return self._model.predict(X=dataset.get_data())
+
+    def predict_proba(self, dataset: Dataset) -> np.ndarray:
+        assert self._model is not None, "Model must be fitted first"
+        return self._model.predict_proba(X=dataset.get_data())
+
+    def rank(self, dataset: Dataset) -> np.ndarray:
+        assert self._model is not None, "Model must be fitted first"
+        return self._model.predict_proba(X=dataset.get_data())[:, 1]
