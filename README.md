@@ -275,10 +275,6 @@ table in the paper is affected?
 
 ---
 
-## Citation
-
-If you use this work, please cite the IEEE Access paper (citation block will be added once the DOI is final; in the meantime, cite this repository).
-
 ## License
 
-See `LICENSE` (to be added).
+Released under the [MIT License](LICENSE). Free to use, modify, and distribute, including for commercial purposes.
