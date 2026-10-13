@@ -1,10 +1,5 @@
 [
   {
-    "symbol": "AAPC-BTC",
-    "exchange": "BINANCE_SPOT",
-    "time": "2020-11-18 18:00:11"
-  },
-  {
     "symbol": "ACM-BTC",
     "exchange": "BINANCE_SPOT",
     "time": "2021-06-05 18:00:13"
@@ -25,9 +20,24 @@
     "time": "2020-07-07 16:00:00"
   },
   {
+    "symbol": "ADX-BTC",
+    "exchange": "BINANCE_SPOT",
+    "time": "2021-02-13 16:00:00"
+  },
+  {
+    "symbol": "AE-BTC",
+    "exchange": "BINANCE_SPOT",
+    "time": "2018-03-19 15:00:00"
+  },
+  {
     "symbol": "AGIX-BTC",
     "exchange": "BINANCE_SPOT",
     "time": "2022-08-14 16:00:05"
+  },
+  {
+    "symbol": "AMB-BTC",
+    "exchange": "BINANCE_SPOT",
+    "time": "2019-01-01 14:30:00"
   },
   {
     "symbol": "APPC-BTC",
@@ -147,6 +157,11 @@
   {
     "symbol": "AST-BTC",
     "exchange": "BINANCE_SPOT",
+    "time": "2018-09-07 15:30:00"
+  },
+  {
+    "symbol": "AST-BTC",
+    "exchange": "BINANCE_SPOT",
     "time": "2019-03-02 14:00:00"
   },
   {
@@ -197,7 +212,17 @@
   {
     "symbol": "BLZ-BTC",
     "exchange": "BINANCE_SPOT",
+    "time": "2019-05-13 15:00:00"
+  },
+  {
+    "symbol": "BLZ-BTC",
+    "exchange": "BINANCE_SPOT",
     "time": "2019-05-27 17:00:00"
+  },
+  {
+    "symbol": "BLZ-BTC",
+    "exchange": "BINANCE_SPOT",
+    "time": "2019-06-24 18:30:00"
   },
   {
     "symbol": "BLZ-BTC",
@@ -257,6 +282,16 @@
   {
     "symbol": "BNT-BTC",
     "exchange": "BINANCE_SPOT",
+    "time": "2019-10-14 16:30:00"
+  },
+  {
+    "symbol": "BNT-BTC",
+    "exchange": "BINANCE_SPOT",
+    "time": "2020-03-17 16:00:00"
+  },
+  {
+    "symbol": "BNT-BTC",
+    "exchange": "BINANCE_SPOT",
     "time": "2020-04-06 18:00:02"
   },
   {
@@ -278,6 +313,11 @@
     "symbol": "BQX-BTC",
     "exchange": "BINANCE_SPOT",
     "time": "2019-04-01 17:00:12"
+  },
+  {
+    "symbol": "BRD-BTC",
+    "exchange": "BINANCE_SPOT",
+    "time": "2018-04-05 14:00:00"
   },
   {
     "symbol": "BRD-BTC",
@@ -390,11 +430,6 @@
     "time": "2021-10-31 15:00:00"
   },
   {
-    "symbol": "BRX-BTC",
-    "exchange": "BINANCE_SPOT",
-    "time": "2019-04-04 20:00:02"
-  },
-  {
     "symbol": "BTCST-BTC",
     "exchange": "BINANCE_SPOT",
     "time": "2021-02-23 15:00:12"
@@ -417,12 +452,27 @@
   {
     "symbol": "CDT-BTC",
     "exchange": "BINANCE_SPOT",
+    "time": "2019-06-05 16:00:00"
+  },
+  {
+    "symbol": "CDT-BTC",
+    "exchange": "BINANCE_SPOT",
     "time": "2019-08-09 14:59:00"
   },
   {
     "symbol": "CDT-BTC",
     "exchange": "BINANCE_SPOT",
     "time": "2020-09-16 16:00:00"
+  },
+  {
+    "symbol": "CDT-BTC",
+    "exchange": "BINANCE_SPOT",
+    "time": "2021-02-23 16:00:00"
+  },
+  {
+    "symbol": "CDT-BTC",
+    "exchange": "BINANCE_SPOT",
+    "time": "2021-04-15 18:00:00"
   },
   {
     "symbol": "CHAT-BTC",
@@ -457,32 +507,17 @@
   {
     "symbol": "CND-BTC",
     "exchange": "BINANCE_SPOT",
+    "time": "2019-07-05 12:30:00"
+  },
+  {
+    "symbol": "CND-BTC",
+    "exchange": "BINANCE_SPOT",
     "time": "2019-07-09 17:00:00"
   },
   {
     "symbol": "CND-BTC",
     "exchange": "BINANCE_SPOT",
     "time": "2021-06-06 17:00:00"
-  },
-  {
-    "symbol": "CRACK-BTC",
-    "exchange": "BINANCE_SPOT",
-    "time": "2021-08-07 12:00:24"
-  },
-  {
-    "symbol": "CREA-BTC",
-    "exchange": "BINANCE_SPOT",
-    "time": "2021-07-28 12:00:09"
-  },
-  {
-    "symbol": "CRUMB-BTC",
-    "exchange": "BINANCE_SPOT",
-    "time": "2021-07-26 12:00:09"
-  },
-  {
-    "symbol": "CTCX-BTC",
-    "exchange": "BINANCE_SPOT",
-    "time": "2020-06-03 16:00:12"
   },
   {
     "symbol": "CTXC-BTC",
@@ -515,11 +550,6 @@
     "time": "2021-09-15 17:00:00"
   },
   {
-    "symbol": "CURE-BTC",
-    "exchange": "BINANCE_SPOT",
-    "time": "2019-03-19 20:01:23"
-  },
-  {
     "symbol": "CVC-BTC",
     "exchange": "BINANCE_SPOT",
     "time": "2019-08-13 20:00:00"
@@ -548,6 +578,11 @@
     "symbol": "DGD-BTC",
     "exchange": "BINANCE_SPOT",
     "time": "2018-01-09 20:00:00"
+  },
+  {
+    "symbol": "DGD-BTC",
+    "exchange": "BINANCE_SPOT",
+    "time": "2019-11-02 17:30:00"
   },
   {
     "symbol": "DLT-BTC",
@@ -665,11 +700,6 @@
     "time": "2021-07-25 17:00:00"
   },
   {
-    "symbol": "DTB-BTC",
-    "exchange": "BINANCE_SPOT",
-    "time": "2019-03-28 20:00:55"
-  },
-  {
     "symbol": "DUSK-BTC",
     "exchange": "BINANCE_SPOT",
     "time": "2020-10-30 16:00:00"
@@ -692,6 +722,11 @@
   {
     "symbol": "EDO-BTC",
     "exchange": "BINANCE_SPOT",
+    "time": "2019-06-30 17:30:00"
+  },
+  {
+    "symbol": "EDO-BTC",
+    "exchange": "BINANCE_SPOT",
     "time": "2019-09-06 18:00:00"
   },
   {
@@ -703,6 +738,11 @@
     "symbol": "EDO-BTC",
     "exchange": "BINANCE_SPOT",
     "time": "2019-09-25 16:00:00"
+  },
+  {
+    "symbol": "EDO-BTC",
+    "exchange": "BINANCE_SPOT",
+    "time": "2019-10-18 16:30:00"
   },
   {
     "symbol": "EDO-BTC",
@@ -745,9 +785,19 @@
     "time": "2020-07-24 17:00:00"
   },
   {
-    "symbol": "ETHOS-BTC",
+    "symbol": "ENG-BTC",
     "exchange": "BINANCE_SPOT",
-    "time": "2019-04-01 17:00:13"
+    "time": "2019-02-04 16:00:00"
+  },
+  {
+    "symbol": "EVX-BTC",
+    "exchange": "BINANCE_SPOT",
+    "time": "2018-07-26 16:00:00"
+  },
+  {
+    "symbol": "EVX-BTC",
+    "exchange": "BINANCE_SPOT",
+    "time": "2018-08-20 14:30:00"
   },
   {
     "symbol": "EVX-BTC",
@@ -885,11 +935,6 @@
     "time": "2021-02-15 15:00:09"
   },
   {
-    "symbol": "GHD-BTC",
-    "exchange": "BINANCE_SPOT",
-    "time": "2021-07-06 15:00:01"
-  },
-  {
     "symbol": "GNT-BTC",
     "exchange": "BINANCE_SPOT",
     "time": "2020-01-10 18:00:00"
@@ -940,11 +985,6 @@
     "time": "2021-08-26 09:00:02"
   },
   {
-    "symbol": "GTEA-BTC",
-    "exchange": "BINANCE_SPOT",
-    "time": "2021-08-09 12:00:14"
-  },
-  {
     "symbol": "GTO-BTC",
     "exchange": "BINANCE_SPOT",
     "time": "2020-05-21 15:59:00"
@@ -953,11 +993,6 @@
     "symbol": "GTO-BTC",
     "exchange": "BINANCE_SPOT",
     "time": "2020-11-03 16:00:00"
-  },
-  {
-    "symbol": "GUA-BTC",
-    "exchange": "BINANCE_SPOT",
-    "time": "2021-08-03 12:00:06"
   },
   {
     "symbol": "GVT-BTC",
@@ -973,6 +1008,11 @@
     "symbol": "GVT-BTC",
     "exchange": "BINANCE_SPOT",
     "time": "2020-04-04 15:59:00"
+  },
+  {
+    "symbol": "GVT-BTC",
+    "exchange": "BINANCE_SPOT",
+    "time": "2020-04-15 16:00:00"
   },
   {
     "symbol": "GVT-BTC",
@@ -1075,16 +1115,6 @@
     "time": "2019-05-16 16:59:13"
   },
   {
-    "symbol": "HGR-BTC",
-    "exchange": "BINANCE_SPOT",
-    "time": "2021-08-12 12:00:17"
-  },
-  {
-    "symbol": "HONOR-BTC",
-    "exchange": "BINANCE_SPOT",
-    "time": "2021-07-27 12:00:12"
-  },
-  {
     "symbol": "ICN-BTC",
     "exchange": "BINANCE_SPOT",
     "time": "2018-01-15 16:59:00"
@@ -1108,6 +1138,11 @@
     "symbol": "ICN-BTC",
     "exchange": "BINANCE_SPOT",
     "time": "2018-08-08 16:00:00"
+  },
+  {
+    "symbol": "ICN-BTC",
+    "exchange": "BINANCE_SPOT",
+    "time": "2018-09-11 15:30:00"
   },
   {
     "symbol": "IDEX-BTC",
@@ -1158,6 +1193,11 @@
     "symbol": "LOKA-BTC",
     "exchange": "BINANCE_SPOT",
     "time": "2022-07-18 13:00:00"
+  },
+  {
+    "symbol": "LOOM-BTC",
+    "exchange": "BINANCE_SPOT",
+    "time": "2019-01-07 14:30:00"
   },
   {
     "symbol": "LRC-BTC",
@@ -1262,7 +1302,22 @@
   {
     "symbol": "MTH-BTC",
     "exchange": "BINANCE_SPOT",
+    "time": "2018-05-07 15:00:00"
+  },
+  {
+    "symbol": "MTH-BTC",
+    "exchange": "BINANCE_SPOT",
+    "time": "2018-07-20 16:00:00"
+  },
+  {
+    "symbol": "MTH-BTC",
+    "exchange": "BINANCE_SPOT",
     "time": "2021-02-06 17:00:13"
+  },
+  {
+    "symbol": "MTH-BTC",
+    "exchange": "BINANCE_SPOT",
+    "time": "2021-03-01 17:00:00"
   },
   {
     "symbol": "MTH-BTC",
@@ -1390,14 +1445,19 @@
     "time": "2021-06-20 11:00:00"
   },
   {
-    "symbol": "NAX-BTC",
+    "symbol": "NAV-BTC",
     "exchange": "BINANCE_SPOT",
-    "time": "2021-08-22 17:00:30"
+    "time": "2022-08-07 17:00:00"
   },
   {
     "symbol": "NEBL-BTC",
     "exchange": "BINANCE_SPOT",
     "time": "2018-12-23 16:59:00"
+  },
+  {
+    "symbol": "NEBL-BTC",
+    "exchange": "BINANCE_SPOT",
+    "time": "2019-04-08 16:30:00"
   },
   {
     "symbol": "NEBL-BTC",
@@ -1475,6 +1535,11 @@
     "time": "2022-01-02 17:00:00"
   },
   {
+    "symbol": "NEBL-BTC",
+    "exchange": "BINANCE_SPOT",
+    "time": "2022-07-17 21:00:00"
+  },
+  {
     "symbol": "NULS-BTC",
     "exchange": "BINANCE_SPOT",
     "time": "2020-01-30 17:00:00"
@@ -1547,6 +1612,11 @@
   {
     "symbol": "NXS-BTC",
     "exchange": "BINANCE_SPOT",
+    "time": "2021-03-10 16:00:00"
+  },
+  {
+    "symbol": "NXS-BTC",
+    "exchange": "BINANCE_SPOT",
     "time": "2021-05-26 17:00:02"
   },
   {
@@ -1575,14 +1645,14 @@
     "time": "2021-12-04 12:59:00"
   },
   {
-    "symbol": "OAS-BTC",
+    "symbol": "OAX-BTC",
     "exchange": "BINANCE_SPOT",
-    "time": "2021-12-28 15:00:13"
+    "time": "2018-04-29 19:00:00"
   },
   {
     "symbol": "OAX-BTC",
     "exchange": "BINANCE_SPOT",
-    "time": "2018-04-29 19:00:00"
+    "time": "2018-07-31 16:00:00"
   },
   {
     "symbol": "OAX-BTC",
@@ -1608,6 +1678,11 @@
     "symbol": "OAX-BTC",
     "exchange": "BINANCE_SPOT",
     "time": "2020-01-14 19:00:00"
+  },
+  {
+    "symbol": "OAX-BTC",
+    "exchange": "BINANCE_SPOT",
+    "time": "2020-03-24 16:00:00"
   },
   {
     "symbol": "OAX-BTC",
@@ -1670,14 +1745,9 @@
     "time": "2021-01-11 16:00:00"
   },
   {
-    "symbol": "ORB-BTC",
+    "symbol": "ONG-BTC",
     "exchange": "BINANCE_SPOT",
-    "time": "2021-08-16 12:00:30"
-  },
-  {
-    "symbol": "ORC-BTC",
-    "exchange": "BINANCE_SPOT",
-    "time": "2022-01-15 17:00:12"
+    "time": "2021-04-12 17:00:00"
   },
   {
     "symbol": "OST-BTC",
@@ -1845,6 +1915,11 @@
     "time": "2021-03-07 17:00:04"
   },
   {
+    "symbol": "PSG-BTC",
+    "exchange": "BINANCE_SPOT",
+    "time": "2022-01-30 15:00:00"
+  },
+  {
     "symbol": "QLC-BTC",
     "exchange": "BINANCE_SPOT",
     "time": "2018-07-28 19:00:00"
@@ -1878,6 +1953,11 @@
     "symbol": "QLC-BTC",
     "exchange": "BINANCE_SPOT",
     "time": "2021-01-06 16:00:00"
+  },
+  {
+    "symbol": "QLC-BTC",
+    "exchange": "BINANCE_SPOT",
+    "time": "2021-04-23 16:00:00"
   },
   {
     "symbol": "QSP-BTC",
@@ -1923,6 +2003,11 @@
     "symbol": "RDN-BTC",
     "exchange": "BINANCE_SPOT",
     "time": "2018-08-21 16:00:00"
+  },
+  {
+    "symbol": "RDN-BTC",
+    "exchange": "BINANCE_SPOT",
+    "time": "2018-09-04 15:30:00"
   },
   {
     "symbol": "RDN-BTC",
@@ -2020,6 +2105,11 @@
     "time": "2019-06-08 13:00:02"
   },
   {
+    "symbol": "REQ-BTC",
+    "exchange": "BINANCE_SPOT",
+    "time": "2021-03-27 18:30:00"
+  },
+  {
     "symbol": "RLC-BTC",
     "exchange": "BINANCE_SPOT",
     "time": "2018-04-09 15:00:00"
@@ -2037,12 +2127,12 @@
   {
     "symbol": "RLC-BTC",
     "exchange": "BINANCE_SPOT",
-    "time": "2020-04-20 16:00:00"
+    "time": "2020-03-27 16:00:00"
   },
   {
-    "symbol": "RYTK-BTC",
+    "symbol": "RLC-BTC",
     "exchange": "BINANCE_SPOT",
-    "time": "2021-07-25 14:00:16"
+    "time": "2020-04-20 16:00:00"
   },
   {
     "symbol": "SKY-BTC",
@@ -2093,6 +2183,11 @@
     "symbol": "SNGLS-BTC",
     "exchange": "BINANCE_SPOT",
     "time": "2021-01-11 21:00:00"
+  },
+  {
+    "symbol": "SNM-BTC",
+    "exchange": "BINANCE_SPOT",
+    "time": "2019-04-04 13:30:00"
   },
   {
     "symbol": "SNM-BTC",
@@ -2170,11 +2265,6 @@
     "time": "2021-01-18 17:00:00"
   },
   {
-    "symbol": "STND-BTC",
-    "exchange": "BINANCE_SPOT",
-    "time": "2022-01-18 15:00:14"
-  },
-  {
     "symbol": "STORJ-BTC",
     "exchange": "BINANCE_SPOT",
     "time": "2019-06-11 18:00:00"
@@ -2198,6 +2288,11 @@
     "symbol": "STPT-BTC",
     "exchange": "BINANCE_SPOT",
     "time": "2021-01-10 18:00:25"
+  },
+  {
+    "symbol": "SUB-BTC",
+    "exchange": "BINANCE_SPOT",
+    "time": "2019-02-08 16:30:00"
   },
   {
     "symbol": "SUSD-BTC",
@@ -2265,14 +2360,14 @@
     "time": "2018-06-23 15:59:00"
   },
   {
-    "symbol": "UNIC-BTC",
+    "symbol": "VIA-BTC",
     "exchange": "BINANCE_SPOT",
-    "time": "2022-01-08 17:00:24"
+    "time": "2018-09-30 19:00:00"
   },
   {
     "symbol": "VIA-BTC",
     "exchange": "BINANCE_SPOT",
-    "time": "2018-09-30 19:00:00"
+    "time": "2019-02-03 15:00:00"
   },
   {
     "symbol": "VIA-BTC",
@@ -2348,6 +2443,11 @@
     "symbol": "VIB-BTC",
     "exchange": "BINANCE_SPOT",
     "time": "2021-09-05 17:00:00"
+  },
+  {
+    "symbol": "VIB-BTC",
+    "exchange": "BINANCE_SPOT",
+    "time": "2022-04-26 14:00:00"
   },
   {
     "symbol": "VIB-BTC",
@@ -2442,12 +2542,27 @@
   {
     "symbol": "WPR-BTC",
     "exchange": "BINANCE_SPOT",
+    "time": "2021-04-21 16:00:00"
+  },
+  {
+    "symbol": "WPR-BTC",
+    "exchange": "BINANCE_SPOT",
     "time": "2021-05-09 17:00:02"
   },
   {
     "symbol": "XZC-BTC",
     "exchange": "BINANCE_SPOT",
     "time": "2018-01-23 18:00:00"
+  },
+  {
+    "symbol": "XZC-BTC",
+    "exchange": "BINANCE_SPOT",
+    "time": "2018-10-20 20:00:00"
+  },
+  {
+    "symbol": "YOYO-BTC",
+    "exchange": "BINANCE_SPOT",
+    "time": "2018-05-12 18:00:00"
   },
   {
     "symbol": "YOYO-BTC",
@@ -2463,26 +2578,6 @@
     "symbol": "YOYO-BTC",
     "exchange": "BINANCE_SPOT",
     "time": "2020-11-01 18:00:10"
-  },
-  {
-    "symbol": "YOYOW-BTC",
-    "exchange": "BINANCE_SPOT",
-    "time": "2018-05-12 18:00:00"
-  },
-  {
-    "symbol": "YOYOW-BTC",
-    "exchange": "BINANCE_SPOT",
-    "time": "2019-08-08 16:00:00"
-  },
-  {
-    "symbol": "YOYOW-BTC",
-    "exchange": "BINANCE_SPOT",
-    "time": "2020-05-14 16:00:00"
-  },
-  {
-    "symbol": "YOYOW-BTC",
-    "exchange": "BINANCE_SPOT",
-    "time": "2020-11-01 18:00:00"
   },
   {
     "symbol": "ZEN-BTC",

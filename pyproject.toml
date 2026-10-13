@@ -6,46 +6,57 @@ authors = [
     {name = "borokoko",email = "mihail.borokoko@gmail.com"}
 ]
 readme = "README.md"
-requires-python = "^3.13"
+requires-python = ">=3.13,<4.0"
 dependencies = [
-    "numpy (>=2.4.3,<3.0.0)",
-    "optuna (>=4.7.0,<5.0.0)",
-    "pandas (>=3.0.1,<4.0.0)",
-    "polars (>=1.38.1,<2.0.0)",
-    "matplotlib (>=3.10.8,<4.0.0)",
+    "numpy (>=2.5.4,<3.0.0)",
+    "optuna (>=5.0.0,<6.0.0)",
+    "pandas (>=3.0.6,<4.0.0)",
+    "polars (>=2.0.0,<3.0.0)",
+    "matplotlib (>=3.11.2,<4.0.0)",
+    "plotly (>=7.1.0,<8.0.0)",
     "catboost (>=1.2.10,<2.0.0)",
-    "scikit-learn (>=1.8.0,<2.0.0)",
-    "requests (>=2.32.5,<3.0.0)",
-    "pyarrow (>=23.0.1,<24.0.0)",
-    "jupyterlab (>=4.5.5,<5.0.0)",
+    "scikit-learn (>=1.9.1,<2.0.0)",
+    "requests (>=2.34.2,<3.0.0)",
+    "pyarrow (>=26.0.0,<27.0.0)",
+    "jupyterlab (>=4.6.4,<5.0.0)",
     "seaborn (>=0.13.2,<0.14.0)",
     "overrides (>=7.7.0,<8.0.0)",
-    "ipywidgets (>=8.1.8,<9.0.0)",
+    "ipywidgets (>=8.1.9,<9.0.0)",
     "imblearn (>=0.0,<0.1)",
-    "scrapy (>=2.14.1,<3.0.0)",
-    "numba (>=0.65.0,<0.66.0)",
-    "pandas-stubs (>=3.0.1,<3.1.0)",
+    "scrapy (>=2.19.0,<3.0.0)",
+    "numba (>=0.68.0,<0.69.0)",
+    "pandas-stubs (>=3.0.5.260914,<3.1.0)",
     "mplfinance (>=0.12.10b0,<0.13.0)",
 ]
 
 
 [build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
+requires = ["poetry-core>=2.5.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
-package-mode = false
+packages = [
+    { include = "pumps_and_dumps", from = "src" },
+    { include = "installer", from = "src" },
+]
+
+[project.scripts]
+pumps-download-trades = "pumps_and_dumps.market_data.parsers.binance.spot_trades:run_main"
+pumps-download-klines = "pumps_and_dumps.market_data.parsers.binance.spot_klines:run_main"
+pumps-write-hive = "pumps_and_dumps.preprocessing.pipelines.binance_spot_trades_to_hive:run_main"
+pumps-compute-features = "pumps_and_dumps.features.writer:main"
 
 [dependency-groups]
 dev = [
-    "black (>=26.3.0,<27.0.0)",
-    "pytest (>=9.0.2,<10.0.0)",
-    "pylint (>=4.0.5,<5.0.0)",
-    "mypy (>=1.19.1,<2.0.0)"
+    "black (>=26.10.1,<27.0.0)",
+    "pytest (>=9.1.1,<10.0.0)",
+    "pylint (>=4.1.2,<5.0.0)",
+    "mypy (>=2.4.0,<3.0.0)"
 ]
 
 [tool.pytest.ini_options]
-pythonpath = ["."]
+testpaths = ["tests"]
+addopts = ["--import-mode=importlib"]
 
 [tool.black]
 line-length = 120

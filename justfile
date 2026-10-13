@@ -5,13 +5,19 @@ set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
 tex_env := 'TEXINPUTS="../styles//:./images//:" TEXFONTS="../styles//:" T1FONTS="../styles//:"'
 
 format-all:
-    poetry run python -m black core features market_data preprocessing backtest test
+    poetry run python -m black src tests
 
 pylint:
-    poetry run python -m pylint core features market_data preprocessing backtest test
+    poetry run python -m pylint src/pumps_and_dumps src/installer tests
 
 mypy:
-    poetry run python -m mypy core features market_data preprocessing backtest test
+    poetry run python -m mypy src/pumps_and_dumps src/installer tests
+
+test:
+    poetry run pytest
+
+prepare-data:
+    ./scripts/install.sh
 
 paper:
     cd paper/src && {{tex_env}} pdflatex -interaction=nonstopmode access.tex && {{tex_env}} pdflatex -interaction=nonstopmode access.tex

@@ -13,6 +13,10 @@ __pycache__/
 catboost_info/
 **/catboost_info/
 
+# Local datasets and downloaded archives
+/data/
+/.pumps-and-dumps.json
+
 # Notebook runtime outputs (keep the runnable notebooks themselves)
 notebooks/analysis_outputs/
 
@@ -24,10 +28,13 @@ paper/*
 !paper/access.pdf
 !paper/access_highlighted.pdf
 
-# Resources — keep only the pump JSON files
+# Resources — keep event labels and the historical download universe
 resources/*
 !resources/pumps.json
+!resources/pump_event_evidence.json
+!resources/pump_event_exclusions.json
 !resources/dropped_pumps.json
+!resources/btc_currencies.json
 
 # Misc
 presentation
