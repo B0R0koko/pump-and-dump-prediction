@@ -30,7 +30,7 @@ from pumps_and_dumps.core.progress import (
 from pumps_and_dumps.core.pump_event import PumpEvent
 from pumps_and_dumps.core.time_utils import Bounds, NamedTimeDelta
 from pumps_and_dumps.core.utils import available_cpu_count, configure_logging
-from pumps_and_dumps.features.audit import FeatureAuditLog
+from pumps_and_dumps.features.audit import AssetInputAudit, FeatureAuditLog
 from pumps_and_dumps.features.calculation import (
     compute_window_features,
     compute_targets,
@@ -41,7 +41,6 @@ from pumps_and_dumps.features.provenance import (
     dependency,
     feature_provenance,
     timestamp_ns,
-    timestamp_range,
     utc_timestamp,
 )
 from pumps_and_dumps.features.schema import FEATURE_SCHEMA_VERSION, REGRESSOR_OFFSETS
@@ -157,13 +156,13 @@ class PumpsFeatureWriter:
             [
                 {
                     "record_type": "run_start",
-                    "audit_schema_version": 1,
+                    "audit_schema_version": 2,
                     "feature_schema_version": FEATURE_SCHEMA_VERSION,
                     "pump_count": len(self._pump_events) if event_count is None else event_count,
                     "decision_lag_seconds": DECISION_LAG.total_seconds(),
                     "normalizer_lookback_seconds": NORMALIZER_LOOKBACK.total_seconds(),
                     "timezone": "UTC",
-                    "interval_convention": "window_start inclusive; window_end_exclusive exclusive; data_end inclusive",
+                    "interval_convention": "actual input bounds inclusive; non_overlapping requires feature_max_time < target_min_time",
                 }
             ]
         )
@@ -179,34 +178,6 @@ class PumpsFeatureWriter:
     @staticmethod
     def _event_context(pump_event: PumpEvent) -> dict[str, Any]:
         return {"pump_hash": pump_event.as_pump_hash(), "pump_time": utc_timestamp(pump_event.time)}
-
-    def _feature_audit_record(
-        self, record: dict[str, Any], currency_pair: CurrencyPair, pump_event: PumpEvent
-    ) -> dict[str, Any]:
-        cutoff = pump_event.time - DECISION_LAG
-        end = record["data_end_ns"]
-        before_cutoff = None if end is None else end < timestamp_ns(cutoff)
-        before_pump = None if end is None else end < timestamp_ns(pump_event.time)
-        if record["role"] == "outcome":
-            status = "OUTCOME"
-        elif before_cutoff is False:
-            status = "LEAKAGE"
-        elif not record["provenance_complete"]:
-            status = "UNKNOWN"
-        elif end is None:
-            status = "NO_DATA"
-        else:
-            status = "OK"
-        return {
-            "record_type": "feature",
-            **self._event_context(pump_event),
-            "asset": currency_pair.name,
-            "decision_cutoff": utc_timestamp(cutoff),
-            **record,
-            "before_cutoff": before_cutoff,
-            "before_pump": before_pump,
-            "status": status,
-        }
 
     def load_data_for_currency_pair(self, bounds: Bounds, currency_pair: CurrencyPair) -> pl.DataFrame:
         """Load only requested partitions, with an exclusive trade-time upper bound."""
@@ -234,19 +205,24 @@ class PumpsFeatureWriter:
         currency_pair: CurrencyPair,
         pump_event: PumpEvent,
     ) -> dict[str, Any]:
-        """Combine past-only predictors with explicitly separate future outcome labels."""
+        """Calculate separate predictor/target inputs and log their bounds once per asset."""
         cutoff = pump_event.time - DECISION_LAG
         self._start_audit()
-        records: list[dict[str, Any]] = []
-        callback = records.append if getattr(self, "_audit_log", None) is not None else None
-        features = compute_window_features(df, cutoff, REGRESSOR_OFFSETS, audit=callback)
+        audit = AssetInputAudit() if getattr(self, "_audit_log", None) is not None else None
+        callback = audit.observe if audit is not None else None
+        # The shared load contains both history and outcome rows. Only the
+        # past-only slice reaches predictor calculations and their normalizers.
+        predictor_trades = df.with_columns(pl.col(TRADE_TIME).cast(pl.Datetime("ns"))).filter(
+            pl.col(TRADE_TIME) < cutoff
+        )
+        features = compute_window_features(predictor_trades, cutoff, REGRESSOR_OFFSETS, audit=callback)
         count = self._num_prev_pumps(currency_pair, pump_event)
         features[FeatureType.NUM_PREV_PUMP.lower()] = count
         if callback is not None:
             known_pumps = self._pump_times_by_currency.get(currency_pair.name, [])[:count]
             start = timestamp_ns(known_pumps[0]) if count else None
             end = timestamp_ns(known_pumps[-1]) if count else None
-            records.append(
+            callback(
                 feature_provenance(
                     FeatureType.NUM_PREV_PUMP.lower(),
                     "predictor",
@@ -256,7 +232,18 @@ class PumpsFeatureWriter:
                 )
             )
         features.update(compute_targets(df, pump_event.time, DECAY_OFFSETS, audit=callback))
-        self._append_audit([self._feature_audit_record(record, currency_pair, pump_event) for record in records])
+        if audit is not None:
+            self._append_audit(
+                [
+                    {
+                        "record_type": "asset_inputs",
+                        **self._event_context(pump_event),
+                        "asset": currency_pair.name,
+                        "decision_cutoff": utc_timestamp(cutoff),
+                        **audit.summary(cutoff),
+                    }
+                ]
+            )
         return features
 
     def _features_for_pair(
@@ -264,31 +251,7 @@ class PumpsFeatureWriter:
     ) -> dict[str, Any] | None:
         ticks = self.load_data_for_currency_pair(bounds=bounds, currency_pair=currency_pair)
         cutoff = pump_event.time - DECISION_LAG
-        eligible = self.has_pre_decision_activity(df_ticks=ticks, rb=cutoff)
-        if getattr(self, "_audit_log", None) is not None:
-            recent = ticks.filter(
-                pl.col(TRADE_TIME)
-                .cast(pl.Datetime("ns"))
-                .is_between(cutoff - ELIGIBILITY_LOOKBACK, cutoff, closed="left")
-            )[TRADE_TIME]
-            start, end = timestamp_range(recent)
-            self._append_audit(
-                [
-                    {
-                        "record_type": "asset_eligibility",
-                        **self._event_context(pump_event),
-                        "asset": currency_pair.name,
-                        "decision_cutoff": utc_timestamp(cutoff),
-                        "window_start": utc_timestamp(cutoff - ELIGIBILITY_LOOKBACK),
-                        "window_end_exclusive": utc_timestamp(cutoff),
-                        "data_start": utc_timestamp(start),
-                        "data_end": utc_timestamp(end),
-                        "n_rows": len(recent),
-                        "status": "included" if eligible else "excluded_no_pre_cutoff_trade",
-                    }
-                ]
-            )
-        if not eligible:
+        if not self.has_pre_decision_activity(df_ticks=ticks, rb=cutoff):
             return None
         trades = self.preprocess_data_for_currency(df=ticks)
         features = self.compute_features(
@@ -301,7 +264,7 @@ class PumpsFeatureWriter:
     def create_cross_section(self, pump_event: PumpEvent, position: int) -> pl.DataFrame | None:
         self._start_audit()
         cutoff = pump_event.time - DECISION_LAG
-        feature_bounds = Bounds(
+        load_bounds = Bounds(
             start_inclusive=cutoff - NORMALIZER_LOOKBACK,
             end_exclusive=pump_event.time + max(window.get_td() for window in DECAY_OFFSETS),
         )
@@ -311,7 +274,7 @@ class PumpsFeatureWriter:
         with worker_progress(unit="pairs", detail=f"{pump_event}: discovering candidates") as progress:
             pairs = self._data_source.currency_pairs(discovery_bounds)
             progress.update(total=len(pairs), force=True)
-            rows = self._collect_cross_section(pairs, pump_event, feature_bounds, position, progress)
+            rows = self._collect_cross_section(pairs, pump_event, load_bounds, position, progress)
             if not any(row["currency_pair"] == pump_event.currency_pair.name for row in rows):
                 progress.update(detail=f"{pump_event}: no pre-decision target data", force=True)
                 return None
@@ -489,7 +452,7 @@ def main(argv: list[str] | None = None):
         "--audit-log",
         type=Path,
         help=(
-            "Append JSON feature timestamp audit records to this .log file "
+            "Append one JSON predictor/target input-range check per pump/asset to this .log file "
             "(default: features/logs/feature_audit_<run>.log; other suffixes become .log)."
         ),
     )

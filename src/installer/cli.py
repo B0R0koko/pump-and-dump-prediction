@@ -114,7 +114,7 @@ def _build_parser() -> argparse.ArgumentParser:
     scope.add_argument(
         "--setup-environment",
         action="store_true",
-        help="Pull current code and install the research dependencies into .venv; no data stages run.",
+        help="Update a clean checkout and install research dependencies into .venv; local edits skip the pull.",
     )
     parser.add_argument(
         "--python",

@@ -105,7 +105,7 @@ jupyter lab
 
 This option needs Git and Python 3.13+; it does not need Docker. Select **Pumps and dumps (.venv)** in Jupyter. The project is installed in editable mode, so imports work from any working directory without setting `PYTHONPATH` or editing shell profiles. The notebook kernel belongs to this environment. Setup verifies imports and dependency consistency, and logs commands and output to `logs/setup-environment-<timestamp>-<pid>.log` using Python's `logging` module.
 
-Updates use a fast-forward pull of the current tracking branch. Local changes, detached revisions, and diverged branches are left intact and reported. To install your current code without updating, including uncommitted edits, use `--no-update`. Select an interpreter with `--python` and preview the commands with `--dry-run`:
+Updates use a fast-forward pull of the current tracking branch. If local changes are present, setup skips the pull, reports this in the console and log, and continues installing the current local code. Your edits and staged files are preserved. Detached revisions and diverged branches stop the update; use `--no-update` to install them as they are. You can also use `--no-update` to skip pulling explicitly on any checkout. Select an interpreter with `--python` and preview the commands with `--dry-run`:
 
 ```bash
 ./scripts/install.sh --setup-environment --no-update
@@ -227,7 +227,7 @@ docker run --rm --init --network none \
   --start 2021-01-01 --end 2022-01-01
 ```
 
-The one-day download example is only a pipeline smoke example: real feature runs require trade history covering the selected pumps, the 30-day normalizer lookback, and the outcome windows. Download the comparison universe, not only the pumped symbols, to build complete cross-sections. The feature date filter does not truncate the underlying trade lookback. Audit logs record actual feature input bounds per pump/asset/feature; cached features are marked as reused. Use `--no-skip-existing` to recompute them and produce fresh feature provenance.
+The one-day download example is only a pipeline smoke example: real feature runs require trade history covering the selected pumps, the 30-day normalizer lookback, and the outcome windows. Download the comparison universe, not only the pumped symbols, to build complete cross-sections. The feature date filter does not truncate the underlying trade lookback. Audit logs record one predictor/target input-range check per pump/asset; cached features are marked as reused. Use `--no-skip-existing` to recompute them and produce fresh input checks.
 
 The same options work outside Docker through `pumps-download-trades`, `pumps-download-klines`, `pumps-write-hive`, and `pumps-compute-features`. `PUMPS_AND_DUMPS_DATA_DIR` changes the shared default data root; explicit stage paths override it.
 
@@ -347,15 +347,22 @@ Every feature-writer run automatically creates a timestamp audit log under `<cho
 poetry run python -m pumps_and_dumps.features.writer --cpu-count 4 --audit-log /tmp/feature-audit.log
 ```
 
-Each `record_type="feature"` line identifies the pump, asset, feature, `pump_time`, and `decision_cutoff` (`pump_time − 15 minutes`). `window_start` and `window_end_exclusive` describe the requested half-open window; `data_start` and `data_end` are the actual earliest and latest input timestamps, inclusive. Timestamps use UTC with nanosecond precision. The `dependencies` list includes previous-price observations used by returns, the past hourly history used by z-score normalizers, or previous pump announcements used by `num_prev_pump`. The actual input range can therefore begin before the nominal feature window.
+Each computed asset in a cross-section produces exactly one `record_type="asset_inputs"` line. It identifies the pump, asset, `pump_time`, and `decision_cutoff` (`pump_time − 15 minutes`), followed by:
 
-For predictors (`role="predictor"`), `status="OK"` means all recorded inputs precede the decision cutoff; `LEAKAGE` identifies an input at or after it. `NO_DATA` reports no input observations, and `UNKNOWN` reports incomplete timestamp provenance rather than claiming a safe range. `before_cutoff` and `before_pump` provide explicit checks against both boundaries. Forward-looking `target_return@...` labels have `role="outcome"` and `status="OUTCOME"`; they intentionally use post-announcement observations and are excluded from model features. Candidate eligibility and event completion are logged separately.
+- `feature_max_time`: the latest actual input timestamp across the asset's predictors, including normalizer history and prior-pump announcements.
+- `target_min_time`: the earliest actual input timestamp across its target-return calculations, including the previous trade used as the starting price.
+- `non_overlapping`: whether `feature_max_time < target_min_time`; equal timestamps count as overlap.
+- `features_before_cutoff`: whether every predictor input precedes the decision cutoff.
 
-To view only predictor ranges as tab-separated rows, or find violations/incomplete records:
+One asset load contains both history and outcome rows. Predictors receive an explicit past-only slice; targets use their separate announcement windows and starting prices. The log compares actual inputs, rather than treating the combined file load as predictor data. Timestamps retain nanosecond precision. Per-feature and eligibility records are no longer written.
+
+`status="OK"` means both checks pass with complete timestamp provenance. `LEAKAGE` flags a predictor input at or after the cutoff; `OVERLAP` flags a shared or crossing input boundary. A shared historical starting price can cause overlap without future data entering predictors; target definitions and numerical results are unchanged. `UNKNOWN` means a dependency timestamp is missing, and `NO_DATA` means one input range is empty. An unverified check is `null`, never a fabricated success. Run and event completion records remain available, including errors and reused caches.
+
+To inspect one row per pump/asset, or find checks needing review:
 
 ```bash
-jq -r 'select(.record_type == "feature" and .role == "predictor") | [.pump_time, .asset, .feature, .data_start, .data_end, .decision_cutoff, .status] | @tsv' /tmp/feature-audit.log
-jq 'select(.record_type == "feature" and .role == "predictor" and (.status == "LEAKAGE" or .status == "UNKNOWN"))' /tmp/feature-audit.log
+jq -r 'select(.record_type == "asset_inputs") | [.pump_time, .asset, .feature_max_time, .target_min_time, .non_overlapping, .features_before_cutoff, .status] | @tsv' /tmp/feature-audit.log
+jq 'select(.record_type == "asset_inputs" and .status != "OK")' /tmp/feature-audit.log
 ```
 
 Records are flushed after each asset and appended under a file lock so parallel workers cannot interleave JSON lines. Reusing an existing feature file with `--skip-existing` records `status="reused"` and `audit_provenance="not_recomputed"`; rerun without that flag to obtain input timestamps for previously cached features. A `run_end` record confirms normal completion; failed runs record `run_error` when the error can be handled.

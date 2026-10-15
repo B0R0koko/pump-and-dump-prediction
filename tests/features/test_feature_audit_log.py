@@ -22,7 +22,6 @@ from pumps_and_dumps.core.currency_pair import CurrencyPair
 from pumps_and_dumps.core.exchange import Exchange
 from pumps_and_dumps.core.pump_event import PumpEvent
 from pumps_and_dumps.core.time_utils import Bounds
-from pumps_and_dumps.features.schema import regressor_columns
 from pumps_and_dumps.features.audit import FeatureAuditLog
 from pumps_and_dumps.features.source import HiveTradeSource
 from pumps_and_dumps.features.writer import DECISION_LAG, PumpsFeatureWriter
@@ -70,8 +69,9 @@ def _records(path: Path) -> list[dict]:
     return [json.loads(line) for line in lines]
 
 
-def _features(records: list[dict]) -> list[dict]:
-    return [record for record in records if record["record_type"] == "feature"]
+def _asset_inputs(records: list[dict]) -> list[dict]:
+    """Select the single temporal summary written for each computed asset."""
+    return [record for record in records if record["record_type"] == "asset_inputs"]
 
 
 @pytest.mark.parametrize("filename", ["audit", "audit.jsonl", "audit.log"])
@@ -134,59 +134,40 @@ def test_audit_write_failure_propagates_and_releases_file(tmp_path, monkeypatch)
 
 
 def _assert_complete_event_audit(records: list[dict], events: list[PumpEvent]) -> None:
-    """Check coverage against the saved feature catalog, plus explicit causal bounds."""
-    predictors = set(regressor_columns())
-    outcomes = {f"target_return@{minutes}MIN" for minutes in range(1, 6)}
-    assert len(predictors) == 81
-    features = _features(records)
-    assert len(features) == len(events) * 2 * 86
+    """Require exactly one truthful, compact temporal check per pump and asset."""
+    inputs = _asset_inputs(records)
+    assert len(inputs) == len(events) * 2
     assert len({record["run_id"] for record in records}) == 1
+    assert not any(record["record_type"] in {"feature", "asset_eligibility"} for record in records)
     for event in events:
+        cutoff = event.time - DECISION_LAG
         for asset in ("AAA-BTC", "BBB-BTC"):
-            matching = [r for r in features if r["pump_hash"] == str(event) and r["asset"] == asset]
-            assert len(matching) == 86
-            assert {record["feature"] for record in matching} == predictors | outcomes
-            for record in matching:
-                assert record["pump_time"] == f"{event.time.isoformat()}.000000000Z"
-                assert record["decision_cutoff"] == f"{(event.time - DECISION_LAG).isoformat()}.000000000Z"
-                assert record["provenance_complete"] is True
-                assert {
-                    "data_start",
-                    "data_end",
-                    "dependencies",
-                    "window_start",
-                    "window_end_exclusive",
-                } <= record.keys()
-                if record["feature"] in predictors:
-                    assert record["role"] == "predictor"
-                    assert record["status"] in {"OK", "NO_DATA"}
-                    if record["data_end"] is not None:
-                        assert record["before_cutoff"] is True
-                        assert record["before_pump"] is True
-                        assert record["data_start"] <= record["data_end"] < record["decision_cutoff"]
-                    else:
-                        assert record["status"] == "NO_DATA"
-                        assert record["data_start"] is None
-                        assert record["before_cutoff"] is None
-                        assert record["before_pump"] is None
-                    assert record["window_end_exclusive"] <= record["decision_cutoff"]
-                else:
-                    assert record["role"] == "outcome"
-                    assert record["status"] == "OUTCOME"
-                    assert record["data_end"] > record["pump_time"]
+            matching = [r for r in inputs if r["pump_hash"] == str(event) and r["asset"] == asset]
+            assert len(matching) == 1
+            record = matching[0]
+            assert record["pump_time"] == f"{event.time.isoformat()}.000000000Z"
+            assert record["decision_cutoff"] == f"{cutoff.isoformat()}.000000000Z"
+            assert record["feature_max_time"] == f"{(cutoff - timedelta(minutes=1)).isoformat()}.000000000Z"
+            assert record["target_min_time"] == f"{cutoff.isoformat()}.000000000Z"
+            assert record["provenance_complete"] is True
+            assert record["non_overlapping"] is True
+            assert record["features_before_cutoff"] is True
+            assert record["status"] == "OK"
+            assert "dependencies" not in record
+            assert "feature" not in record
 
 
-def test_default_log_covers_every_asset_and_feature_with_actual_input_times(tmp_path: Path) -> None:
-    """A real sequential run must automatically leave a complete causal audit.
+def test_default_log_summarizes_actual_inputs_once_per_asset(tmp_path: Path) -> None:
+    """A two-asset run reports actual feature and target bounds in two records.
 
-    Two BTC assets are present for a noon pump. Both have trades at 11:41 and
-    11:44, then an extreme 11:45 trade exactly at the decision cutoff. The saved
-    five-minute trade count must be two, and its log must name 11:41--11:44 as
-    actual input bounds and 11:40--11:45 as the half-open requested window.
-    Every one of 81 predictors and five outcomes must have its own record for
-    each asset. Future outcome inputs are explicitly marked OUTCOME, while all
-    predictor endpoints precede the decision cutoff. This catches missing
-    feature/asset rows and logging a requested window as if it were actual data.
+    Both assets have predictor trades at 11:41 and 11:44, followed by a trade
+    at the 11:45 decision cutoff and a target trade after the noon pump. The
+    target return uses that 11:45 price as its denominator, so the audit must
+    report feature_max_time=11:44 and target_min_time=11:45, rather than hiding
+    the target baseline behind the noon window boundary. Both strict separation
+    checks must be true. Saved five-minute trade counts stay unchanged,
+    and the complete log stays below 5 KB instead of repeating 86 feature rows
+    for each asset. Lifecycle and event records remain available for inspection.
     """
     source, events = _tiny_hive(tmp_path / "hive")
     feature_dir = tmp_path / "features"
@@ -200,21 +181,17 @@ def test_default_log_covers_every_asset_and_feature_with_actual_input_times(tmp_
 
     records = _records(writer.audit_log_path)
     assert records[0]["record_type"] == "run_start"
+    assert records[0]["audit_schema_version"] == 2
     assert records[-1]["record_type"] == "run_end"
     _assert_complete_event_audit(records, events[:1])
     event_records = [r for r in records if r["record_type"] == "event"]
     assert [(r["pump_hash"], r["status"]) for r in event_records] == [(str(events[0]), "written")]
-    count = next(r for r in _features(records) if r["asset"] == "AAA-BTC" and r["feature"] == "num_trades@5MIN")
-    assert count["window_start"] == "2021-06-01T11:40:00.000000000Z"
-    assert count["window_end_exclusive"] == "2021-06-01T11:45:00.000000000Z"
-    assert count["data_start"] == "2021-06-01T11:41:00.000000000Z"
-    assert count["data_end"] == "2021-06-01T11:44:00.000000000Z"
     saved = pl.read_parquet(feature_dir / "pumps" / f"{events[0]}.parquet")
     assert saved["num_trades@5MIN"].to_list() == [2, 2]
-    for record in _features(records):
-        for key in ("pump_time", "decision_cutoff", "data_start", "data_end"):
-            if record[key] is not None:
-                assert re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{9}Z", record[key])
+    assert writer.audit_log_path.stat().st_size < 5_000
+    for record in _asset_inputs(records):
+        for key in ("pump_time", "decision_cutoff", "feature_max_time", "target_min_time"):
+            assert re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{9}Z", record[key])
 
 
 @pytest.mark.parametrize("entrypoint", ["create_cross_section", "compute_features"])
@@ -223,9 +200,9 @@ def test_direct_calculation_entrypoints_also_start_an_audit(tmp_path: Path, entr
 
     Use the same two-asset Hive fixture through a normally constructed writer,
     but omit run/run_parallel. A cross-section call computes both assets and
-    therefore writes 172 feature records; a direct computation of AAA alone
-    writes 86. The explicit log path starts absent and is created on first use,
-    with run metadata and the real pump/asset identifiers on every feature.
+    therefore writes two asset summaries; a direct computation of AAA alone
+    writes one. The explicit log path starts absent and is created on first use,
+    with run metadata and the real pump/asset identifiers on each summary.
     This guards notebook and programmatic callers as well as the command line.
     """
     source, events = _tiny_hive(tmp_path / "hive")
@@ -247,10 +224,11 @@ def test_direct_calculation_entrypoints_also_start_an_audit(tmp_path: Path, entr
         expected_assets = {"AAA-BTC"}
     records = _records(destination)
     assert records[0]["record_type"] == "run_start"
-    features = _features(records)
-    assert len(features) == 86 * len(expected_assets)
-    assert {record["asset"] for record in features} == expected_assets
-    assert {record["pump_hash"] for record in features} == {str(events[0])}
+    inputs = _asset_inputs(records)
+    assert len(inputs) == len(expected_assets)
+    assert {record["asset"] for record in inputs} == expected_assets
+    assert {record["pump_hash"] for record in inputs} == {str(events[0])}
+    assert all(record["non_overlapping"] is True for record in inputs)
 
 
 def test_parallel_workers_append_complete_records_to_one_log(tmp_path: Path) -> None:
@@ -258,9 +236,9 @@ def test_parallel_workers_append_complete_records_to_one_log(tmp_path: Path) -> 
 
     The fixture has a noon AAA pump and a 14:00 BBB pump, each with the same two
     eligible assets. Run the actual multiprocessing path with two workers and
-    require exactly 344 feature records, one shared run identifier, both written
+    require exactly four asset summaries, one shared run identifier, both written
     event statuses, and both saved Parquets. Parsing every JSON line detects
-    interleaved writes; exact per-event/asset feature coverage detects records
+    interleaved writes; exact per-event/asset coverage detects records
     lost or duplicated while workers concurrently append to the same file.
     """
     source, events = _tiny_hive(tmp_path / "hive")
@@ -286,7 +264,7 @@ def test_reused_cache_is_marked_not_recomputed_without_inventing_provenance(tmp_
     First write a real current-schema cache from the two-asset fixture, then
     construct a second writer with a separate audit destination and resume with
     skip_existing=True. The second log must say that the event was reused and
-    its provenance was not recomputed; it must contain no per-feature records.
+    its provenance was not recomputed; it must contain no asset-input summaries.
     Byte-for-byte preservation of the cache additionally proves the resume path
     really skipped computation instead of hiding an unexpected rewrite.
     """
@@ -305,7 +283,7 @@ def test_reused_cache_is_marked_not_recomputed_without_inventing_provenance(tmp_
     resumed.run(events[:1], skip_existing=True)
 
     records = _records(resumed.audit_log_path)
-    assert not _features(records)
+    assert not _asset_inputs(records)
     event_records = [record for record in records if record["record_type"] == "event"]
     assert len(event_records) == 1
     assert event_records[0]["pump_hash"] == str(events[0])
@@ -316,17 +294,17 @@ def test_reused_cache_is_marked_not_recomputed_without_inventing_provenance(tmp_
 
 @pytest.mark.parametrize("lag_timestamp", ["future", "missing"])
 def test_audit_flags_unsafe_or_untraceable_lag_dependencies(tmp_path: Path, lag_timestamp: str) -> None:
-    """A past-looking window must not hide a future or untraceable lagged price.
+    """The asset summary includes lagged prices, not just visible trade rows.
 
-    Calculate the noon pump's features from the normal prepared fixture after
-    deliberately damaging only timestamp provenance. In one case, the price
-    used as the five-minute return's initial denominator claims to come from
-    12:30, after both the 11:45 decision and noon pump. In the other case, remove
-    the lag timestamp column entirely while retaining the numerical lag price.
-    The first audit must show LEAKAGE, a 12:30 actual data endpoint, and false
-    cutoff/pump checks; the second must show UNKNOWN and incomplete provenance.
-    The unaffected trade-count feature stays OK in both cases. This proves the
-    audit examines dependencies instead of simply certifying the nominal window.
+    Calculate the noon pump's features after damaging only lag provenance.
+    In the future case, the five-minute return's denominator claims a 12:30
+    timestamp, beyond the 11:45 decision cutoff and the 11:45 target baseline.
+    The single asset summary must report LEAKAGE, the true 12:30 maximum, and
+    false cutoff/separation checks. When the lag timestamp column is missing,
+    the summary must instead report UNKNOWN with incomplete provenance and
+    null checks; nominal window boundaries cannot certify unknown inputs.
+    Numerical features still run, so this tests audit evidence independently
+    of the return calculation rather than causing an unrelated schema error.
     """
     source, events = _tiny_hive(tmp_path / "hive")
     writer = PumpsFeatureWriter(events, data_source=source, feature_dir=tmp_path / "features")
@@ -343,19 +321,55 @@ def test_audit_flags_unsafe_or_untraceable_lag_dependencies(tmp_path: Path, lag_
     else:
         trades = trades.drop("trade_time_prev")
 
-    writer.compute_features(trades, event.currency_pair, event)
+    features = writer.compute_features(trades, event.currency_pair, event)
 
-    by_feature = {record["feature"]: record for record in _features(_records(writer.audit_log_path))}
-    returned = by_feature["asset_return@5MIN"]
+    inputs = _asset_inputs(_records(writer.audit_log_path))
+    assert len(inputs) == 1
+    record = inputs[0]
     if lag_timestamp == "future":
-        assert returned["status"] == "LEAKAGE"
-        assert returned["data_end"] == "2021-06-01T12:30:00.000000000Z"
-        assert returned["before_cutoff"] is False
-        assert returned["before_pump"] is False
+        assert record["status"] == "LEAKAGE"
+        assert record["feature_max_time"] == "2021-06-01T12:30:00.000000000Z"
+        assert record["features_before_cutoff"] is False
+        assert record["non_overlapping"] is False
     else:
-        assert returned["status"] == "UNKNOWN"
-        assert returned["provenance_complete"] is False
-    assert by_feature["num_trades@5MIN"]["status"] == "OK"
+        assert record["status"] == "UNKNOWN"
+        assert record["provenance_complete"] is False
+        assert record["features_before_cutoff"] is None
+        assert record["non_overlapping"] is None
+    assert features["num_trades@5MIN"] == 2
+
+
+def test_target_baseline_shared_with_predictors_is_reported_as_overlap(tmp_path: Path) -> None:
+    """A sparse target's previous-price denominator counts as a shared input.
+
+    Remove the noon pump's 11:45 trade so its first target trade at 12:00:30
+    has to use the 11:44 price (12) as the return baseline. That same 11:44 row
+    is the last predictor input. Even though every predictor strictly precedes
+    the cutoff and the target window starts at noon, equality of actual input
+    endpoints must produce OVERLAP and non_overlapping=False. The target's
+    numerical return remains (2000 / 12 - 1) * 10000; logging must expose this
+    existing calculation rather than silently changing its financial meaning.
+    """
+    source, events = _tiny_hive(tmp_path / "hive")
+    writer = PumpsFeatureWriter(events, data_source=source, feature_dir=tmp_path / "features")
+    event = events[0]
+    ticks = source.load(Bounds(datetime(2021, 6, 1), datetime(2021, 6, 2)), event.currency_pair)
+    ticks = ticks.filter(pl.col(TRADE_TIME) != event.time - DECISION_LAG)
+    trades = writer.preprocess_data_for_currency(ticks)
+
+    features = writer.compute_features(trades, event.currency_pair, event)
+
+    inputs = _asset_inputs(_records(writer.audit_log_path))
+    assert len(inputs) == 1
+    record = inputs[0]
+    assert record["feature_max_time"] == "2021-06-01T11:44:00.000000000Z"
+    assert record["target_min_time"] == record["feature_max_time"]
+    assert record["features_before_cutoff"] is True
+    assert record["non_overlapping"] is False
+    assert record["provenance_complete"] is True
+    assert record["status"] == "OVERLAP"
+    assert features["num_trades@5MIN"] == 2
+    assert features["target_return@1MIN"] == pytest.approx((2_000 / 12 - 1) * 10_000)
 
 
 def test_cli_passes_custom_audit_path_to_writer(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
