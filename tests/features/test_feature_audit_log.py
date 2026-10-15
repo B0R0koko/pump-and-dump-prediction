@@ -7,6 +7,7 @@ Parquet writes, and JSON-lines output are exercised without market data access.
 """
 
 import json
+import logging
 import re
 import sys
 from datetime import datetime, timedelta
@@ -22,6 +23,7 @@ from pumps_and_dumps.core.exchange import Exchange
 from pumps_and_dumps.core.pump_event import PumpEvent
 from pumps_and_dumps.core.time_utils import Bounds
 from pumps_and_dumps.features.schema import regressor_columns
+from pumps_and_dumps.features.audit import FeatureAuditLog
 from pumps_and_dumps.features.source import HiveTradeSource
 from pumps_and_dumps.features.writer import DECISION_LAG, PumpsFeatureWriter
 
@@ -70,6 +72,65 @@ def _records(path: Path) -> list[dict]:
 
 def _features(records: list[dict]) -> list[dict]:
     return [record for record in records if record["record_type"] == "feature"]
+
+
+@pytest.mark.parametrize("filename", ["audit", "audit.jsonl", "audit.log"])
+def test_audit_uses_log_suffix_and_logging_file_handler(tmp_path, monkeypatch, filename):
+    """Custom audit names produce .log files with unchanged JSON provenance.
+
+    Capture actual standard FileHandler emissions while appending two batches.
+    Both original records must be present exactly once, with the same run ID,
+    and every short-lived handler must be closed. This proves the audit uses
+    Python logging without duplicate handlers or changing its parseable format.
+    """
+    audit = FeatureAuditLog.for_run(tmp_path, tmp_path / filename)
+    emitted = []
+    original_emit = logging.FileHandler.emit
+
+    def capture_emit(handler, record):
+        emitted.append((handler, record))
+        original_emit(handler, record)
+
+    monkeypatch.setattr(logging.FileHandler, "emit", capture_emit)
+    audit.append([{"record_type": "run_start"}])
+    audit.append([{"record_type": "run_end"}])
+    assert audit.path == tmp_path / "audit.log"
+    records = _records(audit.path)
+    assert [record["record_type"] for record in records] == ["run_start", "run_end"]
+    assert {record["run_id"] for record in records} == {audit.run_id}
+    assert len(emitted) == 2
+    assert all(handler.stream is None for handler, _record in emitted)
+
+
+def test_audit_write_failure_propagates_and_releases_file(tmp_path, monkeypatch):
+    """A feature run must fail visibly when an audit record cannot be written.
+
+    Make the real log file's write method raise OSError, keeping its actual file
+    descriptor so the process lock is exercised. The exception must escape
+    logging and the file must close; a subsequent normal append must succeed,
+    proving the failed attempt left no held lock or fabricated record behind.
+    """
+    audit = FeatureAuditLog.for_run(tmp_path)
+    opened = []
+    original_open = logging.FileHandler._open
+
+    def failing_open(handler):
+        stream = original_open(handler)
+        opened.append(stream)
+
+        def failed_write(_message):
+            raise OSError("disk full")
+
+        monkeypatch.setattr(stream, "write", failed_write)
+        return stream
+
+    with monkeypatch.context() as patched:
+        patched.setattr(logging.FileHandler, "_open", failing_open)
+        with pytest.raises(OSError, match="disk full"):
+            audit.append([{"record_type": "run_start"}])
+    assert all(stream.closed for stream in opened)
+    audit.append([{"record_type": "run_end"}])
+    assert [record["record_type"] for record in _records(audit.path)] == ["run_end"]
 
 
 def _assert_complete_event_audit(records: list[dict], events: list[PumpEvent]) -> None:
@@ -133,7 +194,7 @@ def test_default_log_covers_every_asset_and_feature_with_actual_input_times(tmp_
 
     assert writer.audit_log_path.parent == feature_dir / "logs"
     assert writer.audit_log_path.name.startswith("feature_audit_")
-    assert writer.audit_log_path.suffix == ".jsonl"
+    assert writer.audit_log_path.suffix == ".log"
     assert not writer.audit_log_path.exists()
     writer.run(events[:1])
 
@@ -168,7 +229,7 @@ def test_direct_calculation_entrypoints_also_start_an_audit(tmp_path: Path, entr
     This guards notebook and programmatic callers as well as the command line.
     """
     source, events = _tiny_hive(tmp_path / "hive")
-    destination = tmp_path / "custom" / "audit.jsonl"
+    destination = tmp_path / "custom" / "audit.log"
     writer = PumpsFeatureWriter(
         events, data_source=source, feature_dir=tmp_path / "features", audit_log_path=destination
     )
@@ -204,7 +265,7 @@ def test_parallel_workers_append_complete_records_to_one_log(tmp_path: Path) -> 
     """
     source, events = _tiny_hive(tmp_path / "hive")
     feature_dir = tmp_path / "features"
-    destination = tmp_path / "shared" / "parallel.jsonl"
+    destination = tmp_path / "shared" / "parallel.log"
     writer = PumpsFeatureWriter(events, data_source=source, feature_dir=feature_dir, audit_log_path=destination)
     writer.run_parallel(cpu_count=2)
 
@@ -239,7 +300,7 @@ def test_reused_cache_is_marked_not_recomputed_without_inventing_provenance(tmp_
         events,
         data_source=source,
         feature_dir=feature_dir,
-        audit_log_path=tmp_path / "resumed.jsonl",
+        audit_log_path=tmp_path / "resumed.log",
     )
     resumed.run(events[:1], skip_existing=True)
 
@@ -300,14 +361,14 @@ def test_audit_flags_unsafe_or_untraceable_lag_dependencies(tmp_path: Path, lag_
 def test_cli_passes_custom_audit_path_to_writer(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The user-facing --audit-log option must reach the writer unchanged.
 
-    Invoke the real argument parser with a nested JSONL path, two workers, and
+    Invoke the real argument parser with a nested .log path, two workers, and
     skip_existing. Replace pump loading and the writer with small recording
     doubles so the test cannot launch a production rebuild. The constructor
     must receive the requested Path and event list, and run_parallel must keep
     its independently requested worker/resume options. This catches a CLI flag
     that parses successfully but never configures the actual audit destination.
     """
-    destination = tmp_path / "custom" / "audit.jsonl"
+    destination = tmp_path / "custom" / "audit.log"
     captured = {}
     events = [PumpEvent(CurrencyPair.from_string("AAA-BTC"), datetime(2021, 6, 1, 12), Exchange.BINANCE_SPOT)]
 

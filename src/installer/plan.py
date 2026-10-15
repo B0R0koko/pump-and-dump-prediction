@@ -42,9 +42,7 @@ class StageOption:
     key: str
     title: str
     description: str
-    module: str
     options: Callable[[StageSettings], list[str]]
-    manifest: str | None = None
     prerequisite: StageInput | None = None
 
 
@@ -89,22 +87,18 @@ STAGES = (
         "trades",
         "Trade archives",
         "Verify BTC-pair ZIPs; download missing or damaged files.",
-        "pumps_and_dumps.market_data.parsers.binance.spot_trades",
         _trade_options,
-        manifest="btc_currencies.json",
     ),
     StageOption(
         "candles",
         "BTC/USDT candles",
         "Verify 1-minute candle ZIPs; download missing or damaged files.",
-        "pumps_and_dumps.market_data.parsers.binance.spot_klines",
         _candle_options,
     ),
     StageOption(
         "parquet",
         "Hive Parquet",
         "Convert trade ZIPs into date/symbol partitions.",
-        "pumps_and_dumps.preprocessing.pipelines.binance_spot_trades_to_hive",
         _parquet_options,
         prerequisite=StageInput(
             "trades",
@@ -117,9 +111,7 @@ STAGES = (
         "features",
         "Event features",
         "Compute features from the existing Hive trades.",
-        "pumps_and_dumps.features.writer",
         _feature_options,
-        manifest="pumps.json",
         prerequisite=StageInput(
             "parquet",
             "transformed/binance/spot/trades",

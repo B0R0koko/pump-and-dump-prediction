@@ -1,4 +1,3 @@
-from datetime import timedelta
 from typing import Dict, List, Optional, Sequence, Tuple
 
 import matplotlib.pyplot as plt
@@ -9,7 +8,6 @@ import pandas as pd
 import seaborn as sns
 from sklearn.metrics import precision_recall_curve, PrecisionRecallDisplay, auc
 
-from pumps_and_dumps.backtest.datasets.sample import Dataset
 from pumps_and_dumps.core.feature_type import FeatureType
 from pumps_and_dumps.core.time_utils import NamedTimeDelta
 
@@ -43,7 +41,7 @@ def plot_precision_recall(
     for f_score in f_scores:
         x = np.linspace(0.01, 1)
         y = f_score * x / (2 * x - f_score)
-        (l,) = ax.plot(x[y >= 0], y[y >= 0], color="blue", alpha=0.2)
+        ax.plot(x[y >= 0], y[y >= 0], color="blue", alpha=0.2)
         ax.annotate("f1={0:0.1f}".format(f_score), xy=(0.9, y[45] + 0.02))  # type: ignore
 
     plt.legend(loc="upper right")

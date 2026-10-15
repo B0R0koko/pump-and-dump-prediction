@@ -4,17 +4,19 @@ from collections import deque
 from contextlib import contextmanager
 import os
 import json
+import logging
 from pathlib import Path
 import re
 import selectors
 import signal
 import subprocess
 import time
-from typing import BinaryIO, Callable, Protocol
+from typing import Callable, Protocol
 
 from pumps_and_dumps.core.progress import PROGRESS_FD_ENV
 from installer.state import Stage
 from installer.containers import cleanup_container
+from installer.logging_utils import file_logger
 
 _ANSI = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 
@@ -56,36 +58,49 @@ def stop_process_group(process: subprocess.Popen) -> None:
 class _StageOutput:
     """Decode the two child streams and retain bounded log/progress buffers."""
 
-    def __init__(self, stage: Stage, logs: deque, log_file: BinaryIO):
+    def __init__(self, stage: Stage, logs: deque, logger: logging.Logger, echo: Callable[[str], None] | None = None):
         self.stage = stage
         self.logs = logs
-        self.log_file = log_file
+        self.logger = logger
+        self.echo = echo
         self.buffers: dict[str, bytes] = {}
 
     def feed(self, channel: str, chunk: bytes) -> None:
-        if channel == "log" and chunk:
-            self.log_file.write(chunk)
-            self.log_file.flush()
         buffer = self.buffers.get(channel, b"") + chunk
         lines = buffer.split(b"\n")
         remainder = lines.pop()
         if not chunk and remainder:
             lines.append(remainder)
             remainder = b""
+        # Bound unfinished lines without silently dropping their log content.
+        # Complete JSON progress messages still follow the ordinary line path.
+        if len(remainder) > 16384 and channel == "log":
+            lines.append(remainder)
+            remainder = b""
         self.buffers[channel] = remainder[-16384:]
         for line in lines:
             if channel == "progress":
                 self.stage.receive(line)
-            elif self.stage.progress_stdout and self._is_progress(line):
+                continue
+            message = clean_line(line.decode("utf-8", errors="replace"))
+            self.logger.info("%s", message)
+            if self.stage.progress_stdout and self._is_progress(line):
                 self.stage.receive(line)
             else:
-                self.logs.append(clean_line(line.decode("utf-8", errors="replace"))[-2000:])
+                if self.echo is not None:
+                    self.echo(message)
+                self.logs.append(message[-2000:])
+
+    def flush(self) -> None:
+        """Preserve an unterminated final line, including when a stage is stopped."""
+        for channel in list(self.buffers):
+            self.feed(channel, b"")
 
     @staticmethod
     def _is_progress(line: bytes) -> bool:
         try:
             event = json.loads(line)
-        except (ValueError, UnicodeDecodeError):
+        except ValueError:
             return False
         return isinstance(event, dict) and isinstance(event.get("task"), str) and "completed" in event
 
@@ -162,21 +177,26 @@ def monitor_stage(
     log_path: Path,
     logs: deque,
     tick: Callable[[], object],
+    echo: Callable[[str], None] | None = None,
 ) -> int:
     """Run one stage while independently draining its logs and progress."""
     stage.status = "running"
     stage.started = stage.last_update = time.monotonic()
     try:
         with (
-            log_path.open("wb") as log_file,
+            file_logger(log_path) as logger,
             _stage_process(stage.command, root, environment) as (
                 process,
                 progress_read,
             ),
         ):
             stage.pid = process.pid
-            _drain_output(process, progress_read, _StageOutput(stage, logs, log_file), tick)
-            code = process.wait()
+            output = _StageOutput(stage, logs, logger, echo)
+            try:
+                _drain_output(process, progress_read, output, tick)
+                code = process.wait()
+            finally:
+                output.flush()
         stage.status = "done" if code == 0 else "failed"
         return code
     except KeyboardInterrupt:

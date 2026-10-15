@@ -95,12 +95,33 @@ The final manuscript is in `paper/src/access.tex`, with the compiled paper at `p
 
 ### 1. Environment
 
+Use the installer to update the current Git branch and install the runtime and development dependencies from `pyproject.toml` into a local `.venv`:
+
+```bash
+./scripts/install.sh --setup-environment
+source .venv/bin/activate
+jupyter lab
+```
+
+This option needs Git and Python 3.13+; it does not need Docker. Select **Pumps and dumps (.venv)** in Jupyter. The project is installed in editable mode, so imports work from any working directory without setting `PYTHONPATH` or editing shell profiles. The notebook kernel belongs to this environment. Setup verifies imports and dependency consistency, and logs commands and output to `logs/setup-environment-<timestamp>-<pid>.log` using Python's `logging` module.
+
+Updates use a fast-forward pull of the current tracking branch. Local changes, detached revisions, and diverged branches are left intact and reported. To install your current code without updating, including uncommitted edits, use `--no-update`. Select an interpreter with `--python` and preview the commands with `--dry-run`:
+
+```bash
+./scripts/install.sh --setup-environment --no-update
+./scripts/install.sh --setup-environment --python /path/to/python3.13 --dry-run
+```
+
+Setup reuses a valid `.venv`; it never clears an existing directory. After pulling changed code, it continues with the updated installer before installing dependencies. The launcher itself only requires Python 3.10+ and the standard library.
+
+Poetry remains an alternative:
+
 ```bash
 # Python 3.13 with Poetry
 poetry install
 ```
 
-Research and notebook commands use this Poetry environment. The Docker pipeline and installer below do not require Poetry or the research dependencies on the host.
+Research examples below use `poetry run`. When using the installer-created environment, activate `.venv` and omit that prefix. The Docker pipeline does not require Poetry or the research dependencies on the host.
 
 `poetry install` installs the `src/pumps_and_dumps/` research package and the `src/installer/` installer package in editable mode. Research imports start with `pumps_and_dumps`, for example `from pumps_and_dumps.features.writer import PumpsFeatureWriter`. Use the Python kernel from this Poetry environment for notebooks; imports work from `notebooks/` without modifying Python's import path. After updating an existing checkout to this layout, run `poetry install` again and restart the notebook kernel.
 
@@ -108,19 +129,19 @@ The installed CLI commands are `pumps-download-trades`, `pumps-download-klines`,
 
 #### Run the pipeline in Docker
 
-Three images on Docker Hub provide the dependencies needed for downloading, preprocessing, and feature generation. The dataloader repository is public. The preprocessor and feature-writer repositories currently require an authorized Docker Hub account; run `docker login` before pulling them. Pull the current images with:
+Three public repositories on Docker Hub provide the images for downloading, preprocessing, and feature generation. Pull the current images with:
 
 ```bash
 docker pull b0r0koko/pds-dataloader:latest
-docker pull b0r0koko/pdf-preprocessor:latest
-docker pull b0r0koko/pdf-feature-writer:latest
+docker pull b0r0koko/pds-preprocessor:latest
+docker pull b0r0koko/pds-feature-writer:latest
 ```
 
 | Docker Hub image | Invocation after the image name | Purpose |
 | --- | --- | --- |
 | `b0r0koko/pds-dataloader:latest` | `[options]` | Download Binance daily trade ZIPs; override the entrypoint for candles |
-| `b0r0koko/pdf-preprocessor:latest` | `[options]` | Convert trade ZIPs into Hive-partitioned Parquet |
-| `b0r0koko/pdf-feature-writer:latest` | `[options]` | Generate pump features and timestamp audit logs |
+| `b0r0koko/pds-preprocessor:latest` | `[options]` | Convert trade ZIPs into Hive-partitioned Parquet |
+| `b0r0koko/pds-feature-writer:latest` | `[options]` | Generate pump features and timestamp audit logs |
 
 The published images target **Linux/amd64**. All stages share a mounted `/data` directory; downloaded data, personal configuration, notebooks, and credentials are excluded from the images. Each Dockerfile names its CLI directly as the entrypoint; there is no wrapper script. Running any image without arguments prints help. For example, run `docker run --rm b0r0koko/pds-dataloader:latest --help`. Use Docker's `--entrypoint` option to run a different command, such as `--entrypoint python`.
 
@@ -158,7 +179,7 @@ docker run --rm --init --network none \
   --user "$(id -u):$(id -g)" \
   --mount "type=bind,source=$(pwd)/market-data,target=/data" \
   --mount "type=bind,source=$(pwd)/configs,target=/config,readonly" \
-  b0r0koko/pdf-preprocessor:latest --config /config/hive.conf
+  b0r0koko/pds-preprocessor:latest --config /config/hive.conf
 ```
 
 The ZIPs appear under `market-data/raw/binance/spot/trades/` and Parquet under `market-data/transformed/binance/spot/trades/`. The container defaults to non-root UID 1000. Matching your host UID/GID keeps bind-mounted files owned by you; the data directory must be writable by that user. Parser failures return a nonzero exit code. `--skip-existing` verifies archive sizes and full CRCs, repairing missing or damaged downloads.
@@ -186,7 +207,7 @@ pumps = [
 ]
 hive-dir = "/data/transformed/binance/spot/trades"
 feature-dir = "/data/features"
-audit-log = "/data/features/logs/feature-audit.jsonl"
+audit-log = "/data/features/logs/feature-audit.log"
 processes = 2
 skip-existing = true
 start = "2019-07-26"
@@ -202,7 +223,7 @@ docker run --rm --init --network none \
   --user "$(id -u):$(id -g)" \
   --mount "type=bind,source=$(pwd)/market-data,target=/data" \
   --mount "type=bind,source=$(pwd)/configs,target=/config,readonly" \
-  b0r0koko/pdf-feature-writer:latest --config /config/features.conf \
+  b0r0koko/pds-feature-writer:latest --config /config/features.conf \
   --start 2021-01-01 --end 2022-01-01
 ```
 
@@ -255,15 +276,15 @@ With **Python 3.10+** and Docker installed and running, use the single installer
 ./scripts/install.sh
 ```
 
-Each selected stage runs in its Docker Hub image with `docker run --pull always`, so the installer fetches the current `latest` image before starting that stage. Trade and candle downloads use `b0r0koko/pds-dataloader:latest`, Parquet conversion uses `b0r0koko/pdf-preprocessor:latest`, and features use `b0r0koko/pdf-feature-writer:latest`. No manual build or pull is needed. The chosen data directory is mounted at `/data`, and containers run with your host UID/GID.
+Each selected stage runs in its Docker Hub image with `docker run --pull always`, so the installer fetches the current `latest` image before starting that stage. Trade and candle downloads use `b0r0koko/pds-dataloader:latest`, Parquet conversion uses `b0r0koko/pds-preprocessor:latest`, and features use `b0r0koko/pds-feature-writer:latest`. No manual build or pull is needed. The chosen data directory is mounted at `/data`, and containers run with your host UID/GID.
 
-The start screen offers **Full installation** or **Choose stages**. Use the arrow keys and Enter to choose a workflow. In the custom workflow, Space toggles trade downloads, candle downloads, Parquet conversion, and feature computation independently; **a** selects all, **n** clears the selection, and **s** starts the selected stages. Press **d** to edit the data directory (Enter saves the field, Esc cancels, Ctrl-U clears it). Exiting setup with **q** leaves the saved configuration and dataset untouched.
+The start screen offers **Full installation**, **Choose stages**, or **Set up research environment**. The environment option installs the local research tools described above without starting any data stages. Use the arrow keys and Enter to choose a workflow. In the custom workflow, Space toggles trade downloads, candle downloads, Parquet conversion, and feature computation independently; **a** selects all, **n** clears the selection, and **s** starts the selected stages. Press **d** to edit the data directory (Enter saves the field, Esc cancels, Ctrl-U clears it). Exiting setup with **q** leaves the saved configuration and dataset untouched.
 
 The dashboard uses a dark color theme, status panels, progress bars, and a layout that adapts to terminal size. It shows the selected stages, file/event counts, rates, estimated time remaining, elapsed time, free disk space, active worker tasks, and recent logs. Archive stages show verified, downloaded, missing, damaged, and failed counts, received download bytes, and verification workers' decompressed byte progress. Totals remain marked as being discovered until archive listing finishes; stage bars become complete only when the stage process exits successfully. Parallel conversion and feature counts update in completion order, so one slow job does not hide other completed work. Use a terminal of at least 72×24; 110×33 or larger shows activity alongside the pipeline.
 
 Selected stages always run once in pipeline order. Conversion without downloading requires existing trade ZIPs; feature computation without conversion requires existing Hive Parquet. For stages using the default layout, the installer checks for those inputs before saving the directory or starting any work. Stages with a supplied config validate their configured input paths inside the container. The installer does not silently add unselected stages. These checks establish that inputs exist, not that every required historical day is present.
 
-Press **Up/Down** or **Page Up/Page Down** to scroll logs and **End** to follow live output. **q** or **Ctrl-C** cancels the running stage and its workers. At completion, press **Enter** or **q** to close the dashboard. Full stage logs are saved under `<chosen data directory>/logs/install-<timestamp>-<pid>/`. The TUI uses Python's built-in curses support; no extra package is required.
+Press **Up/Down** or **Page Up/Page Down** to scroll logs and **End** to follow live output. **q** or **Ctrl-C** cancels the running stage and its workers. At completion, press **Enter** or **q** to close the dashboard. Both console and dashboard runs save full stage output to `.log` files under `<chosen data directory>/logs/install-<timestamp>-<pid>/` using Python's `logging` module. The TUI uses Python's built-in curses support; no extra package is required.
 
 The same script supports `--tui` to require a terminal dashboard and `--no-tui` for ordinary console output. `--all` or `--stages` bypasses the stage menu. Redirected output automatically uses console mode and defaults to all stages when no selection is supplied. `--dry-run` remains a plain preview, starts no jobs, and does not require local market-data inputs.
 
@@ -320,10 +341,10 @@ Features are recomputed by default so changes to the downloaded history are refl
 
 Feature computation uses all available CPU cores by default, with spawned workers to avoid forking initialized Polars threads. Override the count with `--feature-workers` in the installer or `--cpu-count` in the feature-writer CLI. Progress remains visible in the installer.
 
-Every feature-writer run automatically creates a timestamp audit log under `<chosen data directory>/features/logs/feature_audit_<run>.jsonl` and prints its path at startup. The installer and direct Python use of `PumpsFeatureWriter` use the same logging. To choose a destination explicitly:
+Every feature-writer run automatically creates a timestamp audit log under `<chosen data directory>/features/logs/feature_audit_<run>.log` and prints its path at startup. Records are written through Python's `logging` module as one JSON object per line, so they remain readable with `jq`. Explicit destinations with another extension are normalized to `.log`. The installer and direct Python use of `PumpsFeatureWriter` use the same logging. To choose a destination explicitly:
 
 ```bash
-poetry run python -m pumps_and_dumps.features.writer --cpu-count 4 --audit-log /tmp/feature-audit.jsonl
+poetry run python -m pumps_and_dumps.features.writer --cpu-count 4 --audit-log /tmp/feature-audit.log
 ```
 
 Each `record_type="feature"` line identifies the pump, asset, feature, `pump_time`, and `decision_cutoff` (`pump_time − 15 minutes`). `window_start` and `window_end_exclusive` describe the requested half-open window; `data_start` and `data_end` are the actual earliest and latest input timestamps, inclusive. Timestamps use UTC with nanosecond precision. The `dependencies` list includes previous-price observations used by returns, the past hourly history used by z-score normalizers, or previous pump announcements used by `num_prev_pump`. The actual input range can therefore begin before the nominal feature window.
@@ -333,8 +354,8 @@ For predictors (`role="predictor"`), `status="OK"` means all recorded inputs pre
 To view only predictor ranges as tab-separated rows, or find violations/incomplete records:
 
 ```bash
-jq -r 'select(.record_type == "feature" and .role == "predictor") | [.pump_time, .asset, .feature, .data_start, .data_end, .decision_cutoff, .status] | @tsv' /tmp/feature-audit.jsonl
-jq 'select(.record_type == "feature" and .role == "predictor" and (.status == "LEAKAGE" or .status == "UNKNOWN"))' /tmp/feature-audit.jsonl
+jq -r 'select(.record_type == "feature" and .role == "predictor") | [.pump_time, .asset, .feature, .data_start, .data_end, .decision_cutoff, .status] | @tsv' /tmp/feature-audit.log
+jq 'select(.record_type == "feature" and .role == "predictor" and (.status == "LEAKAGE" or .status == "UNKNOWN"))' /tmp/feature-audit.log
 ```
 
 Records are flushed after each asset and appended under a file lock so parallel workers cannot interleave JSON lines. Reusing an existing feature file with `--skip-existing` records `status="reused"` and `audit_provenance="not_recomputed"`; rerun without that flag to obtain input timestamps for previously cached features. A `run_end` record confirms normal completion; failed runs record `run_error` when the error can be handled.
@@ -418,10 +439,12 @@ The restored LaTeX sources and PDFs live in `paper/src/`; shareable PDFs live in
 ```text
 src/installer/            # Standalone installer package: python -m installer
 ├── cli.py                # Options, stage selection, and execution
+├── environment.py        # Git update, editable .venv setup, and notebook kernel
+├── logging_utils.py      # Isolated file loggers shared by subprocess capture
 ├── plan.py               # Stage catalog, commands, manifests, and prerequisites
 ├── state.py              # Shared stage execution/progress state
 ├── runner.py             # Headless process, log, and progress supervision
-├── menu.py               # Full/custom setup and directory editor
+├── menu.py               # Data/environment workflows and directory editor
 ├── dashboard.py          # Responsive progress layout
 ├── ui.py                 # Shared terminal theme and drawing
 └── tui.py                # Terminal dashboard and injected stage runner

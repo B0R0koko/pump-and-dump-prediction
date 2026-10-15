@@ -488,7 +488,10 @@ def main(argv: list[str] | None = None):
     parser.add_argument(
         "--audit-log",
         type=Path,
-        help="Append feature timestamp audit records to this JSONL file (default: features/logs/feature_audit_<run>.jsonl).",
+        help=(
+            "Append JSON feature timestamp audit records to this .log file "
+            "(default: features/logs/feature_audit_<run>.log; other suffixes become .log)."
+        ),
     )
     parser.add_argument("--pumps-file", type=Path, help="JSON pump list (default: bundled resources/pumps.json).")
     parser.add_argument(

@@ -4,11 +4,7 @@ import textwrap
 import time
 
 from installer.ui import Canvas
-
-
-def _duration(seconds):
-    seconds = max(0, int(seconds))
-    return f"{seconds // 3600:02}:{seconds // 60 % 60:02}:{seconds % 60:02}"
+from installer.state import duration
 
 
 def _stage_bar(stage):
@@ -37,11 +33,11 @@ def _timing(stage, *, compact=False):
         timing = "discovering total"
     else:
         rate = completed / max(stage.elapsed(), 0.001)
-        eta = _duration(max(0, total - completed) / rate) if rate else "--:--:--"
+        eta = duration(max(0, total - completed) / rate) if rate else "--:--:--"
         timing = f"{rate:,.1f}/s · ETA {eta}"
     if compact:
         return f"{count} {stage.progress.get('unit', '')} · {timing}"
-    return f"{_duration(stage.elapsed())} · {timing}"
+    return f"{duration(stage.elapsed())} · {timing}"
 
 
 def render(dashboard, screen):
@@ -54,12 +50,8 @@ def render(dashboard, screen):
     now = time.monotonic()
     elapsed = (dashboard.ended or now) - dashboard.started
     done = sum(stage.status == "done" for stage in dashboard.stages)
-    active = next(
-        (stage for stage in dashboard.stages if stage.status == "running"), None
-    )
-    current = active or next(
-        (stage for stage in reversed(dashboard.stages) if stage.started), None
-    )
+    active = next((stage for stage in dashboard.stages if stage.status == "running"), None)
+    current = active or next((stage for stage in reversed(dashboard.stages) if stage.started), None)
     wide = view.width >= 110 and view.height >= 33
     status = (current.status if current else "ready").upper()
 
@@ -68,7 +60,7 @@ def render(dashboard, screen):
         for index, (label, value, role) in enumerate(
             (
                 ("STAGES FINISHED", f"{done} / {len(dashboard.stages)}", "accent"),
-                ("ELAPSED", _duration(elapsed), "text"),
+                ("ELAPSED", duration(elapsed), "text"),
                 ("DISK AVAILABLE", dashboard.free_space, "text"),
                 ("STATUS", status, _role(current.status if current else "ready")),
             )
@@ -79,9 +71,7 @@ def render(dashboard, screen):
         panel_y = 9
         left_width = (view.width - 5) // 2
         panel_height = max(9, 3 * len(dashboard.stages) + 3)
-        view.panel(
-            panel_y, 2, panel_height, left_width, "PIPELINE", focused=active is not None
-        )
+        view.panel(panel_y, 2, panel_height, left_width, "PIPELINE", focused=active is not None)
         right_x = left_width + 3
         right_width = view.width - right_x - 2
         view.panel(
@@ -96,15 +86,13 @@ def render(dashboard, screen):
         view.text(
             3,
             2,
-            f"Stages finished: {done}/{len(dashboard.stages)}   {_duration(elapsed)}   {dashboard.free_space} free",
+            f"Stages finished: {done}/{len(dashboard.stages)}   {duration(elapsed)}   {dashboard.free_space} free",
             "accent",
         )
         panel_y = 5
         left_width = view.width - 4
         panel_height = 2 * len(dashboard.stages) + 3
-        view.panel(
-            panel_y, 2, panel_height, left_width, "PIPELINE", focused=active is not None
-        )
+        view.panel(panel_y, 2, panel_height, left_width, "PIPELINE", focused=active is not None)
         right_x, right_width = 0, view.width
 
     for index, stage in enumerate(dashboard.stages):
@@ -117,9 +105,7 @@ def render(dashboard, screen):
             bold=stage.status == "running",
             width=left_width - 17,
         )
-        view.text(
-            y, left_width - 10, f"{stage.status.upper():>10}", role, width=10, bold=True
-        )
+        view.text(y, left_width - 10, f"{stage.status.upper():>10}", role, width=10, bold=True)
         if wide:
             view.bar(y + 1, 4, 12, _stage_bar(stage), role)
             completed = stage.progress.get("completed", 0)
@@ -170,10 +156,8 @@ def render(dashboard, screen):
         ]
         if "received_bytes" in current.progress:
             received = current.progress["received_bytes"] / 1024**2
-            counters.append(
-                f"{received:,.1f} MiB  /  {received / max(current.elapsed(), 0.001):.1f} MiB/s"
-            )
-        age = _duration((current.ended or now) - current.last_update)
+            counters.append(f"{received:,.1f} MiB  /  {received / max(current.elapsed(), 0.001):.1f} MiB/s")
+        age = duration((current.ended or now) - current.last_update)
         if wide:
             view.text(
                 activity_y,
@@ -189,9 +173,7 @@ def render(dashboard, screen):
             view.text(activity_y, activity_x, line, "accent", width=content_width)
             activity_y += 1
         if counters:
-            for line in textwrap.wrap("  ·  ".join(counters), content_width)[
-                : 3 if wide else 1
-            ]:
+            for line in textwrap.wrap("  ·  ".join(counters), content_width)[: 3 if wide else 1]:
                 view.text(activity_y, activity_x, line, width=content_width)
                 activity_y += 1
         if wide and active:
@@ -202,9 +184,7 @@ def render(dashboard, screen):
             slots = max(0, (activity_end - activity_y - 1) // 2)
             for task, progress in workers[:slots]:
                 count = f"{progress.get('completed', 0):,}" + (
-                    f" / {progress['total']:,}"
-                    if progress.get("total") is not None
-                    else ""
+                    f" / {progress['total']:,}" if progress.get("total") is not None else ""
                 )
                 view.text(
                     activity_y,
@@ -248,15 +228,9 @@ def render(dashboard, screen):
     visible = max(0, log_height - 2)
     end = max(0, len(dashboard.logs) - dashboard.scroll)
     for offset, line in enumerate(list(dashboard.logs)[max(0, end - visible) : end]):
-        role = (
-            "danger"
-            if any(word in line.lower() for word in ("error", "failed", "traceback"))
-            else "muted"
-        )
+        role = "danger" if any(word in line.lower() for word in ("error", "failed", "traceback")) else "muted"
         view.text(log_y + 1 + offset, 4, line, role, width=view.width - 8)
-    view.text(
-        view.height - 2, 2, f"Logs: {dashboard.log_dir}", "muted", width=view.width - 4
-    )
+    view.text(view.height - 2, 2, f"Logs: {dashboard.log_dir}", "muted", width=view.width - 4)
     view.text(
         view.height - 1,
         2,

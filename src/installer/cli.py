@@ -1,17 +1,17 @@
-"""Interactive installer for the complete research dataset.
+"""Interactive installer for the research environment and complete dataset.
 
 Each stage pulls its published Docker image and runs with the selected host
 directory mounted at /data. Only Python's standard library is needed locally.
 """
 
 import argparse
-from datetime import date
+from collections import deque
+from datetime import date, datetime
 import os
 from pathlib import Path
 import shlex
 import shutil
 import signal
-import subprocess
 import sys
 from tempfile import TemporaryFile
 
@@ -21,7 +21,9 @@ from pumps_and_dumps.core.paths import (
     get_root_dir,
     save_data_dir,
 )
-from installer.containers import container_stage, cleanup_container
+from installer.containers import container_stage
+from installer.environment import setup_environment
+from installer.runner import monitor_stage
 from installer.state import Stage
 from installer.tui import run_tui, tui_available
 from installer.menu import Selection, choose_installation
@@ -44,8 +46,8 @@ def _positive_int(value: str) -> int:
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Download Binance data, convert trades to Hive Parquet, then compute pump-event features.",
-        epilog="Requires Python 3.10+ and Docker. Images are pulled before each stage. Without --data-dir, the installer asks where to store the data.",
+        description="Set up the research environment, or download Binance data and compute pump-event features.",
+        epilog="The launcher requires Python 3.10+. Data stages require Docker and pull their images before running. Environment setup requires Git and Python 3.13+, without Docker.",
     )
     parser.add_argument("--data-dir", help="Data directory to save and use (skips the prompt).")
     parser.add_argument(
@@ -109,6 +111,20 @@ def _build_parser() -> argparse.ArgumentParser:
         choices=STAGE_KEYS,
         help="Run only these stages, in pipeline order, without the stage menu.",
     )
+    scope.add_argument(
+        "--setup-environment",
+        action="store_true",
+        help="Pull current code and install the research dependencies into .venv; no data stages run.",
+    )
+    parser.add_argument(
+        "--python",
+        help="Python 3.13+ executable to use for research environment setup.",
+    )
+    parser.add_argument(
+        "--no-update",
+        action="store_true",
+        help="Set up the research environment from the current checkout without pulling code.",
+    )
     return parser
 
 
@@ -139,7 +155,6 @@ def _validate_selection(
     parser: argparse.ArgumentParser,
     args: argparse.Namespace,
     selection: Selection,
-    root: Path,
 ) -> None:
     if not args.dry_run:
         # Configured stages validate their own possibly custom input locations.
@@ -162,7 +177,7 @@ def _validate_selection(
 
 
 def _build_stages(
-    args: argparse.Namespace, root: Path, selected: list[str], data_dir: Path, *, progress: bool = False
+    args: argparse.Namespace, selected: list[str], data_dir: Path, *, progress: bool = False
 ) -> list[Stage]:
     settings = StageSettings(
         Path("/app"),
@@ -177,8 +192,9 @@ def _build_stages(
         if option.key not in selected:
             continue
         config = getattr(args, f"{option.key}_config")
-        options = option.options(settings)
-        if config is not None:
+        if config is None:
+            options = option.options(settings)
+        else:
             # The image's CLI reads config values. Only explicit host CLI flags
             # override them; installer defaults must not silently mask a config.
             config = config.expanduser().resolve()
@@ -211,24 +227,40 @@ def _prepare_data_dir(data_dir: Path) -> None:
 
 
 def _run_console(stages: list[Stage], root: Path, environment: dict[str, str], dry_run: bool) -> int:
+    log_dir = (
+        Path(environment.get(DATA_DIR_ENV, root)) / "logs" / f"install-{datetime.now():%Y%m%d-%H%M%S-%f}-{os.getpid()}"
+    )
+    if stages and not dry_run:
+        print(f"Installer logs: {log_dir}", flush=True)
     for index, stage in enumerate(stages, start=1):
         print(f"\n[{index}/{len(stages)}] {stage.name}", flush=True)
         print(f"+ {shlex.join(stage.command)}", flush=True)
         if dry_run:
             continue
-        try:
-            subprocess.run(stage.command, cwd=root, env=environment, check=True)
-        except subprocess.CalledProcessError as exc:
+        last_progress = {}
+
+        def show_progress():
+            nonlocal last_progress
+            if stage.progress and stage.progress != last_progress:
+                print(stage.summary(), flush=True)
+                last_progress = stage.progress.copy()
+
+        code = monitor_stage(
+            stage,
+            root=root,
+            environment=environment,
+            log_path=log_dir / f"{index:02}-{stage.key or 'stage'}.log",
+            logs=deque(maxlen=2000),
+            tick=show_progress,
+            echo=lambda line: print(line, flush=True),
+        )
+        show_progress()
+        if code:
             print(
                 f"\nFailed: {stage.name}. Later stages were not started.",
                 file=sys.stderr,
             )
-            return exc.returncode if exc.returncode > 0 else 128 - exc.returncode
-        except (OSError, ValueError, RuntimeError) as exc:
-            print(f"\nInstallation failed during {stage.name}: {exc}", file=sys.stderr)
-            return 1
-        finally:
-            cleanup_container(stage)
+            return code if code > 0 else 128 - code
     return 0
 
 
@@ -244,6 +276,8 @@ def _print_completion(selection: Selection, dry_run: bool) -> None:
 
 def _install(parser: argparse.ArgumentParser, args: argparse.Namespace, use_tui: bool) -> int:
     root = get_root_dir()
+    if args.setup_environment:
+        return setup_environment(root, python=args.python, dry_run=args.dry_run, update=not args.no_update)
     dates = f"{args.start_date or date(2018, 1, 1)} to {args.end_date or date(2025, 1, 1)} (exclusive)"
     if any(getattr(args, f"{key}_config") is not None for key in STAGE_KEYS if key != "features"):
         dates += "; configs may override defaults"
@@ -251,13 +285,14 @@ def _install(parser: argparse.ArgumentParser, args: argparse.Namespace, use_tui:
     if selection is None:
         print("Installation cancelled before starting any stages.")
         return 130
-    _validate_selection(parser, args, selection, root)
-    stages = _build_stages(args, root, selection.stages, selection.data_dir, progress=use_tui)
+    if selection.setup_environment:
+        return setup_environment(root, python=args.python, dry_run=args.dry_run, update=not args.no_update)
+    if args.python is not None or args.no_update:
+        parser.error("--python and --no-update apply only to Set up research environment or --setup-environment")
+    _validate_selection(parser, args, selection)
+    stages = _build_stages(args, selection.stages, selection.data_dir, progress=use_tui)
     print(f"Data directory: {selection.data_dir}", flush=True)
-    print(
-        f"Archive dates: {dates}",
-        flush=True,
-    )
+    print(f"Archive dates: {dates}", flush=True)
     print(f"Selected stages: {', '.join(selection.stages)}", flush=True)
     if not args.dry_run:
         _prepare_data_dir(selection.data_dir)
@@ -286,7 +321,13 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--end-date must be after --start-date")
     if args.data_dir is not None and not args.data_dir.strip():
         parser.error("--data-dir must be a nonempty path")
-    use_tui = _use_tui(parser, args)
+    use_tui = False if args.setup_environment else _use_tui(parser, args)
+    if (
+        (args.python is not None or args.no_update)
+        and not args.setup_environment
+        and (not use_tui or args.all or args.stages)
+    ):
+        parser.error("--python and --no-update require --setup-environment or its interactive menu choice")
 
     previous_term = signal.signal(signal.SIGTERM, _interrupt)
     try:
@@ -295,12 +336,12 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("No directory was supplied. Use --data-dir PATH for noninteractive runs.")
     except KeyboardInterrupt:
         print(
-            "\nInstallation interrupted. Rerun the installer to reuse downloaded ZIPs.",
+            "\nInstallation interrupted. Completed files are retained.",
             file=sys.stderr,
         )
         return 130
     except (OSError, ValueError, RuntimeError) as exc:
-        print(f"\nInstallation failed during setup: {exc}", file=sys.stderr)
+        print(f"\nInstallation failed: {exc}", file=sys.stderr)
         return 1
     finally:
         signal.signal(signal.SIGTERM, previous_term)

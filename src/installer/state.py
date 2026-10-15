@@ -34,7 +34,7 @@ class Stage:
     def receive(self, record: bytes) -> None:
         try:
             event = json.loads(record)
-        except (ValueError, UnicodeDecodeError):
+        except ValueError:
             return
         if not isinstance(event, dict) or not isinstance(event.get("task"), str):
             return

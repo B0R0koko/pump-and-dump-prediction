@@ -1,6 +1,7 @@
 """Run fresh, isolated model searches using only the chronological tuning split."""
 
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 import importlib
 import json
@@ -12,6 +13,8 @@ import subprocess
 import sys
 import time
 
+from installer.logging_utils import file_logger
+from installer.runner import stop_process_group
 
 # CPU budgets keep independent searches within this machine's capacity.
 CANDIDATES = {
@@ -82,16 +85,32 @@ def run_candidate(key: str, storage: str, output: Path, trials: int, threads: in
     with (model_dir / f"{class_name}.pickle").open("wb") as stream:
         pickle.dump(model, stream)
     metadata = {
-        "status": "complete", "model": display_name, "pipeline": class_name,
-        "study_name": study.study_name, "storage": storage,
-        "completed_trials": len(complete), "best_trial": study.best_trial.number,
-        "best_value": study.best_value, "best_parameters": study.best_params,
-        "started_at": started, "completed_at": datetime.now(timezone.utc).isoformat(),
-        "splits": splits, "regressors": pipeline.feature_set.regressors,
+        "status": "complete",
+        "model": display_name,
+        "pipeline": class_name,
+        "study_name": study.study_name,
+        "storage": storage,
+        "completed_trials": len(complete),
+        "best_trial": study.best_trial.number,
+        "best_value": study.best_value,
+        "best_parameters": study.best_params,
+        "started_at": started,
+        "completed_at": datetime.now(timezone.utc).isoformat(),
+        "splits": splits,
+        "regressors": pipeline.feature_set.regressors,
         "threads": threads,
     }
     _write_json(output / f"{key}.json", metadata)
     print(f"Completed {display_name}; best trial {study.best_trial.number}: {study.best_value}", flush=True)
+
+
+def _capture_output(process: subprocess.Popen, path: Path) -> None:
+    """Drain one search's stdout/stderr through logging without blocking its peers."""
+    if process.stdout is None:
+        raise RuntimeError("Search stdout pipe was not created")
+    with process.stdout, file_logger(path) as logger:
+        for line in process.stdout:
+            logger.info("%s", line.rstrip("\r\n"))
 
 
 def run_searches(storage: str, output: Path, trials: int) -> None:
@@ -108,27 +127,73 @@ def run_searches(storage: str, output: Path, trials: int) -> None:
     processes = {}
     cpu_count = len(os.sched_getaffinity(0))
     scale = min(1.0, cpu_count / sum(item[2] for item in CANDIDATES.values()))
-    for key, (_, _, budget) in CANDIDATES.items():
-        threads = max(1, int(budget * scale))
-        env = os.environ | {name: str(threads) for name in (
-            "OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS", "NUMEXPR_NUM_THREADS", "POLARS_MAX_THREADS"
-        )}
-        command = [sys.executable, "-m", "pumps_and_dumps.backtest.research.retune", "--candidate", key, "--storage", storage,
-                   "--output-dir", str(output), "--trials", str(trials), "--threads", str(threads)]
-        log = (output / f"{key}.log").open("w")
-        processes[key] = subprocess.Popen(command, stdout=log, stderr=subprocess.STDOUT, env=env)
-        log.close()
-    while processes:
-        for key, process in list(processes.items()):
-            if process.poll() is None:
-                continue
-            print(f"{key}: exit {process.returncode}", flush=True)
-            if process.returncode:
-                raise RuntimeError(f"Search failed for {key}; inspect {output / (key + '.log')}")
-            del processes[key]
-        time.sleep(1)
-    _write_json(output / "complete.json", {"models": len(CANDIDATES), "trials_per_model": trials,
-                                          "storage": storage, "completed_at": datetime.now(timezone.utc).isoformat()})
+    with ThreadPoolExecutor(max_workers=len(CANDIDATES)) as log_workers:
+        captures = {}
+        try:
+            for key, (_, _, budget) in CANDIDATES.items():
+                threads = max(1, int(budget * scale))
+                env = os.environ | {
+                    name: str(threads)
+                    for name in (
+                        "OMP_NUM_THREADS",
+                        "OPENBLAS_NUM_THREADS",
+                        "MKL_NUM_THREADS",
+                        "NUMEXPR_NUM_THREADS",
+                        "POLARS_MAX_THREADS",
+                    )
+                }
+                command = [
+                    sys.executable,
+                    "-m",
+                    "pumps_and_dumps.backtest.research.retune",
+                    "--candidate",
+                    key,
+                    "--storage",
+                    storage,
+                    "--output-dir",
+                    str(output),
+                    "--trials",
+                    str(trials),
+                    "--threads",
+                    str(threads),
+                ]
+                process = subprocess.Popen(
+                    command,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    env=env,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    start_new_session=True,
+                )
+                processes[key] = process
+                captures[key] = log_workers.submit(_capture_output, process, output / f"{key}.log")
+            while processes:
+                for key, process in list(processes.items()):
+                    capture = captures[key]
+                    if capture.done():
+                        capture.result()  # Surface failed log writes while searches are still running.
+                    if process.poll() is None:
+                        continue
+                    capture.result()  # Flush all remaining output before reporting completion.
+                    print(f"{key}: exit {process.returncode}", flush=True)
+                    if process.returncode:
+                        raise RuntimeError(f"Search failed for {key}; inspect {output / (key + '.log')}")
+                    del processes[key]
+                time.sleep(1)
+        finally:
+            for process in processes.values():
+                stop_process_group(process)
+    _write_json(
+        output / "complete.json",
+        {
+            "models": len(CANDIDATES),
+            "trials_per_model": trials,
+            "storage": storage,
+            "completed_at": datetime.now(timezone.utc).isoformat(),
+        },
+    )
 
 
 def main() -> None:

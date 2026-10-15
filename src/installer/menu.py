@@ -1,4 +1,4 @@
-"""Interactive choice of installation scope and data directory."""
+"""Interactive choice of research environment setup or data pipeline stages."""
 
 from dataclasses import dataclass
 from pathlib import Path
@@ -13,6 +13,7 @@ from installer.ui import Canvas, Theme, prepare_screen
 class Selection:
     data_dir: Path
     stages: list[str]
+    setup_environment: bool = False
 
 
 class SetupMenu:
@@ -61,7 +62,7 @@ class SetupMenu:
             self.cursor = len(self.path_text)
         elif key in (curses.KEY_UP, curses.KEY_DOWN, "\t", "j", "k"):
             direction = -1 if key in (curses.KEY_UP, "k") else 1
-            self.focus = (self.focus + direction) % (len(STAGES) + 1 if self.custom else 2)
+            self.focus = (self.focus + direction) % (len(STAGES) + 1 if self.custom else 3)
         elif self.custom and key in ("a", "n"):
             self.selected = set(STAGE_KEYS) if key == "a" else set()
             self.error = ""
@@ -75,6 +76,8 @@ class SetupMenu:
         if not self.custom:
             if self.focus == 0:
                 return self.submit()
+            if self.focus == 2:
+                return Selection(self.data_dir, [], setup_environment=True)
             self.custom, self.focus = True, 0
             return None
         if self.focus == len(STAGES):
@@ -179,9 +182,13 @@ class SetupMenu:
                     "Choose stages",
                     "Download, convert, or compute features independently.",
                 ),
+                (
+                    "Set up research environment",
+                    "Update code and install .venv dependencies; no Docker needed.",
+                ),
             )
         ):
-            y = 9 + index * 5
+            y = 9 + index * 4
             active = self.focus == index and not self.editing
             view.panel(y, x, 4, width, f"0{index + 1}", focused=active)
             view.text(
@@ -192,13 +199,14 @@ class SetupMenu:
                 bold=True,
             )
             view.text(y + 2, x + 2, detail, "muted", width=width - 4)
-        view.text(
-            19,
-            x + 2,
-            "Existing ZIPs receive a full CRC check. Selected Parquet and features are rebuilt.",
-            "muted",
-            width=width - 4,
-        )
+        if not self.error:
+            view.text(
+                21,
+                x + 2,
+                "Data stages validate ZIPs and rebuild selected Parquet and features.",
+                "muted",
+                width=width - 4,
+            )
 
     def _draw_stages(self, view: Canvas, x: int, width: int):
         view.panel(9, x, 2 * len(STAGES) + 3, width, "CHOOSE STAGES", focused=True)

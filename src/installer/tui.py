@@ -10,16 +10,12 @@ import time
 
 from installer.dashboard import render
 from installer.ui import Theme, prepare_screen
-from installer.state import Stage, duration
-from installer.runner import StageRunner, clean_line, monitor_stage, stop_process_group
+from installer.state import Stage
+from installer.runner import StageRunner, monitor_stage
 
 
 def tui_available() -> bool:
-    if (
-        not sys.stdin.isatty()
-        or not sys.stdout.isatty()
-        or os.environ.get("TERM", "dumb") == "dumb"
-    ):
+    if not sys.stdin.isatty() or not sys.stdout.isatty() or os.environ.get("TERM", "dumb") == "dumb":
         return False
     try:
         import curses
@@ -54,9 +50,7 @@ class Dashboard:
         self.logs: deque[str] = deque(maxlen=2000)
         self.scroll = 0
         self.finished = False
-        self.log_dir = (
-            data_dir / "logs" / f"install-{datetime.now():%Y%m%d-%H%M%S}-{os.getpid()}"
-        )
+        self.log_dir = data_dir / "logs" / f"install-{datetime.now():%Y%m%d-%H%M%S}-{os.getpid()}"
         self._disk_checked = 0.0
         self.free_space = ""
         self.theme = Theme()
@@ -64,9 +58,7 @@ class Dashboard:
     def draw(self, screen) -> None:
         now = time.monotonic()
         if now - self._disk_checked > 5:
-            self.free_space = (
-                f"{shutil.disk_usage(self.data_dir).free / 1024**3:,.1f} GiB"
-            )
+            self.free_space = f"{shutil.disk_usage(self.data_dir).free / 1024**3:,.1f} GiB"
             self._disk_checked = now
         render(self, screen)
 
@@ -106,15 +98,11 @@ class Dashboard:
                     tick=lambda: self.tick(screen),
                 )
                 if code:
-                    self.logs.append(
-                        f"Failed: {stage.name} (exit {code}). Later stages were not started."
-                    )
+                    self.logs.append(f"Failed: {stage.name} (exit {code}). Later stages were not started.")
                     break
                 self.logs.append(f"Finished: {stage.name}")
         except KeyboardInterrupt:
-            self.logs.append(
-                "Installation cancelled. Downloaded ZIPs can be reused on the next run."
-            )
+            self.logs.append("Installation cancelled. Downloaded ZIPs can be reused on the next run.")
             code = 130
         self.finished = True
         self.ended = time.monotonic()

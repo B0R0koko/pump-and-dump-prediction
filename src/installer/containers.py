@@ -18,8 +18,8 @@ from installer.state import Stage
 IMAGES = {
     "trades": "b0r0koko/pds-dataloader:latest",
     "candles": "b0r0koko/pds-dataloader:latest",
-    "parquet": "b0r0koko/pdf-preprocessor:latest",
-    "features": "b0r0koko/pdf-feature-writer:latest",
+    "parquet": "b0r0koko/pds-preprocessor:latest",
+    "features": "b0r0koko/pds-feature-writer:latest",
 }
 
 
