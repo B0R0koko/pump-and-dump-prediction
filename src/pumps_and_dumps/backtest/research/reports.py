@@ -43,12 +43,6 @@ def validation_metrics_table(
     )
 
 
-def _bootstrap_metric_label(table: pd.DataFrame) -> str:
-    if "metric" in table and table["metric"].eq("analytical_topk_percent_auc").all():
-        return "Analytical Top@k%AUC"
-    return "Top@k%AUC"
-
-
 def report_bootstrap(
     results: ValidationBootstrapResults,
     notebook_dir: Path,
@@ -61,7 +55,7 @@ def report_bootstrap(
     split = dataset_type.name.lower()
     if not results.auc_summary["dataset_type"].eq(dataset_type.name).all():
         raise ValueError("Bootstrap results must match the requested report split")
-    metric_label = _bootstrap_metric_label(results.auc_summary)
+    metric_label = "Top@k%AUC"
     folder = "significance" if dataset_type is DatasetType.VALIDATION else f"significance_{split}"
     output = output_dir if output_dir is not None else notebook_dir / "analysis_outputs" / folder
     output.mkdir(parents=True, exist_ok=True)
@@ -71,23 +65,11 @@ def report_bootstrap(
         f"{split}_topk_percent_ci.csv": results.topk_percent_ci,
     }.items():
         table.to_csv(output / filename)
-    results.pairwise.to_csv(
-        output / f"{split}_topk_percent_auc_pairwise.csv", index=False
-    )
-    results.event_probabilities.to_csv(
-        output / f"{split}_event_hit_probabilities.csv", index=False
-    )
+    results.pairwise.to_csv(output / f"{split}_topk_percent_auc_pairwise.csv", index=False)
     print(
         f"{len(results.scored_datasets)} models; {len(results.pairwise)} paired comparisons; "
         f"{n_bootstrap:,} shared event resamples."
     )
-    if metric_label == "Analytical Top@k%AUC":
-        print(
-            f"{metric_label}: inclusion probability for K weighted draws without replacement. "
-            "Remaining weights are renormalized after each draw. "
-            "Probabilities use deterministic numerical integration, with no portfolio resampling; "
-            "events are the bootstrap units."
-        )
     columns = [
         "point_estimate",
         "mean_bootstrap",
@@ -123,9 +105,9 @@ def report_chosen_comparisons(
     output_dir: Path | None = None,
 ) -> pd.DataFrame:
     """Report one view of the existing Holm-adjusted comparisons, without retesting."""
-    metric_label = _bootstrap_metric_label(pairwise)
+    metric_label = "Top@k%AUC"
     chosen = comparisons_for_model(pairwise, model_name)
-    for column in ("metric", "inclusion_method", "draw_replacement"):
+    for column in ("metric", "dataset_type"):
         if column in pairwise:
             chosen[column] = pairwise[column].iloc[0]
     output = output_dir if output_dir is not None else notebook_dir / "analysis_outputs" / "significance"
@@ -133,30 +115,19 @@ def report_chosen_comparisons(
     chosen.to_csv(output / "validation_chosen_model_comparisons.csv")
     display(
         chosen.style.format(precision=4).set_caption(
-            f"{metric_label}: chosen model minus comparator; "
-            "decisions use Holm-adjusted p-values"
+            f"{metric_label}: chosen model minus comparator; " "decisions use Holm-adjusted p-values"
         )
     )
     wins = chosen.index[chosen["conclusion"] == "Chosen model better"].tolist()
     print(f"Chosen model: {model_name}")
     if wins:
-        print(
-            f"Validation evidence of higher {metric_label} (Holm-adjusted p < {alpha:g}) than: "
-            + "; ".join(wins)
-        )
+        print(f"Validation evidence of higher {metric_label} (Holm-adjusted p < {alpha:g}) than: " + "; ".join(wins))
     else:
-        print(
-            "No statistically significant superiority established for the chosen model on validation."
-        )
+        print("No statistically significant superiority established for the chosen model on validation.")
     print(
         "These comparisons condition on fitted models. Tuning used a separate partition in this run; "
         "earlier research inspected these periods, so this is a retrospective comparison."
     )
-    if metric_label == "Analytical Top@k%AUC":
-        print(
-            "Inclusion probabilities for weighted draws without replacement use deterministic numerical integration. "
-            "Intervals reflect event resampling; there is no portfolio Monte Carlo error."
-        )
     return chosen
 
 
@@ -165,10 +136,7 @@ def portfolio_benchmark(
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Compare fixed-size TEST portfolios with the time-aligned BTC benchmark."""
     curves = {
-        k: evaluation.get_equity_curve_for_experiment(
-            experiment=experiment, portfolio_size=k
-        )
-        for k in portfolio_sizes
+        k: evaluation.get_equity_curve_for_experiment(experiment=experiment, portfolio_size=k) for k in portfolio_sizes
     }
     returns = pd.concat(curves, axis=1)
     returns.columns = list(portfolio_sizes)
@@ -176,16 +144,12 @@ def portfolio_benchmark(
     dataset = experiment.get_sample().get_dataset(DatasetType.TEST)
     btc = evaluation.get_btc_buy_and_hold_baseline(dataset)
     btc_statistics = evaluation.compute_btc_buy_and_hold_statistics(btc)
-    aligned = evaluation.align_portfolio_returns_with_btc(
-        returns.rename(columns=lambda k: f"K={k}"), btc
-    )
+    aligned = evaluation.align_portfolio_returns_with_btc(returns.rename(columns=lambda k: f"K={k}"), btc)
     statistics.insert(1, "cumulative return", returns.sum())
     statistics.loc[btc_statistics.name] = {
         "average event return": float("nan"),
         **btc_statistics.to_dict(),
     }
     print(f"Portfolio model selected on validation: {experiment.get_experiment_name()}")
-    print(
-        f"BTC benchmark interval: {btc.attrs['start_time']} to {btc.attrs['end_time']}"
-    )
+    print(f"BTC benchmark interval: {btc.attrs['start_time']} to {btc.attrs['end_time']}")
     return aligned, statistics

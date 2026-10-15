@@ -140,7 +140,6 @@ def test_real_tree_boosting_reduces_loss_and_preserves_prediction_alignment() ->
     scores = model.rank(tuning)
     loss = Top5Loss.from_frame(tuning.all_data())
 
-    assert model.ranking_score_kind == "logit"
     assert scores.shape == (len(tuning.all_data()),)
     assert np.isfinite(scores).all()
     assert np.ptp(scores) > 0

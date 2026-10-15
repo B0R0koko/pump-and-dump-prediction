@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field
-from itertools import permutations
 
 import numpy as np
 import pandas as pd
@@ -34,7 +33,6 @@ class RequestedSplitSample:
 
 @dataclass
 class CountingModel:
-    ranking_score_kind = "logit"
     calls: list[Dataset] = field(default_factory=list)
 
     def rank(self, dataset: Dataset) -> np.ndarray:
@@ -90,11 +88,6 @@ def test_evaluation_scores_requested_split_once_and_returns_all_models_pairs_and
     assert len(results.topk_percent_ci) == 3 * 5
     assert results.topk_ci.index.names == ["model", "k"]
     assert results.topk_percent_ci.index.names == ["model", "k_percent"]
-    assert len(results.event_probabilities) == 3 * 4 * 7
-    assert not results.event_probabilities.duplicated(["model", COL_PUMP_HASH, "k"]).any()
-    assert results.event_probabilities["hit_probability"].between(0, 1).all()
-    means = results.event_probabilities.groupby(["model", "k"])["hit_probability"].mean()
-    pd.testing.assert_series_equal(means, results.topk_ci["point_estimate"].sort_index(), check_names=False)
     for table in (
         results.auc_summary,
         results.pairwise,
@@ -106,9 +99,7 @@ def test_evaluation_scores_requested_split_once_and_returns_all_models_pairs_and
         assert (table["n_bootstrap"] == 199).all()
         assert "n_portfolios" not in table
         assert "portfolio_random_state" not in table
-        assert table["metric"].str.startswith("analytical_").all()
-        assert table["inclusion_method"].eq("analytical").all()
-        assert table["draw_replacement"].eq(False).all()
+        assert table["metric"].str.startswith("topk").all()
         assert table.attrs["ci_method"] == "pointwise percentile"
     for experiment in experiments:
         assert experiment.sample.requests == [dataset_type]
@@ -135,31 +126,23 @@ def test_bootstrap_requires_at_least_two_events() -> None:
         evaluate_validation_bootstrap([_experiment("first", (0,)), _experiment("second", (1,))])
 
 
-def test_event_probabilities_and_model_scores_do_not_depend_on_bootstrap_seed() -> None:
+def test_event_rank_metrics_do_not_depend_on_bootstrap_seed_or_score_scale() -> None:
+    """Keep point metrics unchanged across event-bootstrap seeds and score scales.
+
+    Four events have true-label ranks 1, 4, 2, 1 for one model and rank 4
+    throughout for another. The first model therefore has Top@1 accuracy 1/2
+    and AUC 0.9875/2. Multiplying scores by 100 preserves every ranking and
+    must preserve all point metrics, even though confidence gaps increase.
+    """
     experiments = [_experiment("mixed", (0, 3, 1, 0)), _experiment("weak", (3, 3, 3, 3))]
     first = evaluate_validation_bootstrap(experiments, n_bootstrap=31, random_state=1)
+    for experiment in experiments:
+        experiment.sample.dataset.all_data()["score"] *= 100
     second = evaluate_validation_bootstrap(experiments, n_bootstrap=37, random_state=99)
     pd.testing.assert_frame_equal(first.event_aucs, second.event_aucs)
-    pd.testing.assert_frame_equal(first.event_probabilities, second.event_probabilities)
     pd.testing.assert_series_equal(first.auc_summary["point_estimate"], second.auc_summary["point_estimate"])
-    for row in first.event_probabilities.itertuples():
-        scored = first.scored_datasets[row.model]
-        event = scored.loc[scored[COL_PUMP_HASH] == row.pump_hash]
-        logits = event[COL_PROBAS_PRED].to_numpy()
-        weights = np.exp(logits - logits.max())
-        labels = event[COL_IS_PUMPED].to_numpy(dtype=bool)
-        expected = 0.0
-        for sequence in permutations(range(len(weights)), min(row.k, len(weights))):
-            if not labels[list(sequence)].any():
-                continue
-            remaining = set(range(len(weights)))
-            probability = 1.0
-            for asset in sequence:
-                probability *= weights[asset] / weights[list(remaining)].sum()
-                remaining.remove(asset)
-            expected += probability
-        assert row.hit_probability == pytest.approx(expected, abs=1e-8)
-        assert row.draw_replacement is False
+    assert first.topk_ci.loc[("mixed", 1), "point_estimate"] == 0.5
+    assert first.auc_summary.loc["mixed", "point_estimate"] == pytest.approx(0.9875 / 2)
 
 
 def test_threshold_estimates_share_the_auc_event_order_and_support_custom_bins() -> None:
@@ -190,7 +173,7 @@ def test_threshold_estimates_share_the_auc_event_order_and_support_custom_bins()
         assert summary["n_cross_sections"] == 4
 
     # Compare pairs from the same event draws, rather than bootstrapping models
-    # independently; the analytical probabilities have no simulation error.
+    # independently; each event contributes its deterministic ranking result.
     pair = results.pairwise.iloc[0]
     difference = bootstrap_aucs[:, 0] - bootstrap_aucs[:, 1]
     assert pair["mean_diff_bootstrap"] == pytest.approx(difference.mean())
@@ -199,7 +182,7 @@ def test_threshold_estimates_share_the_auc_event_order_and_support_custom_bins()
     )
 
     # With four assets, every positive AUC threshold is K=1; the initial
-    # zero-point trapezoid scales the analytical Top@1 curve by .9875.
+    # zero-point trapezoid scales the deterministic Top@1 curve by .9875.
     assert results.auc_summary.loc["mixed", "mean_bootstrap"] == pytest.approx(
         results.topk_ci.loc[("mixed", 1), "mean_bootstrap"] * 0.9875
     )
@@ -284,3 +267,17 @@ def test_chosen_comparisons_keep_holm_decisions_when_raw_p_values_are_significan
     assert chosen.loc["weak", "p_value"] == pytest.approx(0.04)
     assert chosen.loc["weak", "p_value_holm"] == pytest.approx(0.12)
     assert chosen.loc["weak", "conclusion"] == "Inconclusive"
+
+
+@pytest.mark.parametrize("column,value", [("currency_pair", "OTHER-BTC"), ("is_pumped", False)])
+def test_comparison_rejects_mismatched_assets_or_labels(column, value) -> None:
+    """Require models to evaluate identical candidates and ground truth per event.
+
+    Two otherwise matching four-event panels differ in one asset identifier
+    or one true label. Comparison must fail, preventing superficially matching
+    event counts from silently pairing different tasks or target definitions.
+    """
+    experiments = [_experiment("first", (0, 0, 0, 0)), _experiment("second", (0, 0, 0, 0))]
+    experiments[1].sample.dataset.all_data().loc[0, column] = value
+    with pytest.raises(ValueError, match="same event assets and true labels"):
+        evaluate_validation_bootstrap(experiments, n_bootstrap=3)

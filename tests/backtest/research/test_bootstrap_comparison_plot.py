@@ -10,8 +10,15 @@ import pytest
 from pumps_and_dumps.backtest.research.graphs import plot_model_bootstrap_comparison
 
 
-@pytest.mark.parametrize("analytical", [False, True])
-def test_comparison_plot_uses_paired_decisions_not_interval_overlap(tmp_path, analytical) -> None:
+@pytest.mark.parametrize("split", ["VALIDATION", "TEST"])
+def test_comparison_plot_uses_paired_decisions_not_interval_overlap(tmp_path, split) -> None:
+    """Use Holm-adjusted paired decisions rather than overlap of marginal intervals.
+
+    The synthetic leading models have disjoint confidence intervals but an
+    inconclusive supplied paired test. The decision matrix must keep that pair
+    inconclusive, preserve significant directions for the other pairs, and
+    reject an incomplete comparison family for either evaluation partition.
+    """
     # The two leading models have disjoint CIs, but their adjusted comparison is
     # inconclusive. The plot must respect the supplied paired-test decision.
     summary = pd.DataFrame(
@@ -45,9 +52,8 @@ def test_comparison_plot_uses_paired_decisions_not_interval_overlap(tmp_path, an
             },
         ]
     )
-    if analytical:
-        summary["metric"] = "analytical_topk_percent_auc"
-        summary["dataset_type"] = "TEST"
+    summary["metric"] = "topk_percent_auc"
+    summary["dataset_type"] = split
     output = tmp_path / "validation_comparison.png"
     fig = plot_model_bootstrap_comparison(summary, pairwise, save_path=str(output))
     try:
@@ -59,11 +65,7 @@ def test_comparison_plot_uses_paired_decisions_not_interval_overlap(tmp_path, an
             "M3: low",
         ]
         assert "90% pointwise" in forest_ax.get_title()
-        if analytical:
-            assert forest_ax.get_xlabel() == "Test Analytical Top@k%AUC (higher is better)"
-            assert "exact inclusion probabilities" in fig._suptitle.get_text()
-        else:
-            assert forest_ax.get_xlabel() == "Validation Top@k%AUC (higher is better)"
+        assert forest_ax.get_xlabel() == f"{split.capitalize()} Top@k%AUC (higher is better)"
         actual = matrix_ax.images[0].get_array()
         expected = np.array([[np.nan, 0, 1], [0, np.nan, 1], [-1, -1, np.nan]])
         np.testing.assert_allclose(actual.filled(np.nan), expected, equal_nan=True)

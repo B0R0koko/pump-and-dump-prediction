@@ -32,11 +32,9 @@ class CatboostTop5Model(BaseModel):
     it with squared error. The resulting ensemble optimizes the Top-5 loss;
     RMSE is only the projection of each gradient onto a regression tree.
 
-    Scores are uncalibrated margins. ``ranking_score_kind`` tells the portfolio
-    sampler to turn their differences into softmax sampling weights.
+    Scores are uncalibrated margins used only to order candidate assets.
     """
 
-    ranking_score_kind = "logit"
 
     def __init__(self, params: dict[str, Any]):
         unknown = params.keys() - DEFAULT_PARAMS.keys()

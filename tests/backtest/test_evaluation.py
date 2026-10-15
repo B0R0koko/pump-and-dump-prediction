@@ -68,9 +68,7 @@ def test_btc_buy_and_hold_increments_sum_to_simple_full_period_return(
 def test_portfolio_and_btc_returns_are_aligned_on_one_calendar() -> None:
     portfolio = pd.DataFrame(
         {"K=1": [0.1, 0.2, -0.1]},
-        index=pd.to_datetime(
-            ["2022-01-01 12:00", "2022-01-01 18:00", "2022-01-03 12:00"]
-        ),
+        index=pd.to_datetime(["2022-01-01 12:00", "2022-01-01 18:00", "2022-01-03 12:00"]),
     )
     btc = pd.DataFrame(
         {
@@ -81,9 +79,7 @@ def test_portfolio_and_btc_returns_are_aligned_on_one_calendar() -> None:
         },
         index=pd.to_datetime(["2022-01-02", "2022-01-03"]),
     )
-    btc.attrs.update(
-        {"start_time": datetime(2022, 1, 1, 12), "end_time": datetime(2022, 1, 3, 12)}
-    )
+    btc.attrs.update({"start_time": datetime(2022, 1, 1, 12), "end_time": datetime(2022, 1, 3, 12)})
 
     aligned = align_portfolio_returns_with_btc(portfolio, btc)
 
@@ -101,9 +97,7 @@ def test_btc_statistics_use_exact_period_return_and_full_day_volatility() -> Non
             "period_days": [0.5, 1.0, 0.5],
         }
     )
-    btc.attrs.update(
-        {"start_time": datetime(2022, 1, 1), "end_time": datetime(2022, 1, 3)}
-    )
+    btc.attrs.update({"start_time": datetime(2022, 1, 1), "end_time": datetime(2022, 1, 3)})
 
     stats = compute_btc_buy_and_hold_statistics(btc)
 
@@ -119,25 +113,34 @@ def test_portfolio_average_return_is_computed_per_event_not_per_active_day() -> 
 
     stats = compute_portfolio_statistics(equity)
 
-    assert np.isclose(
-        stats.loc["strategy", "average event return"], (0.1 + 0.2 - 0.1) / 3
-    )
+    assert np.isclose(stats.loc["strategy", "average event return"], (0.1 + 0.2 - 0.1) / 3)
 
 
-def test_model_selection_uses_analytical_validation_auc_without_resampling(monkeypatch) -> None:
+def test_model_selection_uses_deterministic_validation_auc_without_randomness(monkeypatch) -> None:
+    """Select by target rank on validation, never by confidence or test outcomes.
+
+    Four candidates form each of two events. A weak model ranks the true asset
+    last; two others put it first with different score gaps. The two winning
+    rankings must tie at 0.9875 AUC (the first integration trapezoid begins at
+    zero), with the earlier experiment winning the tie. Any random draw fails
+    the test, and every recorded dataset request must be VALIDATION.
+    """
+
     def no_rng(*args, **kwargs):
-        raise AssertionError("Analytical model selection must not draw random samples")
+        raise AssertionError("Deterministic model selection must not draw random samples")
 
     monkeypatch.setattr(np.random, "default_rng", no_rng)
     requested_splits: list[DatasetType] = []
 
     class _Dataset:
         def all_data(self):
-            return pd.DataFrame({
-                "pump_hash": np.repeat(["event_a", "event_b"], 4),
-                "currency_pair": ["A", "B", "C", "D"] * 2,
-                "is_pumped": [True, False, False, False] * 2,
-            })
+            return pd.DataFrame(
+                {
+                    "pump_hash": np.repeat(["event_a", "event_b"], 4),
+                    "currency_pair": ["A", "B", "C", "D"] * 2,
+                    "is_pumped": [True, False, False, False] * 2,
+                }
+            )
 
     class _Sample:
         def get_dataset(self, ds_type: DatasetType) -> object:
@@ -145,8 +148,6 @@ def test_model_selection_uses_analytical_validation_auc_without_resampling(monke
             return _Dataset()
 
     class _Model:
-        ranking_score_kind = "logit"
-
         def __init__(self, score):
             self.score = score
 
@@ -169,28 +170,28 @@ def test_model_selection_uses_analytical_validation_auc_without_resampling(monke
             return _Model(self.score)
 
     experiments = [
-        _Experiment("first", 0.1),
-        _Experiment("best", 5.0),
-        _Experiment("third", 1.0),
+        _Experiment("weak", -1.0),
+        _Experiment("first_winner", 0.1),
+        _Experiment("larger_gap", 5.0),
     ]
-
-    selected, ranking = select_best_experiment_on_validation(experiments)  # type: ignore[arg-type]
-
+    selected, ranking = select_best_experiment_on_validation(experiments)
     assert selected is experiments[1]
-    assert ranking.index.tolist() == ["best", "third", "first"]
+    assert ranking.index.tolist() == ["first_winner", "larger_gap", "weak"]
     assert requested_splits == [DatasetType.VALIDATION] * len(experiments)
-    # All models rank the target first; confidence alone changes this selection.
-    assert ranking["best"] > ranking["third"] > ranking["first"]
-    for experiment in experiments:
-        p_true = np.exp(experiment.score) / (np.exp(experiment.score) + 3)
-        assert np.isclose(ranking[experiment.name], p_true * 0.9875)
+    np.testing.assert_allclose(ranking.to_numpy(), [0.9875, 0.9875, 0])
     selected_only, ranking_only = select_best_experiment_on_validation([experiments[0]])
     assert selected_only is experiments[0]
-    assert ranking_only.index.tolist() == ["first"]
-    assert np.isclose(ranking_only["first"], ranking["first"])
+    assert ranking_only.index.tolist() == ["weak"]
+    assert ranking_only["weak"] == 0
 
 
-def test_model_selection_rejects_legacy_with_replacement_summary() -> None:
+def test_model_selection_reuses_only_matching_deterministic_validation_summary() -> None:
+    """Reuse valid summary scores without rescoring or accepting test metrics.
+
+    A candidate deliberately exposes no model or dataset accessor, so success
+    proves that supplied validation point estimates are reused. An incompatible
+    metric or a TEST partition must fail before it can drive model selection.
+    """
     from types import SimpleNamespace
     import pytest
 
@@ -198,9 +199,23 @@ def test_model_selection_rejects_legacy_with_replacement_summary() -> None:
         def get_experiment_name(self):
             return "model"
 
-    summary = pd.DataFrame({
-        "dataset_type": ["VALIDATION"], "metric": ["analytical_topk_percent_auc"],
-        "draw_replacement": [True], "point_estimate": [0.5],
-    }, index=["model"])
-    with pytest.raises(ValueError, match="without replacement"):
-        select_best_experiment_on_validation([Candidate()], bootstrap_results=SimpleNamespace(auc_summary=summary))
+    candidate = Candidate()
+    summary = pd.DataFrame(
+        {
+            "dataset_type": ["VALIDATION"],
+            "metric": ["topk_percent_auc"],
+            "point_estimate": [0.5],
+        },
+        index=["model"],
+    )
+    selected, ranking = select_best_experiment_on_validation(
+        [candidate], bootstrap_results=SimpleNamespace(auc_summary=summary)
+    )
+    assert selected is candidate
+    assert ranking["model"] == 0.5
+    for changed, message in [
+        (summary.assign(metric="other_metric"), "deterministic"),
+        (summary.assign(dataset_type="TEST"), "validation"),
+    ]:
+        with pytest.raises(ValueError, match=message):
+            select_best_experiment_on_validation([candidate], bootstrap_results=SimpleNamespace(auc_summary=changed))

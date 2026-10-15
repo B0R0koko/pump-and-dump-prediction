@@ -1,6 +1,6 @@
-# Confidence-Aware Pump-and-Dump Target Prediction
+# Mitigating Class Imbalance in Pump-and-Dump Detection
 
-Confidence-sensitive learning and portfolio allocation for Binance P&D events.
+A Comparative Analysis of Imbalance-Aware Algorithms on Binance P&D events.
 
 <p align="center">
   <img src="props/pump_and_dump_wojak.png" alt="Pump and dump wojak illustration with BTC candlestick charts" width="720">
@@ -16,32 +16,24 @@ The detection task in this repository is the **target-prediction** variant: give
 
 ## About this project
 
-This repository contains the code, data manifests, and experiments for the revised manuscript *"Confidence-Aware Prediction and Portfolio Construction for Cryptocurrency Pump-and-Dump Events"*, developed from IEEE Access submission Access-2026-02451. It predicts which ticker in a given cross-section is the pump target, using microstructure features and ranking-aware learning on a panel with a negative/positive imbalance ratio of about 152–297 (train → test).
+This repository contains the code, data manifests, and experiments backing the IEEE Access submission *"Mitigating Class Imbalance in Pump-and-Dump Detection"* (Access-2026-02451). It predicts which ticker in a given cross-section is the pump target, using microstructure features and ranking-aware learning on a panel with a negative/positive imbalance ratio of about 152–297 (train → test).
 
 ## Highlights
 
 - **Problem.** For each announced P&D event on Binance, pick the manipulated ticker from BTC-quoted pairs with at least one trade in the exact past-only eligibility window (average candidates: train 153, tuning 216, comparison 254, test 298).
 - **Dataset.** The cleaned manifest contains 517 usable Binance BTC-pair events (Jan 2018 – Aug 2022), split chronologically into 310 training / 52 tuning / 103 comparison validation / 52 test events, targeting 60% / 10% / 20% / 10%. The 43 additions across three review batches have archived advance schedules and target announcements corroborated by actual Binance trades. Documented weak or unsuccessful attempts are retained without a minimum return or profitability threshold. Duplicate aliases and events outside Binance/BTC are preserved in the exclusions manifest; the recovered YOYO event is included.
-- **Approach.** Cross-sectionally standardized microstructure features and eight tuned classifier/ranker families, including QuerySoftMax and Top-5 objectives. Model selection computes the probability of including the pumped asset in K weighted draws without replacement, using deterministic numerical integration; deterministic rankings remain descriptive diagnostics.
+- **Approach.** Cross-sectionally standardized microstructure features and seven classifier/ranker families. Model selection uses deterministic Top@k%AUC: whether the true target ranks among the highest-scored candidates. Portfolios select the top K assets and allocate equal capital to each.
 - **Execution-aware backtest.** Square-root market-impact model (Tóth / Donier–Bonart) fitted per asset from trade-level candles (5-min pre-pump entry, 5-sec sell-only post-pump exit), translated into size-dependent VWAP slippage.
 
 <p align="center">
   <img src="props/wojak_quant_outplays_bogdanoff.png" alt="Wojak quant builds an ML model that flags an incoming pump-and-dump and sells before the dump, outplaying the Bogdanoff organizers" width="720">
 </p>
 
-## Current manuscript results
+## Research workflow and manuscript results
 
-The revised paper connects equal-versus-score-proportional capital allocation with QuerySoftMax's event-level loss: assigning the true target a high softmax probability rewards separation from competing logits as well as correct rank. Weighted asset selection and capital allocation remain distinct choices.
+The research workflow uses deterministic rankings and equal-weight Top@k portfolios. The current 517-event dataset, separate tuning/comparison partitions, and leakage safeguards are retained. Rerun the notebook to produce results for this workflow; its previous model-result outputs have been cleared.
 
-QuerySoftMax is selected on the 103-event comparison sample with analytical inclusion AUC **0.4301**; its 52-event test AUC is **0.5036**. Paired whole-event bootstrap tests show gains over six alternatives on both partitions (**Holm-adjusted p = 0.0028**, correcting all 28 pairs per partition). SMOTE has test AUC **0.5555**; its difference from QuerySoftMax is inconclusive (adjusted p = 0.2380), so QuerySoftMax is not established as universally best.
-
-For sampled K=5 QuerySoftMax portfolios, changing equal to score-proportional capital raises median fixed-notional cumulative return from **88.15% to 213.07%** on comparison and **23.12% to 81.58%** on test. These are conditional Monte Carlo summaries, not significance tests; the allocation experiment includes 25 bps round-trip costs but no price impact. The historical periods were previously inspected, so the four-way split is retrospective.
-
-Current numerical sources are `weighted_selection/analytical_selection_without_replacement/` and `weighted_selection/probability_allocation/` under the split-specific notebook output directory. The paper and its current tables supersede the historical figures below.
-
-## Historical results (prior three-way split)
-
-The tables and findings in this section are preserved from the earlier train/validation/test workflow, before separating tuning from model comparison. They do not describe the four-partition run documented below. These historical tables predate the event expansion and current confidence-sensitive analysis.
+The manuscript and its highlighted comparison are restored to the earlier deterministic study. The tables below describe that historical 473-event sample and its 80-event test set, before the dataset expansion and four-way split. They are not new estimates for the current 517-event dataset.
 
 Evaluation on 80 P&D cross-sections (test period >= 2021-05-01).
 
@@ -69,7 +61,7 @@ Top@k%AUC is integrated and normalized over the low-k% region k% ∈ (0, 20%], s
 | **CatBoost + Top@k%AUC ES** | **0.674** | **[0.592, 0.755]** |
 | CatBoost classifier + Tuned | 0.662     | [0.575, 0.747]     |
 
-Tuned logistic regression has the highest test Top@k%AUC point estimate (0.697), followed by CatBoost + Top@k%AUC ES (0.674), tuned CatBoost (0.662), untuned logistic regression (0.660), and tuned random forest (0.651). In the earlier test-only bootstrap, the comparator selected on validation was tuned CatBoost; the 0.0116 test-set difference was not statistically significant. These recorded test results are separate from the current analytical inclusion metric and its all-model paired bootstrap.
+Tuned logistic regression has the highest test Top@k%AUC point estimate (0.697), followed by CatBoost + Top@k%AUC ES (0.674), tuned CatBoost (0.662), untuned logistic regression (0.660), and tuned random forest (0.651). In the earlier test-only bootstrap, the comparator selected on validation was tuned CatBoost; the 0.0116 test-set difference was not statistically significant. These recorded results describe the historical three-way split.
 
 ### Portfolio performance (CatBoost + Top@k%AUC ES, 25 bps round-trip, no reinvestment, trade-price entry/exit)
 
@@ -126,13 +118,13 @@ docker pull b0r0koko/pdf-feature-writer:latest
 
 | Docker Hub image | Invocation after the image name | Purpose |
 | --- | --- | --- |
-| `b0r0koko/pds-dataloader:latest` | `trades [options]` or `klines [options]` | Download Binance daily ZIPs for selected instruments |
+| `b0r0koko/pds-dataloader:latest` | `[options]` | Download Binance daily trade ZIPs; override the entrypoint for candles |
 | `b0r0koko/pdf-preprocessor:latest` | `[options]` | Convert trade ZIPs into Hive-partitioned Parquet |
 | `b0r0koko/pdf-feature-writer:latest` | `[options]` | Generate pump features and timestamp audit logs |
 
-The published images target **Linux/amd64**. All stages share a mounted `/data` directory; downloaded data, personal configuration, notebooks, and credentials are excluded from the images. Running any image without arguments prints help. For example, run `docker run --rm b0r0koko/pds-dataloader:latest trades --help`. Explicit commands such as `python` also work in each image.
+The published images target **Linux/amd64**. All stages share a mounted `/data` directory; downloaded data, personal configuration, notebooks, and credentials are excluded from the images. Each Dockerfile names its CLI directly as the entrypoint; there is no wrapper script. Running any image without arguments prints help. For example, run `docker run --rm b0r0koko/pds-dataloader:latest --help`. Use Docker's `--entrypoint` option to run a different command, such as `--entrypoint python`.
 
-To build local versions, use the separate Dockerfiles from the repository root; the final `.` is the shared build context. Their dependency versions are pinned by `poetry.lock`:
+To build local versions, use the separate Dockerfiles from the repository root; the final `.` is the shared build context. Each image uses a single build stage and installs its short `requirements.txt` with pip, followed by the project without the notebook/training dependencies. Direct dependency versions are listed in those files; pip resolves their transitive dependencies. Container builds do not use `poetry.lock` or a custom dependency installer:
 
 ```bash
 docker build -f docker/dataloader/Dockerfile -t pumps-and-dumps-dataloader:local .
@@ -140,7 +132,7 @@ docker build -f docker/preprocessor/Dockerfile -t pumps-and-dumps-preprocessor:l
 docker build -f docker/feature-writer/Dockerfile -t pumps-and-dumps-feature-writer:local .
 ```
 
-Substitute these local tags in the commands below to use your build. The full research image remains available with `docker build --target runtime -t pumps-and-dumps:local .`; its command aliases are `trades`, `klines`, `parquet`, and `features`.
+Substitute these local tags in the commands below to use your build.
 
 Every stage accepts `--config /config/job.conf`. Configuration can be **HOCON or JSON**, with flat keys matching CLI option names. `start` / `end` and `--start` / `--end` are aliases for the existing date options. Command-line values override configuration values, which override defaults. Use `--no-skip-existing` to override a configured `skip-existing = true`. Unknown options, invalid values, and conflicting instrument/pump sources fail before processing starts. Relative paths in a config resolve beside that config; relative CLI paths resolve from the working directory.
 
@@ -160,7 +152,7 @@ docker run --rm --init \
   --user "$(id -u):$(id -g)" \
   --mount "type=bind,source=$(pwd)/market-data,target=/data" \
   --mount "type=bind,source=$(pwd)/configs,target=/config,readonly" \
-  b0r0koko/pds-dataloader:latest trades --config /config/trades.conf
+  b0r0koko/pds-dataloader:latest --config /config/trades.conf
 
 docker run --rm --init --network none \
   --user "$(id -u):$(id -g)" \
@@ -171,14 +163,15 @@ docker run --rm --init --network none \
 
 The ZIPs appear under `market-data/raw/binance/spot/trades/` and Parquet under `market-data/transformed/binance/spot/trades/`. The container defaults to non-root UID 1000. Matching your host UID/GID keeps bind-mounted files owned by you; the data directory must be writable by that user. Parser failures return a nonzero exit code. `--skip-existing` verifies archive sizes and full CRCs, repairing missing or damaged downloads.
 
-For candles, use the downloader's `klines` command. Flags can override any configured selection:
+For candles, override the downloader entrypoint with `pumps-download-klines`. Flags can override any configured selection:
 
 ```bash
 docker run --rm --init \
   --user "$(id -u):$(id -g)" \
   --mount "type=bind,source=$(pwd)/market-data,target=/data" \
   --mount "type=bind,source=$(pwd)/configs,target=/config,readonly" \
-  b0r0koko/pds-dataloader:latest klines --config /config/klines.conf \
+  --entrypoint pumps-download-klines \
+  b0r0koko/pds-dataloader:latest --config /config/klines.conf \
   --instruments BTC-USDT ETH-USDT --start 2021-02-01 --end 2021-02-02 --interval 5m
 ```
 
@@ -348,38 +341,37 @@ Records are flushed after each asset and appended under a file lock so parallel 
 
 ### 7. Train models and run the full comparison
 
-The training notebook `notebooks/research_notebook.ipynb` orchestrates the full experiment:
+The training notebook `notebooks/research_notebook.ipynb` orchestrates the experiment:
 
 ```bash
 poetry run jupyter lab
 # open notebooks/research_notebook.ipynb, run all
 ```
 
-Under the hood the notebook uses `src/pumps_and_dumps/backtest/pipelines/`. Each model family has a `pipeline.py` for sample construction, training, and tuning, and a `model.py` where it needs a separate estimator wrapper:
+Model implementations live in `src/pumps_and_dumps/backtest/pipelines/`:
 
 - `logistic_regression/` — class-weighted logistic regression
 - `random_forest/` — random forest classifier
 - `catboost_classifier/` — CatBoost classifier
 - `catboost_smote/` — CatBoost with SMOTE oversampling
-- `catboost_topk_auc/` — CatBoost with `Top@k%AUC` early stopping
-- `catboost_ranker/` — learning-to-rank model
-- `catboost_query_softmax/` — event-level softmax loss for identifying the manipulated asset
+- `catboost_topk_auc/` — CatBoost with Top@k%AUC early stopping
+- `catboost_ranker/` — return-based learning-to-rank model
 - `catboost_top5/` — margin loss for placing the manipulated asset in the top five
 
-The notebook keeps configuration and research steps in short cells. Training helpers, plots, and report/export assembly live in `src/pumps_and_dumps/backtest/research/`. Dataset construction lives in `backtest/datasets/`, metrics and model evaluation in `backtest/metrics.py` and `backtest/evaluation.py`, and bootstrap/subset analyses in `backtest/robustness/` (all under `src/pumps_and_dumps/`). The notebook compares one model per family, using the best parameters from each saved Optuna study. All eight models, including QuerySoftMax and Top-5, share the same analysis; display names identify the family or objective without a tuning suffix. Restart the kernel before rerunning training after code or feature changes.
+The notebook compares one model per family using the best parameters from each saved Optuna study. Training helpers, plots, and reports live in `backtest/research/`; metrics and evaluation live in `backtest/metrics.py` and `backtest/evaluation.py`; bootstrap and subset analyses live in `backtest/robustness/`, all under `src/pumps_and_dumps/`. Restart the kernel before rerunning after code or feature changes.
 
-Each pipeline uses the same **60% training / 10% tuning / 20% comparison validation / 10% test** split, ordered by event timestamp. The current 517-event sample is allocated as follows:
+Each pipeline uses the same **60% training / 10% tuning / 20% comparison validation / 10% test** split, ordered by event timestamp:
 
 | Partition | Target share | Events | Observed UTC date range | Role |
 | --- | ---: | ---: | --- | --- |
 | Training | 60% | 310 | 2018-01-03 through 2020-07-10 16:00:07 | Fit model parameters |
 | Tuning | 10% | 52 | 2020-07-10 17:00:00 through 2021-01-02 21:00:00 | Hyperparameter objectives and early stopping |
-| Comparison validation | 20% | 103 | 2021-01-03 17:00:00 through 2021-08-22 17:00:00 | Bootstrap frozen models and select the model |
-| Test | 10% | 52 | 2021-08-24 15:00:03 through 2022-08-14 16:00:05 | Final performance evaluation |
+| Comparison validation | 20% | 103 | 2021-01-03 17:00:00 through 2021-08-22 17:00:00 | Compare frozen models and select the model |
+| Test | 10% | 52 | 2021-08-24 15:00:03 through 2022-08-14 16:00:05 | Final evaluation of the frozen choice |
 
-Cuts are nearest the cumulative 60%, 70%, and 90% event-count targets. Every pump's candidate-asset cross-section and all simultaneous events remain together. Percentages can differ slightly through rounding or tied timestamps. Candidate-asset counts and outcomes do not influence membership. Adding or removing events recomputes the boundaries and requires fresh tuning. The notebook displays the actual split table, selects the final model by comparison **analytical Top@k%AUC**, then reports test metrics and portfolios with that choice frozen. This criterion integrates the probability of observing the pumped asset at least once in K weighted draws without replacement; deterministic Top@k%AUC integrates inclusion among the highest-scoring assets.
+Cuts are nearest the cumulative 60%, 70%, and 90% event-count targets. Every event's candidate cross-section and simultaneous events stay together. Candidate counts and outcomes do not influence membership. Adding or removing events requires new tuning. Historical periods were previously inspected, so the repartition is retrospective.
 
-The default database is `<chosen data directory>/studies_split_60_10_20_10_v1.db`; previous databases remain untouched. **Run new searches before running this notebook**, because earlier parameters were selected on different partitions. This command searches all eight models with 100 trials each:
+The default study database is `<chosen data directory>/studies_split_60_10_20_10_v1.db`. Existing studies for the retained models can be reused when the data, feature definitions, and split policy are unchanged. To create fresh searches for all seven families:
 
 ```bash
 poetry run python -m pumps_and_dumps.backtest.research.retune \
@@ -387,96 +379,37 @@ poetry run python -m pumps_and_dumps.backtest.research.retune \
   --trials 100
 ```
 
-The command rejects an existing database rather than resuming or replacing its studies. To repeat a fresh full search, supply a new absolute SQLite URL with `--storage sqlite:////absolute/new/studies.db` and use a separate output directory; set the notebook's `STUDY_STORAGE` to the same URL. Each model writes its search log, split manifest, best parameters, and fitted artifact under the run directory. The notebook uses `SQLITE_URL` by default, loads the selected parameters, and refits models without launching another search.
+The command rejects an existing database. Use `--storage sqlite:////absolute/new/studies.db` and a separate output directory for a new run, and point the notebook's `STUDY_STORAGE` to the same database. Each model writes its search log, split manifest, best parameters, and fitted artifact. The notebook loads saved parameters and refits models without launching a search.
 
-Notebook portfolio outputs and caches go under `notebooks/analysis_outputs/split_60_10_20_10_v1/weighted_selection/`. Analytical inclusion metrics, significance tables, and their images use its new `analytical_selection_without_replacement/` subdirectory. Earlier with-replacement, sampled-metric, and deterministic-selection artifacts remain available. The previous notebook is archived at `data/research/split_60_10_20_10_20261012/research_notebook_before.ipynb`. Changing the comparison criterion does not change the saved studies, training objectives, or fitted model scores and does not require fresh tuning or feature generation. Earlier research already inspected these periods, so this is a retrospective repartition rather than newly unseen confirmation.
-
-The separate **CatBoost + QuerySoftMax** pipeline groups assets by pump event and uses `is_pumped` labels: exactly one positive per group. It minimizes the negative log softmax probability assigned to that asset, using the same objective on the tuning partition for early stopping and Optuna selection. It uses the existing 81 predictors and chronological splits; future-return targets are not used. Its raw scores become within-event softmax weights in the portfolio simulation. This aligns training with the sampling weights, but does not guarantee more concentrated predictions or higher returns.
-
-The notebook loads the best QuerySoftMax parameters from its saved study. The standalone simulation loads the same saved study. To create or replace the study separately:
-
-```bash
-poetry run python -m pumps_and_dumps.backtest.pipelines.catboost_query_softmax.pipeline --trials 100
-```
-
-This creates its own `CatboostQuerySoftmaxPipelineStudy`, minimizing mean tuning-event log loss. The notebook's `train_experiment(..., tuned=True)` call loads these parameters. Rerunning the tuning command replaces only that pipeline's study. Existing pipelines and their studies are preserved.
-
-**CatBoost + Top-5** trains a single margin objective: `max(0, 1 + fifth_highest_negative_score - true_asset_score)`, averaged equally over pump events. An event with fewer than five negative assets contributes zero because all its assets already fit in a five-asset portfolio. It uses the same binary `is_pumped` labels, 81 predictors, and chronological splits. Negative assets tied at the fifth-highest score share that boundary's gradient equally.
-
-This is a custom grouped training loss. The model computes negative subgradients using whole events, fits one CatBoost regression tree to each update, and combines the retained trees into a single CatBoost model. RMSE fits each gradient update; the overall training objective and the tuning-partition early-stopping criterion are the Top-5 margin loss. The defaults are 300 boosting rounds, learning rate 0.3, depth 4, and 40 rounds of patience. The initial zero-score model participates in early stopping, so a harmful sequence of updates is discarded. Subgradient updates need not decrease the hinge loss at every round.
-
-The notebook and standalone portfolio simulation load the best Top-5 parameters from the saved study. To create or replace this study:
+CatBoost + Top-5 minimizes the event-level margin loss `max(0, 1 + fifth_highest_negative_score - true_asset_score)`. It shares the same predictor set and chronological partitions. Its tuning loss controls early stopping; it remains a deterministic ranker in the research comparison. Its standalone tuning command is:
 
 ```bash
 poetry run python -m pumps_and_dumps.backtest.pipelines.catboost_top5.pipeline --trials 100
 ```
 
-Its own `CatboostTop5PipelineStudy` minimizes tuning margin loss and records the feature list and objective settings. The notebook loads it through `train_experiment(..., tuned=True)`. The margin and K=5 stay fixed during tuning so trials optimize the same objective. Portfolio sampling applies softmax to its raw margin scores; these are not calibrated probabilities. The objective rewards clearing the top-five boundary and stops pushing once the margin is met; it does not require the true asset to rank first or guarantee more concentrated sampling weights. It does not optimize the analytical inclusion metric or investment returns directly. Existing studies and previously saved research outputs remain available.
+#### Deterministic model comparison
 
-Before test evaluation, the **Comparison bootstrap: all models and all pairwise comparisons** section scores every frozen candidate on the current comparison validation events once (103 in the 60/10/20/10 split). Classifier probabilities are normalized across assets; ranking logits use softmax. The metric is the inclusion probability for K weighted draws **without replacement**: each selected asset is removed and the remaining weights are renormalized before the next draw. This is the same selection law as the distinct-asset return and drawdown simulations. The inclusion probability depends on all the event's asset weights, not only the pumped asset's weight. The exact weighted inclusion law is evaluated by deterministic numerical integration, without portfolio resampling; no portfolio count or sampling seed is needed.
+Top@k and Top@k% measure whether the true target appears among each event's highest-scored candidates. Top@k%AUC integrates that deterministic hit curve over the 0–20% candidate range. The notebook selects the highest comparison AUC and freezes that model before evaluating test metrics and portfolios.
 
-For a fraction `f` and N candidate assets, `K = ceil(f * N)`. Analytical Top@k%AUC integrates the event inclusion probabilities over 0–20% of candidate assets on the existing 0.5-percentage-point grid, anchored at zero and normalized by 20%. With one pumped asset and uniform weights, its inclusion probability is `min(K, N) / N`.
+Uncertainty comes from resampling whole events while keeping fitted models fixed. All candidates use the same event bootstrap draws. The comparison reports 95% pointwise intervals and paired differences, with Holm adjustment over all 21 model pairs. This event bootstrap measures uncertainty in ranking performance; assets are never drawn from model-score probabilities to build portfolios. It does not include retraining or tuning uncertainty.
 
-The bootstrap resamples **whole events 10,000 times**, using the same event draws for every model. Each event contributes its deterministically computed inclusion AUC, with equal event weight. Models and inclusion probabilities stay fixed during event resampling; tuning events never enter this comparison. The event-bootstrap random seed defaults to 42. Reports include analytical Top@k%AUC point estimates, bootstrap means, standard errors, and pointwise 95% percentile intervals, plus analytical Top@k and Top@k% intervals. Each split also exports `{split}_event_hit_probabilities.csv` with one hit probability per model, event, and K; the interactive distribution chart shows the share of events above each probability threshold, with a K selector, model toggles, and near-zero zoom controls. A separate interactive plot shows per-model mean and median probabilities with its own K selector. Both plots export standalone HTML files, alongside a printable PNG distribution overview for all K. Deterministic ranking metrics remain separately labeled diagnostics.
+Notebook reports use `notebooks/analysis_outputs/split_60_10_20_10_v1/deterministic_selection/`. Earlier experimental outputs and studies are retained as historical artifacts and are not inputs to the restored notebook.
 
-All unordered candidate pairs (28 comparisons with the notebook's eight models) use two-sided centered-null paired bootstrap tests, with add-one Monte Carlo p-values and [Holm adjustment](https://stat.ethz.ch/R-manual/R-devel/library/stats/html/p.adjust.html) across the full comparison family. A positive A-minus-B estimate and `p_value_holm < 0.05` support higher validation **analytical Top@k%AUC** for A. Separate interval overlap is not the decision rule, and an inconclusive result does not establish equivalence. The displayed confidence intervals are pointwise, not adjusted across comparisons. Test uses the same procedure on its 52 events, with a separate 28-pair Holm family; its observed leader does not replace the comparison-selected model.
+### 8. Deterministic portfolios and price-impact backtest
 
-The optional `reports.report_chosen_comparisons(...)` helper shows one model's differences against every other candidate while retaining the adjustment over all pairs. Summary, pairwise, and threshold tables are saved under `notebooks/analysis_outputs/split_60_10_20_10_v1/weighted_selection/analytical_selection_without_replacement/significance/validation_*.csv`; test exports use the sibling `significance_test/` directory. Tables identify the AUC metric as `analytical_topk_percent_auc` and the calculation as `inclusion_method="analytical"`, `draw_replacement=False`; the helper also exports a chosen-model table when invoked. The interval plot and significance matrix are saved under `analytical_selection_without_replacement/images/`. In a current kernel with `experiments` available, rerun the comparison and model-selection cells together. Otherwise run the training and validation cells first; they require the feature files and tuned Optuna studies under the chosen data directory.
+For each event, the selected model ranks eligible assets and the portfolio takes the top K, allocating equal capital to each selected asset. Selection is fixed before execution outcomes are read. Missing fills remain cash rather than being replaced using future availability. The notebook retains the original entry/exit rules, transaction costs, fixed-notional accounting, BTC benchmark, and fitted square-root price-impact sensitivity analysis.
 
-These comparisons condition on the fitted models and keep this run's tuning and early stopping separate from comparison validation. Event resampling assumes independent events and does not include uncertainty from retraining, hyperparameter search, or changes between periods. The inclusion calculation has no portfolio Monte Carlo error. Statistical power depends on the number of comparison events and the size and consistency of model differences. Earlier research already inspected the full validation and test periods, so this separation and subsequent choice of analytical selection criterion are retrospective diagnostics rather than newly unseen confirmation.
-
-### 8. Portfolio simulation and price-impact backtest
-
-`notebooks/research_notebook.ipynb` runs the Top@k portfolio and fitted square-root impact analysis; `notebooks/visualisations.ipynb` regenerates the introductory event plot. The impact model is fitted per asset from trade-level candles ending at the transaction being priced; VWAP slippage for size Q is `I_vwap(Q) = (2/3) * β * sqrt(Q)`.
-
-#### Random portfolios conditioned on model predictions
-
-The notebook's comparison validation portfolio simulation compares every fitted model against uniform random selection. At each validation pump, it draws **1,000 portfolios of five distinct assets**, equally weighted within each portfolio. Classifiers supply positive-class probabilities, normalized across the event's eligible assets; these are already probabilities, so they do not receive a second softmax. The ranker supplies raw scores, converted to weights with softmax. Sampling without replacement gives higher-weight assets a higher inclusion probability without making inclusion certain. Eligibility comes from the existing past-only candidate universe, never future returns or successful fills.
-
-Simulation number *s* links the *s*-th portfolio at every chronological validation event into one full equity path. All strategies share event-level random draws for paired comparisons. The run reports 1,000 final returns and maximum drawdowns per strategy, their medians and 5th–95th percentiles, and paired differences from uniform selection. Equity is `1 + cumulative sum of event returns`, following the existing fixed-notional, no-reinvestment convention. Drawdown is the largest fractional decline from the running equity peak, including initial capital; returns from simultaneous events are combined before calculating drawdown. This measures drawdown at event closes, not intratrade losses. Under fixed-notional sizing, a sufficiently large cumulative loss can exceed initial capital.
-
-The simulation uses the existing execution rule: enter on the first trade in `[T − 15 min, T)`, exit other assets on their first trade at or after the announcement, and exit the announced target on its first trade at or after `T + 1 min`. It uses trade prices, BTC/USDT conversion, and 25 bps round-trip cost per filled asset position. Missing fills leave that position's allocation in cash with zero return; other positions retain their original one-fifth allocation. There is no additional fitted price-impact adjustment in this comparison.
-
-Exports include `summary.csv`, `comparisons.csv`, `paths.csv`, `event_summary.csv`, and `event_returns.parquet`; the last table permits reconstruction of each full validation path. The two empirical cumulative distribution plots compare final return and maximum drawdown, with uniform selection shown as a dashed black line. These distributions measure **portfolio-selection randomness conditional on fixed models and fixed validation events**. The models are not retrained and events are not bootstrapped. Paired win fractions and percentile ranges are descriptive Monte Carlo comparisons, not significance tests or confidence intervals for future performance. These comparison events are excluded from this run's tuning and early stopping, but were inspected in earlier research.
-
-Run the notebook's short simulation cells before the final test section, using its already fitted models. Its exports are isolated under `notebooks/analysis_outputs/split_60_10_20_10_v1/weighted_selection/portfolio_simulation/`. Alternatively, run the standalone comparison:
-
-```bash
-poetry run python -m pumps_and_dumps.backtest.research.portfolio_simulation
-```
-
-The standalone command fits the same eight models as the notebook using the current 81 predictors and the best parameters from all eight saved Optuna studies, including QuerySoftMax and Top-5. It does not start a new Optuna search. It evaluates validation only, then freezes models for all 1,000 portfolio draws. The defaults are `--portfolio-size 5 --simulations 1000 --seed 42`; `--workers` controls concurrent execution-price reads. Tables, the input scores and outcomes, run settings, and `distributions.png` are written to `notebooks/analysis_outputs/portfolio_simulation/`; use `--output-dir` to keep separate runs. It reads the new default tuning-only study database. Use the fresh-search command above after changing features or the split policy; running a simulation does not retune parameters.
-
-#### Return–drawdown frontiers across K
-
-The notebook compares every fitted model over **K=1 through 30**, using two plots with maximum drawdown on the x-axis and final return on the y-axis. The deterministic comparison selects the K highest model scores. The sampled comparison retains normalized classifier probabilities and softmax of ranking scores, and includes uniform sampling as a baseline. Both use equal investment per selected asset and reuse the preceding K=5 simulation's cached execution outcomes.
-
-For each K, the sampled comparison builds 1,000 full validation paths with a fresh portfolio at every event. Random draws are shared across models and K. Each plotted point pairs the median final return with the median full-path maximum drawdown; those marginal medians need not correspond to one realized path. Both comparisons use fixed-notional returns without compounding, include initial equity in drawdown, and combine simultaneous events before measuring drawdown. Unfilled slots remain cash.
-
-The frontier plots use Plotly. Hover shows the model, K, return, drawdown, and Pareto status; click a legend entry to toggle a model or double-click to isolate it. Zoom and pan are supported. HTML exports include Plotly itself and work offline. Every dot represents one portfolio size. Solid lines connect each model's nondominated points: no other K for that model has both at least as much return and at most as much drawdown, with one strict improvement. The upper-left direction is better. These are descriptive frontiers on comparison validation, separate from the current run's tuning partition. Choosing a model or K from these curves is another selection step; the notebook also reports both curves on test with models held fixed. Short notebook cells call `research/portfolio_frontier.py` and `research/portfolio_frontier_report.py`; point tables, sampled path results, and `deterministic_frontiers.html` / `sampled_frontiers.html` are exported to `notebooks/analysis_outputs/split_60_10_20_10_v1/weighted_selection/portfolio_frontiers/`.
-
-#### Probability-based capital allocation
-
-The notebook also compares equal investment against probability-based investment **within the same selected K assets** for all eight models, on both the 103-event comparison sample and the 52-event test sample. Deterministic portfolios still select the K highest scores; sampled portfolios still use the same weighted draws without replacement. For a selected set `S`, each asset receives `weight_i = q_i / sum(q_j for j in S)`, where `q_i` is the classifier's positive-class probability or the exponential of a ranking score. Ranking weights are calculated with a stable softmax over the selected set. These normalized scores express the allocation rule, not a claim that each model's probabilities are calibrated.
-
-Each event's return is the sum of the selected assets' net returns multiplied by their allocation weights. Missing fills retain their assigned capital as zero-return cash; their weights are not redistributed to assets that happened to trade. The existing transaction costs, BTC conversion, fixed-notional equity, and event-close drawdown conventions remain in effect. All-zero probability sets use equal weights. At K=1, equal and probability-based investment coincide; the uniform baseline also retains equal investment at every K.
-
-The analysis repeats both return–drawdown frontiers for **K=1 through 30**, with **1,000 sampled full paths per K**. Models, executions, portfolio selections, and random seeds are held fixed between allocation rules, so paired path differences isolate the change in capital allocation. Interactive Plotly charts and K=5 comparison tables report returns, drawdowns, and differences from equal investment. New artifacts are written under `notebooks/analysis_outputs/split_60_10_20_10_v1/weighted_selection/probability_allocation/{validation,test}/`; the preceding equal-allocation artifacts remain available for comparison.
-
-Capital allocation does not change whether a selected portfolio contains the pumped asset. Capital allocation also leaves the analytical Top@k%AUC metric and its paired event-bootstrap comparisons unchanged, because those use each model's draw probabilities before any capital is assigned. The new return and drawdown distributions describe portfolio-selection randomness on the fixed evaluation events; they do not establish statistical significance over future events.
+The impact model is fitted per asset from trade-level candles ending at the transaction being priced; VWAP slippage for size Q is `I_vwap(Q) = (2/3) * β * sqrt(Q)`. `notebooks/visualisations.ipynb` regenerates the introductory event plot.
 
 ### 9. Compile the paper
 
 ```bash
-poetry run python paper/src/build_current_results.py  # regenerate current tables and figures
 just paper              # builds paper/src/access.pdf
-python paper/src/build_highlighted.py  # requires latexdiff; marks changes against archived draft
-just paper-highlighted  # compiles the highlighted comparison source
+just paper-highlighted  # builds the restored highlighted comparison
 ```
 
-The final LaTeX source and PDF live in `paper/src/`, figures live in `paper/src/images/`, and the IEEE Access class and Type 1 fonts live in `paper/styles/`. Current result tables are generated under `paper/src/tables/` and included by `access.tex`; the figure/table source hashes are recorded in `paper/src/current_results_manifest.json`. The current draft uses analytical inclusion probabilities without replacement and the paired allocation exports. QuerySoftMax is the comparison-selected model and significantly exceeds six alternatives on both partitions; its difference from SMOTE is inconclusive. Portfolio-return simulations are descriptive, not significance tests.
+The restored LaTeX sources and PDFs live in `paper/src/`; shareable PDFs live in `paper/access.pdf` and `paper/access_highlighted.pdf`. Figures are in `paper/src/images/`, and the IEEE Access class and fonts are in `paper/styles/`. Result tables are inlined in the manuscript. This is the earlier deterministic study with 473 usable events and an 80-event test sample; it does not claim to report a fresh run of the expanded dataset.
 
-`paper/src/current_results_verification.json` records independent reproduction of all event AUCs and the paired bootstrap results from current frozen predictions. The highlighted source compares against `paper/archive/before_confidence_revision_20261015/access.tex`; regenerate it with `python paper/src/build_highlighted.py` before compiling after further edits. The shareable PDFs are copied to `paper/access.pdf` and `paper/access_highlighted.pdf` after validation.
 
 ---
 
@@ -542,7 +475,7 @@ Poster modules are safe to import: graphics libraries, results, and output files
 uv run --no-project --script src/pumps_and_dumps/reporting/posters/create_poster.py
 ```
 
-This builds `poster/poster_saimf_en_A1_scientific.pdf` from the current saved notebook analysis and writes its source values and run provenance to `poster/results_en.json`. The original Russian PDF is preserved. The saved English edition predates the analytical inclusion update and uses the 517-event 60/10/20/10 split, sampled-inclusion bootstrap, and equal versus probability capital allocation from `notebooks/analysis_outputs/split_60_10_20_10_v1/weighted_selection/`. It shows all eight models, the probability-allocation test frontiers, and sampled K=5 return/drawdown comparisons; historical impact-capacity estimates are not reused.
+This builds `poster/poster_saimf_ru_A1_metrics.pdf` from the original deterministic results in `poster/results.json`. Those historical results are separate from a fresh run of the expanded dataset. Superseded experimental paper and poster artifacts are archived under `data/research/reverted_probability_work_20261015/`.
 
 ## Development Commands
 
@@ -554,7 +487,7 @@ just test           # test suite, restricted to tests/
 poetry run pytest -q # same without just
 ```
 
-Small leakage regression examples live in `tests/leakage/`. They use dummy rows, tiny temporary trade files, and fixed sampling noise so the expected outputs can be checked by hand:
+Small leakage regression examples live in `tests/leakage/`. They use dummy rows, tiny temporary trade files, and deterministic rankings so the expected outputs can be checked by hand:
 
 | Boundary | Dummy input | Expected output |
 | --- | --- | --- |
@@ -563,7 +496,7 @@ Small leakage regression examples live in `tests/leakage/`. They use dummy rows,
 | Cross-sectional scaling | Values 1, 2, 3 within a pump | −1, 0, 1, even when another pump's values change drastically |
 | Feature cutoff and universe | Past prices 100, 110, 120; a million-price trade at the cutoff | Five-minute return 2,000 bp and two window trades; future-only assets excluded |
 | Model inputs and fitting | Features alongside labels, future returns, and held-out sentinel rows | Only declared features enter X; training and early stopping receive their designated partitions |
-| Portfolio selection and cash | Fixed draw selects A+B; returns 0.4, −0.2, 9.0 | Equal return 0.1 or probability-weighted return 0.2; future winners cannot alter selection and missing fills stay cash |
+| Portfolio selection and cash | Fixed ranks select A+B; returns 0.4, −0.2, 9.0 | Equal-weight return 0.1; future winners cannot alter selection and missing fills stay cash |
 
 Run these examples without downloading market data or fitting full models:
 

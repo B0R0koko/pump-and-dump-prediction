@@ -33,9 +33,7 @@ def highlight_max(s: pd.Series) -> List[str]:
     return ["font-weight: bold" if v else "" for v in is_max]
 
 
-def random_topk_baseline(
-    dataset: Dataset, bins: Sequence[int] = (1, 2, 3, 5, 10, 20, 30)
-) -> List[float]:
+def random_topk_baseline(dataset: Dataset, bins: Sequence[int] = (1, 2, 3, 5, 10, 20, 30)) -> List[float]:
     """Expected Top@k accuracy of a random classifier."""
     df_all = dataset.all_data()
     topks = []
@@ -56,9 +54,7 @@ def evaluate_experiments_topk(
         name = experiment.get_experiment_name()
         sample = experiment.get_sample()
         model = experiment.get_model()
-        vals = calculate_topk(
-            model=model, dataset=sample.get_dataset(dataset_type), bins=list(bins)
-        )
+        vals = calculate_topk(model=model, dataset=sample.get_dataset(dataset_type), bins=list(bins))
         topk_vals[name] = vals
     return pd.DataFrame(topk_vals)
 
@@ -74,9 +70,7 @@ def evaluate_experiments_topk_percent(
         name = experiment.get_experiment_name()
         sample = experiment.get_sample()
         model = experiment.get_model()
-        vals = calculate_topk_percent(
-            model=model, dataset=sample.get_dataset(dataset_type), bins=list(bins)
-        )
+        vals = calculate_topk_percent(model=model, dataset=sample.get_dataset(dataset_type), bins=list(bins))
         topkp_vals[name] = vals
     return pd.DataFrame(topkp_vals)
 
@@ -112,9 +106,7 @@ def evaluate_experiments_classification(
 ) -> pd.DataFrame:
     """Compute PR-AUC, F1 and balanced accuracy for every experiment on the requested split."""
     rows: List[Dict[str, float | str]] = []
-    for experiment in tqdm(
-        experiments, desc=f"Classification metrics ({dataset_type.name})"
-    ):
+    for experiment in tqdm(experiments, desc=f"Classification metrics ({dataset_type.name})"):
         name = experiment.get_experiment_name()
         sample = experiment.get_sample()
         model = experiment.get_model()
@@ -139,38 +131,40 @@ def select_best_experiment_on_validation(
     *,
     bootstrap_results: "ValidationBootstrapResults | None" = None,
 ) -> tuple[Experiment, pd.Series]:
-    """Select by analytical validation Top@k%AUC without touching TEST.
+    """Select the highest deterministic validation Top@k%AUC, without reading TEST.
 
-    Reuse the bootstrap's exact point estimates when supplied; otherwise
-    compute the event probabilities directly, without any resampling.
-    Ties use input model order.
+    Reuse the bootstrap's point estimates when supplied. Otherwise evaluate
+    each fixed model's rankings directly. Ties preserve input model order;
+    larger score gaps alone cannot improve a model's selection metric.
     """
     if not experiments:
         raise ValueError("At least one experiment is required for model selection")
     names = [experiment.get_experiment_name() for experiment in experiments]
+    if any(not isinstance(name, str) or not name.strip() for name in names) or len(set(names)) != len(names):
+        raise ValueError("Experiment names must be unique nonempty strings")
     if bootstrap_results is None:
-        from pumps_and_dumps.backtest.robustness.analytical_selection import analytical_portfolio_metrics
-        from pumps_and_dumps.backtest.robustness.validation_bootstrap import _score_experiments
-
-        scored, score_kinds = _score_experiments(experiments, DatasetType.VALIDATION)
-        scores = analytical_portfolio_metrics(scored, score_kinds).event_aucs.mean().loc[names]
+        scores = pd.Series(
+            {
+                experiment.get_experiment_name(): calculate_topk_percent_auc(
+                    model=experiment.get_model(),
+                    dataset=experiment.get_sample().get_dataset(DatasetType.VALIDATION),
+                )
+                for experiment in experiments
+            }
+        )
     else:
         summary = bootstrap_results.auc_summary
         if not summary["dataset_type"].eq(DatasetType.VALIDATION.name).all():
             raise ValueError("Model selection requires validation bootstrap results")
-        if not summary["metric"].eq("analytical_topk_percent_auc").all():
-            raise ValueError("Model selection requires analytical portfolio AUC")
-        if "draw_replacement" not in summary or not summary["draw_replacement"].eq(False).all():
-            raise ValueError("Model selection requires weighted draws without replacement")
-        if len(set(names)) != len(names) or set(summary.index) != set(names):
+        if not summary["metric"].eq("topk_percent_auc").all():
+            raise ValueError("Model selection requires deterministic Top@k%AUC")
+        if not summary.index.is_unique or set(summary.index) != set(names):
             raise ValueError("Bootstrap model names must match the selection candidates")
         scores = summary.loc[names, "point_estimate"]
     if not np.isfinite(scores.to_numpy()).all():
         raise ValueError("Model selection scores must be finite")
     best_experiment = experiments[int(np.argmax(scores.to_numpy()))]
-    ranking = scores.rename("Validation analytical Top@k%AUC").sort_values(
-        ascending=False, kind="stable"
-    )
+    ranking = scores.rename("Validation Top@k%AUC").sort_values(ascending=False, kind="stable")
     return best_experiment, ranking
 
 
@@ -265,13 +259,9 @@ def compute_portfolio_statistics(equity_df: pd.DataFrame) -> pd.DataFrame:
 def _valuation_times(start_time: datetime, end_time: datetime) -> list[datetime]:
     """Keep exact strategy endpoints with completed daily UTC observations between them."""
     first_midnight = pd.Timestamp(start_time).normalize() + pd.Timedelta(days=1)
-    daily_marks = pd.date_range(
-        start=first_midnight, end=pd.Timestamp(end_time), freq="D"
-    )
+    daily_marks = pd.date_range(start=first_midnight, end=pd.Timestamp(end_time), freq="D")
     times = [start_time]
-    times.extend(
-        ts.to_pydatetime() for ts in daily_marks if ts < pd.Timestamp(end_time)
-    )
+    times.extend(ts.to_pydatetime() for ts in daily_marks if ts < pd.Timestamp(end_time))
     times.append(end_time)
     return times
 
@@ -312,9 +302,7 @@ def get_btc_buy_and_hold_baseline(
     pumps = sorted(dataset.get_pumps())
 
     if not pumps:
-        return pd.DataFrame(
-            columns=["portfolio_return", "market_return", "btc_price", "period_days"]
-        )
+        return pd.DataFrame(columns=["portfolio_return", "market_return", "btc_price", "period_days"])
     if buy_before < timedelta(0) or sell_after < timedelta(0):
         raise ValueError("buy_before and sell_after must be non-negative")
 
@@ -324,9 +312,7 @@ def get_btc_buy_and_hold_baseline(
         raise ValueError("BTC benchmark end time must be after its start time")
 
     valuation_times = _valuation_times(start_time, end_time)
-    provider = (
-        price_provider if price_provider is not None else IndicativePriceProvider()
-    )
+    provider = price_provider if price_provider is not None else IndicativePriceProvider()
     prices = _load_btc_prices(provider, valuation_times)
 
     df = pd.DataFrame({"time": valuation_times, "btc_price": prices}).set_index("time")
@@ -334,9 +320,7 @@ def get_btc_buy_and_hold_baseline(
     df["portfolio_return"] = df["btc_price"].diff() / initial_price
     df["market_return"] = df["btc_price"].pct_change()
     df["period_days"] = df.index.to_series().diff().dt.total_seconds() / (24 * 60 * 60)
-    result = df.iloc[1:][
-        ["portfolio_return", "market_return", "btc_price", "period_days"]
-    ].copy()
+    result = df.iloc[1:][["portfolio_return", "market_return", "btc_price", "period_days"]].copy()
     result.attrs.update(
         {
             "start_time": start_time,
@@ -367,12 +351,8 @@ def align_portfolio_returns_with_btc(
     btc_daily.index = pd.to_datetime(btc_daily.index).normalize()
     btc_daily = btc_daily.groupby(level=0).sum()
 
-    start_time = btc_baseline.attrs.get(
-        "start_time", min(strategies.index.min(), btc_daily.index.min())
-    )
-    end_time = btc_baseline.attrs.get(
-        "end_time", max(strategies.index.max(), btc_daily.index.max())
-    )
+    start_time = btc_baseline.attrs.get("start_time", min(strategies.index.min(), btc_daily.index.min()))
+    end_time = btc_baseline.attrs.get("end_time", max(strategies.index.max(), btc_daily.index.max()))
     calendar = pd.date_range(
         pd.Timestamp(start_time).normalize(),
         pd.Timestamp(end_time).normalize(),
@@ -398,11 +378,7 @@ def compute_btc_buy_and_hold_statistics(btc_baseline: pd.DataFrame) -> pd.Series
     full_day_mask = np.isclose(btc_baseline["period_days"].to_numpy(dtype=float), 1.0)
     full_day_returns = btc_baseline.loc[full_day_mask, "market_return"].dropna()
     annualized_volatility = float(full_day_returns.std() * np.sqrt(365))
-    sharpe_ratio = (
-        annualized_return / annualized_volatility
-        if annualized_volatility > 0
-        else np.nan
-    )
+    sharpe_ratio = annualized_return / annualized_volatility if annualized_volatility > 0 else np.nan
 
     return pd.Series(
         {

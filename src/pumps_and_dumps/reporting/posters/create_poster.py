@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 # /// script
 # requires-python = ">=3.11"
-# dependencies = ["reportlab>=4", "matplotlib>=3.9", "svglib>=1.5", "qrcode>=8"]
+# dependencies = ["reportlab>=4", "qrcode>=8"]
 # ///
-"""Build the current English scientific poster from saved research outputs.
+"""Build the original deterministic Top-K results poster in Russian.
 
 Run: uv run --no-project --script src/pumps_and_dumps/reporting/posters/create_poster.py
-Writes poster/poster_saimf_en_A1_scientific.pdf and a result snapshot.
-The original Russian edition and older archived editions are preserved.
+Reads poster/results.json and writes poster/poster_saimf_ru_A1_metrics.pdf.
+Other existing poster editions and archived outputs are preserved.
 """
 
 from pathlib import Path
@@ -15,9 +15,15 @@ import runpy
 
 
 def main() -> None:
-    runpy.run_path(
-        str(Path(__file__).with_name("create_scientific_poster.py")),
-        run_name="__main__",
+    source = Path(__file__).resolve()
+    root = next(parent for parent in source.parents if (parent / "pyproject.toml").is_file())
+    directory = root / "poster"
+    renderer = runpy.run_path(str(source.parent / "archive" / "create_poster_metrics.py"))
+    print(
+        renderer["build_poster"](
+            directory,
+            output_path=directory / "poster_saimf_ru_A1_metrics.pdf",
+        )
     )
 
 

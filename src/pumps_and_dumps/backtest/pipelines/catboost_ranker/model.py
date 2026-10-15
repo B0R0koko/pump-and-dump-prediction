@@ -9,8 +9,6 @@ from pumps_and_dumps.backtest.datasets.sample import Sample, DatasetType, Datase
 
 
 class CatboostRankerModel(BaseModel):
-    # Ranking margins are uncalibrated; softmax supplies relative sampling weights.
-    ranking_score_kind = "logit"
 
     def __init__(self, params: Dict[str, Any]):
         self.params: Dict[str, Any] = dict(params)

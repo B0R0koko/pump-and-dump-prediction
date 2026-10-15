@@ -26,7 +26,6 @@ from pumps_and_dumps.backtest.datasets.sample import DatasetType
         ("catboost_smote", "CatboostClassifierSMOTEPipeline"),
         ("catboost_ranker", "CatboostRankerPipeline"),
         ("catboost_topk_auc", "CatboostClassifierTOPKAUCPipeline"),
-        ("catboost_query_softmax", "CatboostQuerySoftmaxPipeline"),
         ("catboost_top5", "CatboostTop5Pipeline"),
     ],
 )

@@ -547,14 +547,13 @@ def plot_model_bootstrap_comparison(
     pairwise: pd.DataFrame,
     save_path: Optional[str] = None,
 ) -> plt.Figure:
-    """Plot deterministic or analytical Top@k%AUC intervals and paired decisions.
+    """Plot deterministic Top@k%AUC intervals and paired decisions.
 
     ``summary`` is indexed by model and contains ``point_estimate``, ``ci_lower``
     and ``ci_upper``. ``pairwise`` contains one row per unordered model pair,
     with ``model_a``, ``model_b``, ``reject_h0`` and ``better_model`` from
     :func:`compare_models_bootstrap_topk_percent_auc`. The optional ``alpha``
-    column sets the confidence/significance labels (default: 0.05). The
-    ``metric`` column identifies analytical expected-inclusion AUC when supplied.
+    column sets the confidence/significance labels (default: 0.05).
 
     Separate model intervals are pointwise; their overlap is never used to
     determine significance. Inconclusive comparisons do not establish equality.
@@ -564,11 +563,7 @@ def plot_model_bootstrap_comparison(
             "summary must contain at least one model and have a unique model index"
         )
     ordered = summary.sort_values("point_estimate", ascending=False, kind="stable")
-    analytical = (
-        "metric" in ordered
-        and ordered["metric"].eq("analytical_topk_percent_auc").all()
-    )
-    metric_label = "Analytical Top@k%AUC" if analytical else "Top@k%AUC"
+    metric_label = "Top@k%AUC"
     split = (
         str(ordered["dataset_type"].iloc[0]).capitalize()
         if "dataset_type" in ordered
@@ -664,10 +659,9 @@ def plot_model_bootstrap_comparison(
         frameon=False,
         fontsize=9,
     )
-    conditioning = "; exact inclusion probabilities" if analytical else ""
     fig.suptitle(
         f"{split} model comparison: {metric_label}\n"
-        f"Paired bootstrap over pump events{conditioning}"
+        "Paired bootstrap over pump events"
     )
     if save_path:
         fig.savefig(save_path, bbox_inches="tight")

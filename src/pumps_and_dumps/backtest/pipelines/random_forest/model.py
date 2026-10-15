@@ -10,7 +10,6 @@ from pumps_and_dumps.backtest.datasets.sample import Dataset, Sample, DatasetTyp
 
 
 class RandomForestModel(BaseModel):
-    ranking_score_kind = "probability"
 
     def __init__(self, params: Dict[str, Any]):
         self.params: Dict[str, Any] = dict(params)

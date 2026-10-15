@@ -1,34 +1,25 @@
-"""Three-asset examples: outcomes may affect profit, never portfolio selection."""
+"""Three-asset examples: future outcomes must not affect deterministic top-K selection."""
+
+from types import SimpleNamespace
 
 import numpy as np
 import pandas as pd
 import pytest
-from pandas.testing import assert_frame_equal
 
-from pumps_and_dumps.backtest.portfolio import simulation
-
-
-@pytest.fixture(autouse=True)
-def fixed_sampling_noise(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Fix Gumbel noise so the real weighted sampler selects A and B from A/B/C."""
-
-    class FixedNoise:
-        def gumbel(self, *, size: tuple[int, int]) -> np.ndarray:
-            assert size == (1, 3)
-            return np.array([[0.2, 0.1, 0.0]])
-
-    # Fix only randomness. The real sampler adds log weights and selects top K.
-    # With weights A=.6, B=.3, C=.1, this draw selects A and B, never C.
-    monkeypatch.setattr(simulation.np.random, "default_rng", lambda _: FixedNoise())
+from pumps_and_dumps.backtest.datasets.feature_set import FeatureSet
+from pumps_and_dumps.backtest.datasets.sample import Dataset, DatasetType
+from pumps_and_dumps.backtest.portfolio.base import Transaction
+from pumps_and_dumps.backtest.portfolio.pnl import USDTPnLCalculator
+from pumps_and_dumps.backtest.portfolio.selector import TopKPortfolioSelector
 
 
 def outcomes(returns: list[float], labels: list[bool]) -> pd.DataFrame:
-    """Create one pump's three candidate outcomes with explicitly supplied future data."""
+    """Create three candidates with fixed pre-pump scores and supplied future outcomes."""
     return pd.DataFrame(
         {
             "pump_hash": "pump",
-            "currency_pair": ["ABTC", "BBTC", "CBTC"],
-            "pump_time": "2020-01-01",
+            "currency_pair": ["A-BTC", "B-BTC", "C-BTC"],
+            "score": [0.6, 0.3, 0.1],
             "net_return": returns,
             "is_pumped": labels,
             "executed": True,
@@ -36,105 +27,88 @@ def outcomes(returns: list[float], labels: list[bool]) -> pd.DataFrame:
     )
 
 
-def simulate(frame: pd.DataFrame, allocation: str) -> simulation.SimulationResults:
-    """Run one real two-asset portfolio draw with fixed scores 0.6, 0.3, and 0.1."""
-    scores = frame[["pump_hash", "currency_pair"]].assign(score=[0.6, 0.3, 0.1])
-    return simulation.simulate_portfolio_paths(
-        {"model": scores},
-        frame,
-        {"model": "probability"},
-        portfolio_size=2,
-        n_simulations=1,
-        allocation=allocation,
-    )
+def evaluate(frame: pd.DataFrame):
+    """Use the real top-K selector and PnL aggregation on hand-checkable outcomes.
+
+    Only the score column is a predictor. Prices are chosen so each filled
+    transaction's net return after the real 25-basis-point fee equals the
+    supplied value. Missing orders become the real empty transaction type.
+    """
+    dataset = Dataset(frame, FeatureSet(numeric_features=["score"], target="is_pumped"), DatasetType.TEST)
+    model = SimpleNamespace(rank=lambda dataset: dataset.get_data()["score"].to_numpy())
+    portfolio = TopKPortfolioSelector(portfolio_size=2).select_portfolio(model, dataset)
+    selected = [pair.name for pair in portfolio.currency_pairs]
+    indexed = frame.set_index("currency_pair")
+    transactions = []
+    for pair in portfolio.currency_pairs:
+        row = indexed.loc[pair.name]
+        transactions.append(
+            Transaction(currency_pair=pair, entry_price=1.0, exit_price=1.0 + row.net_return + 0.0025)
+            if row.executed
+            else Transaction.empty(pair)
+        )
+    pnl = USDTPnLCalculator().calculate_portfolio_pnl(portfolio, transactions)
+    hit = bool(indexed.loc[selected, "is_pumped"].any())
+    return portfolio, pnl, hit
 
 
-def model_event(result: simulation.SimulationResults) -> pd.Series:
-    """Extract the tested model's single event rather than a baseline strategy."""
-    return result.event_returns.loc[result.event_returns["strategy"].eq("model")].iloc[0]
+def test_changing_true_label_does_not_change_selected_assets_or_equal_weights() -> None:
+    """Move the true label across A/B/C while keeping scores and returns fixed.
 
-
-@pytest.mark.parametrize(("allocation", "expected"), [("equal", 0.1), ("probability", 0.2)])
-def test_changing_true_label_changes_hit_flag_but_not_selected_portfolio(allocation: str, expected: float) -> None:
-    """Use true labels for hit reporting without using them for asset selection.
-
-    Fixed scores and Gumbel noise select assets A and B; their returns are
-    0.4 and -0.2, while unselected C returns 9. Move the only true label
-    among A, B, and C and expect hit flags True, True, and False respectively.
-    Portfolio paths must remain identical for every label assignment.
-    Parameterized allocation checks give (0.4 - 0.2) / 2 = 0.1 for equal
-    weights and (2 * 0.4 - 0.2) / 3 = 0.2 for probability weights.
-    This catches selecting the known true label or allowing labels to change
-    position sizing, while confirming hit flags use the actual chosen assets.
+    Scores 0.6, 0.3, 0.1 must select A and B with weights one half each,
+    regardless of which asset is manipulated. Their returns 0.4 and -0.2
+    give exactly 0.1. Unselected C returns 9, making accidental inclusion
+    obvious. The true-label hit changes only when the label moves to C;
+    composition, capital weights and profit must remain unchanged.
     """
     frame = outcomes([0.4, -0.2, 9.0], [False, False, True])
-    original = simulate(frame, allocation)
-
-    # Probe each asset with the true label: A and B are selected; C is not.
-    # The extreme return of C also makes accidental inclusion easy to detect.
     for labels, expected_hit in [
         ([True, False, False], True),
         ([False, True, False], True),
         ([False, False, True], False),
     ]:
-        changed = simulate(frame.assign(is_pumped=labels), allocation)
-        assert_frame_equal(original.paths, changed.paths)
-        row = model_event(changed)
-        assert bool(row["pumped_asset_in_portfolio"]) == expected_hit
-        # Equal: (.4 - .2)/2 = .1. Weighted: (2*.4 - .2)/3 = .2.
-        assert row["portfolio_return"] == pytest.approx(expected)
+        portfolio, pnl, hit = evaluate(frame.assign(is_pumped=labels))
+        assert [pair.name for pair in portfolio.currency_pairs] == ["A-BTC", "B-BTC"]
+        np.testing.assert_array_equal(portfolio.weights, [0.5, 0.5])
+        assert pnl == pytest.approx(0.1)
+        assert hit is expected_hit
 
 
-@pytest.mark.parametrize(("allocation", "before", "after"), [("equal", 0.1, -0.2), ("probability", 0.2, -0.4)])
-def test_future_returns_change_profit_without_selecting_the_future_winner(
-    allocation: str, before: float, after: float
-) -> None:
-    """Change realized returns without selecting the retrospectively best asset.
+def test_future_returns_change_profit_without_selecting_the_future_winner() -> None:
+    """Change outcomes while requiring the same portfolio from pre-pump scores.
 
-    Fixed scores and sampling noise select A and B even though C is the true
-    label and initially returns 9. Replace returns [0.4, -0.2, 9] with
-    [-0.8, 0.4, 100]; C must remain absent despite its exceptional payoff.
-    Equal allocation changes profit from (0.4 - 0.2) / 2 = 0.1 to
-    (-0.8 + 0.4) / 2 = -0.2. Probability allocation uses weights 2/3 and
-    1/3, changing profit from 0.2 to -0.4. In both cases A remains present
-    and the hit flag stays False, proving the expected A/B composition.
-    This catches future-return sorting or sizing leaking into portfolio
-    construction while checking that realized returns still drive profit.
+    Replace returns [0.4, -0.2, 9] with [-0.8, 0.4, 100]. Top-K must still
+    choose A/B and allocate one half to each, despite C becoming the best
+    asset in hindsight. Expected profit changes from 0.1 to -0.2 and both
+    portfolios miss the true label C. This catches sorting or sizing from
+    future returns while verifying that realized outcomes still drive PnL.
     """
     frame = outcomes([0.4, -0.2, 9.0], [False, False, True])
-    original = model_event(simulate(frame, allocation))
-    changed = model_event(simulate(frame.assign(net_return=[-0.8, 0.4, 100.0]), allocation))
+    before, before_pnl, before_hit = evaluate(frame)
+    after, after_pnl, after_hit = evaluate(frame.assign(net_return=[-0.8, 0.4, 100.0]))
+    assert before.currency_pairs == after.currency_pairs
+    assert [pair.name for pair in after.currency_pairs] == ["A-BTC", "B-BTC"]
+    np.testing.assert_array_equal(before.weights, after.weights)
+    assert before_pnl == pytest.approx(0.1)
+    assert after_pnl == pytest.approx(-0.2)
+    assert before_hit is after_hit is False
 
-    # A+B remain selected even when C becomes spectacularly profitable.
-    # Equal: (-.8 + .4)/2 = -.2. Weighted: (-2*.8 + .4)/3 = -.4.
-    assert original["portfolio_return"] == pytest.approx(before)
-    assert changed["portfolio_return"] == pytest.approx(after)
-    assert bool(changed["model_top1_in_portfolio"])
-    assert not bool(changed["pumped_asset_in_portfolio"])
 
+def test_unfilled_asset_keeps_its_cash_allocation_without_replacement() -> None:
+    """Keep an unfilled order's original half of capital in cash.
 
-@pytest.mark.parametrize(("allocation", "expected"), [("equal", 0.3), ("probability", 0.2)])
-def test_unfilled_asset_keeps_its_cash_allocation_without_replacement(allocation: str, expected: float) -> None:
-    """Keep a failed order's allocation as cash without a hindsight replacement.
-
-    The real sampler chooses A and B, whose supplied returns are 0 and 0.6;
-    unselected true-label asset C returns 9. Compare all orders filled with
-    only A marked unfilled, keeping its realized return at zero in both runs.
-    Expect identical paths: equal allocation earns 0/2 + 0.6/2 = 0.3, and
-    probability allocation earns 0 * 2/3 + 0.6/3 = 0.2. A remains selected
-    and C remains absent, so the true-label hit flag must stay False.
-    This catches resampling after observing an execution failure and
-    reallocating A's cash into B, which would incorrectly earn 0.6.
+    Top-K chooses A/B. A has zero return and B earns 0.6, so total return is
+    0.3. Marking A unfilled must retain its half of capital as cash and leave
+    both selection and profit unchanged. C must remain absent even though
+    its return is 9 and it is the manipulated asset. Redistributing A's
+    capital to B would incorrectly earn 0.6; replacing A with C would also
+    fail the explicit composition and false-hit checks.
     """
     frame = outcomes([0.0, 0.6, 9.0], [False, False, True])
-    filled = simulate(frame, allocation)
-    unfilled = simulate(frame.assign(executed=[False, True, True]), allocation)
-
-    # Missing A's fill leaves its capital in cash; C cannot replace it.
-    # Equal: 0/2 + .6/2 = .3. Weighted: 0*2/3 + .6/3 = .2.
-    # Renormalizing into B would incorrectly return .6.
-    assert_frame_equal(filled.paths, unfilled.paths)
-    row = model_event(unfilled)
-    assert row["portfolio_return"] == pytest.approx(expected)
-    assert bool(row["model_top1_in_portfolio"])
-    assert not bool(row["pumped_asset_in_portfolio"])
+    filled, filled_pnl, filled_hit = evaluate(frame)
+    unfilled, unfilled_pnl, unfilled_hit = evaluate(frame.assign(executed=[False, True, True]))
+    assert filled.currency_pairs == unfilled.currency_pairs
+    assert [pair.name for pair in unfilled.currency_pairs] == ["A-BTC", "B-BTC"]
+    np.testing.assert_array_equal(unfilled.weights, [0.5, 0.5])
+    assert filled_pnl == unfilled_pnl == pytest.approx(0.3)
+    assert filled_hit is unfilled_hit is False

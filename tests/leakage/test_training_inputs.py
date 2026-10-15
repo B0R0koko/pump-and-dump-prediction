@@ -14,7 +14,6 @@ from pumps_and_dumps.backtest.datasets.sample import DatasetType
     "pipeline_module, pipeline_name, estimator_module, estimator_name",
     [
         ("catboost_classifier", "CatboostClassifierPipeline", "catboost_classifier", "CatBoostClassifier"),
-        ("catboost_query_softmax", "CatboostQuerySoftmaxPipeline", "catboost_ranker", "CatBoostRanker"),
     ],
 )
 def test_fit_receives_exact_training_rows_and_tuning_labels_only(
@@ -24,7 +23,7 @@ def test_fit_receives_exact_training_rows_and_tuning_labels_only(
     estimator_name: str,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Fit both classifier and QuerySoftMax pipelines using only allowed splits.
+    """Fit the classifier pipeline using only the permitted training and tuning splits.
 
     Give each split two uniquely recognizable signals: TRAIN [1, 2], TUNING
     [11, 12], comparison [101, 102], and TEST [1001, 1002]. A recording
