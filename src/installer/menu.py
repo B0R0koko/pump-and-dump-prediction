@@ -16,9 +16,10 @@ class Selection:
 
 
 class SetupMenu:
-    def __init__(self, data_dir: Path, dates: str):
+    def __init__(self, data_dir: Path, dates: str, *, configured_stages=()):
         self.data_dir = data_dir
         self.dates = dates
+        self.configured_stages = configured_stages
         self.custom = False
         self.focus = 0
         self.selected = set(STAGE_KEYS)
@@ -32,7 +33,7 @@ class SetupMenu:
     def submit(self) -> Selection | None:
         selected = ordered_stages(self.selected) if self.custom else list(STAGE_KEYS)
         try:
-            error = validate_inputs(selected, self.data_dir)
+            error = validate_inputs(selected, self.data_dir, skip_stages=self.configured_stages)
         except OSError as exc:
             error = str(exc)
         if error:
@@ -60,9 +61,7 @@ class SetupMenu:
             self.cursor = len(self.path_text)
         elif key in (curses.KEY_UP, curses.KEY_DOWN, "\t", "j", "k"):
             direction = -1 if key in (curses.KEY_UP, "k") else 1
-            self.focus = (self.focus + direction) % (
-                len(STAGES) + 1 if self.custom else 2
-            )
+            self.focus = (self.focus + direction) % (len(STAGES) + 1 if self.custom else 2)
         elif self.custom and key in ("a", "n"):
             self.selected = set(STAGE_KEYS) if key == "a" else set()
             self.error = ""
@@ -93,14 +92,10 @@ class SetupMenu:
         elif key in ("\n", "\r"):
             self._save_directory()
         elif key in (curses.KEY_BACKSPACE, "\x7f", "\b") and self.cursor:
-            self.path_text = (
-                self.path_text[: self.cursor - 1] + self.path_text[self.cursor :]
-            )
+            self.path_text = self.path_text[: self.cursor - 1] + self.path_text[self.cursor :]
             self.cursor -= 1
         elif key == curses.KEY_DC:
-            self.path_text = (
-                self.path_text[: self.cursor] + self.path_text[self.cursor + 1 :]
-            )
+            self.path_text = self.path_text[: self.cursor] + self.path_text[self.cursor + 1 :]
         elif key == curses.KEY_LEFT:
             self.cursor = max(0, self.cursor - 1)
         elif key == curses.KEY_RIGHT:
@@ -113,9 +108,7 @@ class SetupMenu:
             self.path_text = ""
             self.cursor = 0
         elif isinstance(key, str) and key.isprintable():
-            self.path_text = (
-                self.path_text[: self.cursor] + key + self.path_text[self.cursor :]
-            )
+            self.path_text = self.path_text[: self.cursor] + key + self.path_text[self.cursor :]
             self.cursor += len(key)
 
     def _save_directory(self):
@@ -142,17 +135,13 @@ class SetupMenu:
         self._draw_directory(view, x, width)
         if self.custom:
             self._draw_stages(view, x, width)
-            footer = (
-                "↑↓ Move  Space Toggle  s Run  a All  n None  d Directory  Esc Back"
-            )
+            footer = "↑↓ Move  Space Toggle  s Run  a All  n None  d Directory  Esc Back"
         else:
             self._draw_installation_choices(view, x, width)
             footer = "↑↓ Navigate   Enter Select   d Directory   q Quit"
         if self.error:
             for offset, line in enumerate(textwrap.wrap(self.error, width - 4)[:2]):
-                view.text(
-                    view.height - 3 + offset, x + 2, line, "danger", width=width - 4
-                )
+                view.text(view.height - 3 + offset, x + 2, line, "danger", width=width - 4)
         view.text(view.height - 1, 2, footer, "accent", width=view.width - 4)
         screen.refresh()
 
@@ -218,9 +207,7 @@ class SetupMenu:
             label = f" [{checked}] {option.title} "
             role = "selected" if self.focus == index and not self.editing else "text"
             view.text(10 + index * 2, x + 2, label, role, bold=True)
-            view.text(
-                11 + index * 2, x + 3, option.description, "muted", width=width - 6
-            )
+            view.text(11 + index * 2, x + 3, option.description, "muted", width=width - 6)
         label = f"  Run {len(self.selected)} selected stage{'s' if len(self.selected) != 1 else ''}  "
         view.text(
             10 + 2 * len(STAGES),
@@ -253,7 +240,7 @@ class SetupMenu:
         return None
 
 
-def choose_installation(data_dir: Path, dates: str) -> Selection | None:
+def choose_installation(data_dir: Path, dates: str, *, configured_stages=()) -> Selection | None:
     import curses
 
-    return curses.wrapper(SetupMenu(data_dir, dates).run)
+    return curses.wrapper(SetupMenu(data_dir, dates, configured_stages=configured_stages).run)

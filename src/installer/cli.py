@@ -1,7 +1,7 @@
 """Interactive installer for the complete research dataset.
 
-Each stage runs in a fresh process so all path constants use the chosen directory
-and Scrapy's reactor is isolated from Parquet and feature computation.
+Each stage pulls its published Docker image and runs with the selected host
+directory mounted at /data. Only Python's standard library is needed locally.
 """
 
 import argparse
@@ -9,6 +9,8 @@ from datetime import date
 import os
 from pathlib import Path
 import shlex
+import shutil
+import signal
 import subprocess
 import sys
 from tempfile import TemporaryFile
@@ -19,7 +21,7 @@ from pumps_and_dumps.core.paths import (
     get_root_dir,
     save_data_dir,
 )
-from pumps_and_dumps.core.utils import available_cpu_count
+from installer.containers import container_stage, cleanup_container
 from installer.state import Stage
 from installer.tui import run_tui, tui_available
 from installer.menu import Selection, choose_installation
@@ -29,6 +31,7 @@ from installer.plan import (
     StageSettings,
     ordered_stages,
     validate_inputs,
+    available_cpu_count,
 )
 
 
@@ -42,32 +45,30 @@ def _positive_int(value: str) -> int:
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Download Binance data, convert trades to Hive Parquet, then compute pump-event features.",
-        epilog="Run poetry install once first. Without --data-dir, the installer asks where to store the data.",
+        epilog="Requires Python 3.10+ and Docker. Images are pulled before each stage. Without --data-dir, the installer asks where to store the data.",
     )
     parser.add_argument("--data-dir", help="Data directory to save and use (skips the prompt).")
     parser.add_argument(
         "--start-date",
+        "--start",
         type=date.fromisoformat,
-        default=date(2018, 1, 1),
-        help="Inclusive start (2018-01-01).",
+        help="Inclusive archive start (2018-01-01 unless a stage config specifies it).",
     )
     parser.add_argument(
         "--end-date",
+        "--end",
         type=date.fromisoformat,
-        default=date(2025, 1, 1),
-        help="Exclusive end (2025-01-01).",
+        help="Exclusive archive end (2025-01-01 unless a stage config specifies it).",
     )
     parser.add_argument(
         "--hive-workers",
         type=_positive_int,
-        default=available_cpu_count(),
-        help="Parquet conversion processes (default: all available CPUs, %(default)s).",
+        help="Parquet conversion processes (default: stage config or all available CPUs).",
     )
     parser.add_argument(
         "--feature-workers",
         type=_positive_int,
-        default=available_cpu_count(),
-        help="Feature computation processes (default: all available CPUs, %(default)s).",
+        help="Feature computation processes (default: stage config or all available CPUs).",
     )
     parser.add_argument(
         "--skip-existing-features",
@@ -79,6 +80,12 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Preview commands without prompting, saving configuration, or writing data.",
     )
+    for stage in STAGE_KEYS:
+        parser.add_argument(
+            f"--{stage}-config",
+            type=Path,
+            help=f"HOCON/JSON config for {stage}; its directory is mounted read-only at /config. Use /data paths for output.",
+        )
     display = parser.add_mutually_exclusive_group()
     display.add_argument(
         "--tui",
@@ -118,7 +125,8 @@ def _use_tui(parser: argparse.ArgumentParser, args: argparse.Namespace) -> bool:
 def _choose_selection(args: argparse.Namespace, use_tui: bool, dates: str) -> Selection | None:
     data_dir = get_data_dir() if args.data_dir is None else Path(args.data_dir).expanduser().resolve()
     if use_tui and not args.all and args.stages is None:
-        return choose_installation(data_dir, dates)
+        configured = {key for key in STAGE_KEYS if getattr(args, f"{key}_config") is not None}
+        return choose_installation(data_dir, dates, configured_stages=configured)
 
     if args.data_dir is None and not args.dry_run:
         answer = input(f"Where should the data be stored? [{data_dir}]: ").strip()
@@ -134,36 +142,63 @@ def _validate_selection(
     root: Path,
 ) -> None:
     if not args.dry_run:
-        error = validate_inputs(selection.stages, selection.data_dir)
+        # Configured stages validate their own possibly custom input locations.
+        configured = {key for key in selection.stages if getattr(args, f"{key}_config") is not None}
+        error = validate_inputs(selection.stages, selection.data_dir, skip_stages=configured)
         if error:
             raise ValueError(error)
 
-    for stage in STAGES:
-        if stage.key not in selection.stages or stage.manifest is None:
-            continue
-        resource = root / "resources" / stage.manifest
-        if not resource.is_file():
-            parser.error(f"Required dataset manifest not found: {resource}")
+    for key in selection.stages:
+        config = getattr(args, f"{key}_config")
+        if config is not None and not config.expanduser().is_file():
+            parser.error(f"Config file not found: {config}")
+        if key != "features" and config is None:
+            start = args.start_date or date(2018, 1, 1)
+            end = args.end_date or date(2025, 1, 1)
+            if start >= end:
+                parser.error("--end-date must be after --start-date (archive defaults: 2018-01-01 to 2025-01-01)")
+    if not args.dry_run and shutil.which("docker") is None:
+        raise ValueError("Docker is required. Install Docker and start its daemon before running the installer.")
 
 
-def _build_stages(args: argparse.Namespace, root: Path, selected: list[str]) -> list[Stage]:
+def _build_stages(
+    args: argparse.Namespace, root: Path, selected: list[str], data_dir: Path, *, progress: bool = False
+) -> list[Stage]:
     settings = StageSettings(
-        root,
-        args.start_date,
-        args.end_date,
-        args.hive_workers,
-        args.feature_workers,
+        Path("/app"),
+        args.start_date or date(2018, 1, 1),
+        args.end_date or date(2025, 1, 1),
+        args.hive_workers or available_cpu_count(),
+        args.feature_workers or available_cpu_count(),
         args.skip_existing_features,
     )
-    return [
-        Stage(
-            option.description,
-            [sys.executable, "-m", option.module, *option.options(settings)],
-            key=option.key,
+    stages = []
+    for option in STAGES:
+        if option.key not in selected:
+            continue
+        config = getattr(args, f"{option.key}_config")
+        options = option.options(settings)
+        if config is not None:
+            # The image's CLI reads config values. Only explicit host CLI flags
+            # override them; installer defaults must not silently mask a config.
+            config = config.expanduser().resolve()
+            options = []
+            if option.key != "features":
+                if args.start_date is not None:
+                    options.extend(["--start", str(args.start_date)])
+                if args.end_date is not None:
+                    options.extend(["--end", str(args.end_date)])
+            if option.key == "parquet" and args.hive_workers is not None:
+                options.extend(["--processes", str(args.hive_workers)])
+            if option.key == "features":
+                if args.feature_workers is not None:
+                    options.extend(["--cpu-count", str(args.feature_workers)])
+                if args.skip_existing_features:
+                    options.append("--skip-existing")
+        stages.append(
+            container_stage(option.key, option.description, options, data_dir, config=config, progress=progress)
         )
-        for option in STAGES
-        if option.key in selected
-    ]
+    return stages
 
 
 def _prepare_data_dir(data_dir: Path) -> None:
@@ -192,6 +227,8 @@ def _run_console(stages: list[Stage], root: Path, environment: dict[str, str], d
         except (OSError, ValueError, RuntimeError) as exc:
             print(f"\nInstallation failed during {stage.name}: {exc}", file=sys.stderr)
             return 1
+        finally:
+            cleanup_container(stage)
     return 0
 
 
@@ -207,16 +244,18 @@ def _print_completion(selection: Selection, dry_run: bool) -> None:
 
 def _install(parser: argparse.ArgumentParser, args: argparse.Namespace, use_tui: bool) -> int:
     root = get_root_dir()
-    dates = f"{args.start_date} to {args.end_date} (exclusive)"
+    dates = f"{args.start_date or date(2018, 1, 1)} to {args.end_date or date(2025, 1, 1)} (exclusive)"
+    if any(getattr(args, f"{key}_config") is not None for key in STAGE_KEYS if key != "features"):
+        dates += "; configs may override defaults"
     selection = _choose_selection(args, use_tui, dates)
     if selection is None:
         print("Installation cancelled before starting any stages.")
         return 130
     _validate_selection(parser, args, selection, root)
-    stages = _build_stages(args, root, selection.stages)
+    stages = _build_stages(args, root, selection.stages, selection.data_dir, progress=use_tui)
     print(f"Data directory: {selection.data_dir}", flush=True)
     print(
-        f"Archive dates: {args.start_date} through {args.end_date} (exclusive)",
+        f"Archive dates: {dates}",
         flush=True,
     )
     print(f"Selected stages: {', '.join(selection.stages)}", flush=True)
@@ -243,12 +282,13 @@ def _install(parser: argparse.ArgumentParser, args: argparse.Namespace, use_tui:
 def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
-    if args.start_date >= args.end_date:
+    if args.start_date is not None and args.end_date is not None and args.start_date >= args.end_date:
         parser.error("--end-date must be after --start-date")
     if args.data_dir is not None and not args.data_dir.strip():
         parser.error("--data-dir must be a nonempty path")
     use_tui = _use_tui(parser, args)
 
+    previous_term = signal.signal(signal.SIGTERM, _interrupt)
     try:
         return _install(parser, args, use_tui)
     except EOFError:
@@ -262,6 +302,13 @@ def main(argv: list[str] | None = None) -> int:
     except (OSError, ValueError, RuntimeError) as exc:
         print(f"\nInstallation failed during setup: {exc}", file=sys.stderr)
         return 1
+    finally:
+        signal.signal(signal.SIGTERM, previous_term)
+
+
+def _interrupt(_signum, _frame):
+    """Let SIGTERM use the same container cleanup path as a keyboard interrupt."""
+    raise KeyboardInterrupt
 
 
 if __name__ == "__main__":

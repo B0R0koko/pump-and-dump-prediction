@@ -24,12 +24,12 @@ class Stage:
     last_update: float = 0.0
     pid: int | None = None
     key: str = ""
+    container_name: str | None = None
+    progress_stdout: bool = False
 
     @property
     def title(self) -> str:
-        return next(
-            (option.title for option in STAGES if option.key == self.key), self.name
-        )
+        return next((option.title for option in STAGES if option.key == self.key), self.name)
 
     def receive(self, record: bytes) -> None:
         try:
@@ -54,19 +54,9 @@ class Stage:
         total = self.progress.get("total")
         unit = self.progress.get("unit", "items")
         known = total is not None and self.progress.get("total_known", True)
-        count = (
-            f"{completed:,} / {total:,} {unit}"
-            if total is not None
-            else f"{completed:,} {unit}"
-        )
+        count = f"{completed:,} / {total:,} {unit}" if total is not None else f"{completed:,} {unit}"
         if not known:
             return f"{count} | discovering total | {duration(self.elapsed())}"
         rate = completed / max(self.elapsed(), 0.001)
-        eta = (
-            duration((total - completed) / rate)
-            if rate > 0 and total >= completed
-            else "--:--:--"
-        )
-        return (
-            f"{count} | {rate:,.1f}/s | elapsed {duration(self.elapsed())} | ETA {eta}"
-        )
+        eta = duration((total - completed) / rate) if rate > 0 and total >= completed else "--:--:--"
+        return f"{count} | {rate:,.1f}/s | elapsed {duration(self.elapsed())} | ETA {eta}"

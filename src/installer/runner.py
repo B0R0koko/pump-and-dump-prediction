@@ -3,6 +3,7 @@
 from collections import deque
 from contextlib import contextmanager
 import os
+import json
 from pathlib import Path
 import re
 import selectors
@@ -13,14 +14,13 @@ from typing import BinaryIO, Callable, Protocol
 
 from pumps_and_dumps.core.progress import PROGRESS_FD_ENV
 from installer.state import Stage
+from installer.containers import cleanup_container
 
 _ANSI = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 
 
 def clean_line(line: str) -> str:
-    return "".join(
-        char for char in _ANSI.sub("", line) if char.isprintable() or char == "\t"
-    )
+    return "".join(char for char in _ANSI.sub("", line) if char.isprintable() or char == "\t")
 
 
 class StageRunner(Protocol):
@@ -76,10 +76,18 @@ class _StageOutput:
         for line in lines:
             if channel == "progress":
                 self.stage.receive(line)
+            elif self.stage.progress_stdout and self._is_progress(line):
+                self.stage.receive(line)
             else:
-                self.logs.append(
-                    clean_line(line.decode("utf-8", errors="replace"))[-2000:]
-                )
+                self.logs.append(clean_line(line.decode("utf-8", errors="replace"))[-2000:])
+
+    @staticmethod
+    def _is_progress(line: bytes) -> bool:
+        try:
+            event = json.loads(line)
+        except (ValueError, UnicodeDecodeError):
+            return False
+        return isinstance(event, dict) and isinstance(event.get("task"), str) and "completed" in event
 
 
 @contextmanager
@@ -167,9 +175,7 @@ def monitor_stage(
             ),
         ):
             stage.pid = process.pid
-            _drain_output(
-                process, progress_read, _StageOutput(stage, logs, log_file), tick
-            )
+            _drain_output(process, progress_read, _StageOutput(stage, logs, log_file), tick)
             code = process.wait()
         stage.status = "done" if code == 0 else "failed"
         return code
@@ -180,4 +186,5 @@ def monitor_stage(
         stage.status = "failed"
         raise
     finally:
+        cleanup_container(stage)
         stage.ended = time.monotonic()

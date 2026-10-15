@@ -15,6 +15,7 @@ from typing import Any, List
 import polars as pl
 from tqdm import tqdm
 
+from pumps_and_dumps.core.cli_config import parse_config_args
 from pumps_and_dumps.core.columns import IS_BUYER_MAKER, TRADE_TIME
 from pumps_and_dumps.core.currency_pair import CurrencyPair
 from pumps_and_dumps.core.exchange import Exchange
@@ -46,7 +47,7 @@ from pumps_and_dumps.features.provenance import (
 from pumps_and_dumps.features.schema import FEATURE_SCHEMA_VERSION, REGRESSOR_OFFSETS
 from pumps_and_dumps.features.source import HiveTradeSource, TradeSource
 from pumps_and_dumps.features.storage import is_current_feature_file, write_feature_file
-from pumps_and_dumps.features.utils import load_pumps
+from pumps_and_dumps.features.utils import load_pumps, parse_pumps, parse_utc_time
 
 # Offsets to compute decay returns
 DECAY_OFFSETS: List[NamedTimeDelta] = [
@@ -406,11 +407,24 @@ class PumpsFeatureWriter:
         position, pump_event = task
         return self._write_cross_section(pump_event, position=position, skip_existing=skip_existing)
 
-    def run_parallel(self, cpu_count: int | None = None, *, skip_existing: bool = False) -> None:
+    def run_parallel(
+        self,
+        cpu_count: int | None = None,
+        *,
+        skip_existing: bool = False,
+        pump_events: list[PumpEvent] | None = None,
+    ) -> None:
+        """Generate selected events while retaining the complete announcement history.
+
+        ``pump_events`` limits output tasks only. The constructor's full history
+        still supplies previous-pump features, including announcements before a
+        requested CLI start date.
+        """
         cpu_count = available_cpu_count() if cpu_count is None else cpu_count
         if cpu_count < 1:
             raise ValueError("cpu_count must be positive")
-        self._start_audit()
+        selected_events = self._pump_events if pump_events is None else pump_events
+        self._start_audit(event_count=len(selected_events))
         # Fresh interpreters avoid inheriting Polars threads' locked state
         # through a process fork.
         context = get_context("spawn")
@@ -427,15 +441,15 @@ class PumpsFeatureWriter:
                 ) as pool,
             ):
                 with ProgressReporter(
-                    total=len(self._pump_events), unit="events", detail="Computing features"
+                    total=len(selected_events), unit="events", detail="Computing features"
                 ) as progress:
                     results = pool.imap_unordered(
                         partial(_write_worker_task, skip_existing=skip_existing),
-                        ((index % cpu_count, event) for index, event in enumerate(self._pump_events)),
+                        ((index % cpu_count, event) for index, event in enumerate(selected_events)),
                     )
                     for result in tqdm(
                         results,
-                        total=len(self._pump_events),
+                        total=len(selected_events),
                         desc="Overall progress",
                         disable=progress_enabled(),
                     ):
@@ -451,20 +465,24 @@ class PumpsFeatureWriter:
         return self._pump_times_by_currency
 
 
-def main():
+def main(argv: list[str] | None = None):
     import argparse
 
     configure_logging()
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description="Generate features from local Hive trades and a complete pump manifest. Dates/times use UTC."
+    )
     parser.add_argument(
         "--cpu-count",
+        "--processes",
         type=int,
         default=available_cpu_count(),
         help="Worker processes (default: all available CPUs).",
     )
     parser.add_argument(
         "--skip-existing",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
+        default=False,
         help="Skip only files with the current feature schema",
     )
     parser.add_argument(
@@ -472,12 +490,79 @@ def main():
         type=Path,
         help="Append feature timestamp audit records to this JSONL file (default: features/logs/feature_audit_<run>.jsonl).",
     )
-    args = parser.parse_args()
+    parser.add_argument("--pumps-file", type=Path, help="JSON pump list (default: bundled resources/pumps.json).")
+    parser.add_argument(
+        "--hive-dir", type=Path, help="Input Hive trades directory (default: configured data directory)."
+    )
+    parser.add_argument(
+        "--feature-dir", type=Path, help="Output feature directory (default: configured features directory)."
+    )
+    parser.add_argument(
+        "--start",
+        "--start-date",
+        type=parse_utc_time,
+        help="Include pump announcements at or after this UTC date/time.",
+    )
+    parser.add_argument(
+        "--end",
+        "--end-date",
+        type=parse_utc_time,
+        help="Include pump announcements strictly before this UTC date/time.",
+    )
+    args = parse_config_args(
+        parser,
+        argv,
+        path_keys=("pumps_file", "hive_dir", "feature_dir", "audit_log"),
+        object_keys=("pumps",),
+    )
     if args.cpu_count < 1:
-        parser.error("--cpu-count must be positive")
-    pump_events = load_pumps(path=get_root_dir() / "resources/pumps.json")
-    writer = PumpsFeatureWriter(pump_events=pump_events, audit_log_path=args.audit_log)
-    writer.run_parallel(cpu_count=args.cpu_count, skip_existing=args.skip_existing)
+        parser.error("--cpu-count/--processes must be positive")
+    if args.start is not None and args.end is not None and args.end <= args.start:
+        parser.error("--end must be later than --start")
+    if args.hive_dir is not None and not args.hive_dir.is_dir():
+        parser.error(f"--hive-dir must be an existing directory: {args.hive_dir}")
+    for name in ("feature_dir", "audit_log"):
+        path = getattr(args, name)
+        if path is None:
+            continue
+        if name == "audit_log" and path.is_dir():
+            parser.error(f"--audit-log must be a file path: {path}")
+        required_directory = path if name == "feature_dir" else path.parent
+        for parent in (required_directory, *required_directory.parents):
+            if parent.exists() and not parent.is_dir():
+                parser.error(f"--{name.replace('_', '-')} parent must be a directory: {parent}")
+    # An explicit CLI file replaces an inline config list; conflicting sources
+    # inside one config are almost certainly a typo and remain an error.
+    if {"pumps", "pumps_file"} <= args._config_keys:
+        parser.error("config must specify only one of pumps and pumps-file")
+    use_inline_pumps = "pumps" in args._config_keys and "pumps_file" not in args._cli_keys
+    try:
+        pump_events = (
+            parse_pumps(args.pumps)
+            if use_inline_pumps
+            else load_pumps(path=args.pumps_file or get_root_dir() / "resources/pumps.json")
+        )
+    except (OSError, ValueError) as error:
+        parser.error(f"invalid pump manifest: {error}")
+    if any(event.currency_pair.term != "BTC" for event in pump_events):
+        parser.error("feature generation currently supports BTC-quoted pump instruments only")
+    selected_events = [
+        event
+        for event in pump_events
+        if (args.start is None or event.time >= args.start) and (args.end is None or event.time < args.end)
+    ]
+    if not selected_events:
+        parser.error("no pump announcements fall within the requested interval")
+    writer = PumpsFeatureWriter(
+        pump_events=pump_events,
+        data_source=HiveTradeSource(args.hive_dir) if args.hive_dir is not None else None,
+        feature_dir=args.feature_dir,
+        audit_log_path=args.audit_log,
+    )
+    run_kwargs: dict[str, Any] = {"cpu_count": args.cpu_count, "skip_existing": args.skip_existing}
+    if args.start is not None or args.end is not None:
+        run_kwargs["pump_events"] = selected_events
+    writer.run_parallel(**run_kwargs)
 
 
 if __name__ == "__main__":

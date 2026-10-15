@@ -4806,6 +4806,23 @@ files = [
 windows-terminal = ["colorama (>=0.4.6)"]
 
 [[package]]
+name = "pyhocon"
+version = "0.3.63"
+description = "HOCON parser for Python"
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "pyhocon-0.3.63.tar.gz", hash = "sha256:7c98db21453c0390c6cedc376576fee4e0a153da5f2201bc681cf886820f4a7c"},
+]
+
+[package.dependencies]
+pyparsing = ">=3.0.0"
+
+[package.extras]
+duration = ["python-dateutil (>=2.8.0)"]
+
+[[package]]
 name = "pylint"
 version = "4.1.2"
 description = "python code static checker"
@@ -6415,4 +6432,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13,<4.0"
-content-hash = "37857c5cc34cdbf2e1e2c3167e0a812cd619b7e06eb27053bcf6470e2320f3be"
+content-hash = "54065f372bc53ab939ef04b816eede5e3075a1203d2e90c5e3f241337447ed63"

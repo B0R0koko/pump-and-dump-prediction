@@ -10,6 +10,7 @@ import pandas as pd
 import pyarrow as pa
 from tqdm import tqdm
 
+from pumps_and_dumps.core.cli_config import parse_config_args
 from pumps_and_dumps.core.currency_pair import CurrencyPair
 from pumps_and_dumps.core.paths import BINANCE_SPOT_RAW_TRADES, BINANCE_SPOT_HIVE_TRADES
 from pumps_and_dumps.core.progress import (
@@ -19,6 +20,7 @@ from pumps_and_dumps.core.progress import (
 )
 from pumps_and_dumps.core.time_utils import Bounds
 from pumps_and_dumps.core.utils import available_cpu_count
+from pumps_and_dumps.market_data.pair_selection import parse_pair_names, read_pairs_file
 from pumps_and_dumps.preprocessing.archive_source import (
     ArchiveSource,
     BinanceTradeArchives,
@@ -45,12 +47,14 @@ class BinanceSpotTrades2Hive:
         raw_data_dir: Path,
         output_dir: Path,
         *,
+        currency_pairs: list[CurrencyPair] | None = None,
         archive_source: ArchiveSource | None = None,
         batch_store: TradeBatchStore | None = None,
     ):
         self.bounds = bounds
         self.raw_data_dir = raw_data_dir
         self.output_dir = output_dir
+        self.currency_pairs = None if currency_pairs is None else frozenset(pair.name for pair in currency_pairs)
         self._archive_source = BinanceTradeArchives(raw_data_dir) if archive_source is None else archive_source
         self._batch_store = HiveTradeStore(output_dir) if batch_store is None else batch_store
 
@@ -89,7 +93,9 @@ class BinanceSpotTrades2Hive:
         return f"{currency_pair.name} {day}"
 
     def iterate_over_tasks(self) -> Iterator[tuple[date, CurrencyPair]]:
-        yield from self._archive_source.tasks(self.bounds)
+        for day, pair in self._archive_source.tasks(self.bounds):
+            if self.currency_pairs is None or pair.name in self.currency_pairs:
+                yield day, pair
 
     def run_multiprocessing(self, processes: int | None = None) -> None:
         processes = available_cpu_count() if processes is None else processes
@@ -112,26 +118,45 @@ class BinanceSpotTrades2Hive:
                     progress.update(advance=1, detail=detail)
 
 
-def run_main():
+def run_main(argv: list[str] | None = None):
     parser = argparse.ArgumentParser(description="Convert daily trade ZIPs into date/symbol Hive Parquet partitions.")
-    parser.add_argument("--start-date", type=date.fromisoformat, default=date(2018, 1, 1))
+    parser.add_argument("--start-date", "--start", type=date.fromisoformat, default=date(2018, 1, 1))
     parser.add_argument(
         "--end-date",
+        "--end",
         type=date.fromisoformat,
         default=date(2025, 1, 1),
         help="Exclusive end date",
     )
     parser.add_argument("--raw-data-dir", type=Path, default=BINANCE_SPOT_RAW_TRADES)
     parser.add_argument("--output-dir", type=Path, default=BINANCE_SPOT_HIVE_TRADES)
+    pairs_source = parser.add_mutually_exclusive_group()
+    pairs_source.add_argument(
+        "--pairs",
+        "--instruments",
+        nargs="+",
+        help="Convert only these BASE-QUOTE pairs (default: all downloaded pairs).",
+    )
+    pairs_source.add_argument("--pairs-file", type=Path, help="JSON array or object containing a currency_pairs list.")
     parser.add_argument(
         "--processes",
         type=int,
         default=available_cpu_count(),
         help="Worker processes (default: all available CPUs).",
     )
-    args = parser.parse_args()
+    args = parse_config_args(parser, argv, path_keys=("raw_data_dir", "output_dir", "pairs_file"))
     if args.processes < 1:
         parser.error("--processes must be positive")
+    if args.start_date >= args.end_date:
+        parser.error("--start must be before the exclusive --end")
+    try:
+        pairs = (
+            read_pairs_file(args.pairs_file)
+            if args.pairs_file
+            else parse_pair_names(args.pairs) if args.pairs is not None else None
+        )
+    except (OSError, ValueError, TypeError) as error:
+        parser.error(f"Cannot read conversion instruments: {error}")
     bounds: Bounds = Bounds.for_days(args.start_date, args.end_date)
     raw_dir = args.raw_data_dir.expanduser().resolve()
     output_dir = args.output_dir.expanduser().resolve()
@@ -143,6 +168,7 @@ def run_main():
         bounds=bounds,
         raw_data_dir=raw_dir,
         output_dir=output_dir,
+        currency_pairs=pairs,
     )
     pipe.run_multiprocessing(processes=args.processes)
 

@@ -6,11 +6,13 @@ from typing import List
 
 from scrapy.crawler import CrawlerProcess
 
+from pumps_and_dumps.core.cli_config import parse_config_args
 from pumps_and_dumps.core.currency_pair import CurrencyPair
 from pumps_and_dumps.core.paths import BINANCE_SPOT_RAW_KLINES
 from pumps_and_dumps.core.time_utils import Bounds
 from pumps_and_dumps.market_data.parsers.binance.base import BinanceBaseParser
 from pumps_and_dumps.market_data.parsers.settings import SETTINGS
+from pumps_and_dumps.market_data.pair_selection import parse_pair_names, read_pairs_file
 
 _SUPPORTED_INTERVALS: set[str] = {
     "1s",
@@ -62,35 +64,31 @@ class BinanceSpotKlinesParser(BinanceBaseParser):
         return f"data/spot/daily/klines/{currency_pair.binance_name}/{self.interval}/"
 
     def output_zip_path(self, currency_pair: CurrencyPair, day: date) -> Path:
-        return (
-            self.output_dir
-            / currency_pair.name
-            / f"klines@{self.interval}@{str(day)}.zip"
-        )
+        return self.output_dir / currency_pair.name / f"klines@{self.interval}@{str(day)}.zip"
 
 
-def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Download Binance spot daily klines from data.binance.vision."
-    )
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Download Binance spot daily klines from data.binance.vision.")
     parser.add_argument(
         "--start-date",
+        "--start",
         type=date.fromisoformat,
         default=date(2018, 1, 1),
         help="Inclusive start date.",
     )
     parser.add_argument(
         "--end-date",
+        "--end",
         type=date.fromisoformat,
         default=date(2025, 1, 1),
         help="Exclusive end date.",
     )
-    parser.add_argument(
-        "--interval", default="1m", choices=sorted(_SUPPORTED_INTERVALS)
+    parser.add_argument("--interval", default="1m", choices=sorted(_SUPPORTED_INTERVALS))
+    pairs_source = parser.add_mutually_exclusive_group()
+    pairs_source.add_argument(
+        "--pairs", "--instruments", nargs="+", help="Pairs in BASE-QUOTE format (default: BTC-USDT)."
     )
-    parser.add_argument(
-        "--pairs", nargs="+", default=["BTC-USDT"], help="Pairs in BASE-QUOTE format."
-    )
+    pairs_source.add_argument("--pairs-file", type=Path, help="JSON array or object containing a currency_pairs list.")
     parser.add_argument(
         "--quote-asset",
         help="Filter the explicitly supplied pairs by quote asset.",
@@ -103,24 +101,35 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--skip-existing",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
+        default=False,
         help="Verify existing ZIP sizes and full CRCs; download only missing or damaged archives",
     )
-    return parser.parse_args()
-
-
-def run_main() -> None:
-    args = _parse_args()
-    bounds: Bounds = Bounds.for_days(args.start_date, args.end_date)
-    pairs = [CurrencyPair.from_string(name) for name in args.pairs]
+    args = parse_config_args(parser, argv, path_keys=("output_dir", "pairs_file"))
+    if args.start_date >= args.end_date:
+        parser.error("--start must be before the exclusive --end")
+    try:
+        pairs = (
+            read_pairs_file(args.pairs_file)
+            if args.pairs_file
+            else parse_pair_names(args.pairs if args.pairs is not None else ["BTC-USDT"])
+        )
+    except (OSError, ValueError, TypeError) as error:
+        parser.error(f"Cannot read kline instruments: {error}")
     if args.quote_asset:
-        pairs = [pair for pair in pairs if pair.term == args.quote_asset]
+        pairs = [pair for pair in pairs if pair.term == args.quote_asset.upper()]
     if not pairs:
-        raise ValueError("No kline pairs match the requested quote asset")
+        parser.error("No kline pairs match the requested quote asset")
+    args.currency_pairs = pairs
+    return args
+
+
+def run_main(argv: list[str] | None = None) -> None:
+    args = _parse_args(argv)
+    bounds: Bounds = Bounds.for_days(args.start_date, args.end_date)
+    pairs = args.currency_pairs
     output_dir = args.output_dir.expanduser().resolve()
-    print(
-        f"Collecting {len(pairs)} kline pairs from {args.start_date} to {args.end_date} (exclusive)"
-    )
+    print(f"Collecting {len(pairs)} kline pairs from {args.start_date} to {args.end_date} (exclusive)")
     print(f"Output: {output_dir}", flush=True)
     process: CrawlerProcess = CrawlerProcess(settings=SETTINGS)
     crawler = process.create_crawler(BinanceSpotKlinesParser)

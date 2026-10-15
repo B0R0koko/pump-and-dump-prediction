@@ -3,9 +3,20 @@
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
+import os
 from typing import Callable
 
-from pumps_and_dumps.core.utils import available_cpu_count
+
+def available_cpu_count() -> int:
+    """Support the lightweight host launcher on Python 3.10 and newer."""
+    if hasattr(os, "process_cpu_count"):
+        return os.process_cpu_count() or os.cpu_count() or 1
+    if hasattr(os, "sched_getaffinity"):
+        try:
+            return len(os.sched_getaffinity(0)) or 1
+        except OSError:
+            pass
+    return os.cpu_count() or 1
 
 
 @dataclass(frozen=True)
@@ -125,7 +136,7 @@ def ordered_stages(selected) -> list[str]:
     return [key for key in STAGE_KEYS if key in selected]
 
 
-def validate_inputs(selected, data_dir: Path) -> str | None:
+def validate_inputs(selected, data_dir: Path, *, skip_stages=()) -> str | None:
     """Require existing inputs only when the stage producing them is omitted."""
     if not selected:
         return "Select at least one stage to continue."
@@ -133,7 +144,7 @@ def validate_inputs(selected, data_dir: Path) -> str | None:
         return f"The data location is a file: {data_dir}"
     for stage in STAGES:
         required = stage.prerequisite
-        if stage.key not in selected or required is None:
+        if stage.key not in selected or stage.key in skip_stages or required is None:
             continue
         if required.producer in selected:
             continue
