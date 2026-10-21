@@ -1,5 +1,6 @@
 """Coordinate event feature generation using independent data and calculation components."""
 
+import argparse
 import logging
 import os
 from bisect import bisect_left
@@ -111,7 +112,7 @@ def _initialize_feature_worker(writer: "PumpsFeatureWriter", lock: Any, progress
     os.environ[PROGRESS_FD_ENV] = str(progress_connection.fileno())
 
 
-def _write_worker_task(task: tuple[int, PumpEvent], *, skip_existing: bool) -> str:
+def _write_worker_task(task: tuple[int, PumpEvent], skip_existing: bool) -> str:
     if _WORKER_WRITER is None:
         raise RuntimeError("Feature worker has not been initialized")
     return _WORKER_WRITER._write_task(task, skip_existing=skip_existing)
@@ -126,7 +127,6 @@ class PumpsFeatureWriter:
     def __init__(
         self,
         pump_events: list[PumpEvent],
-        *,
         data_source: TradeSource | None = None,
         feature_dir: Path | None = None,
         audit_log_path: Path | None = None,
@@ -147,7 +147,7 @@ class PumpsFeatureWriter:
         """Destination printed at startup; created on the first computation/run."""
         return self._audit_log.path
 
-    def _start_audit(self, *, event_count: int | None = None) -> None:
+    def _start_audit(self, event_count: int | None = None) -> None:
         # Compatibility with lightweight test doubles that bypass __init__.
         audit = getattr(self, "_audit_log", None)
         if audit is None or self._audit_started:
@@ -355,7 +355,7 @@ class PumpsFeatureWriter:
         )
         return "written"
 
-    def run(self, pump_events: list[PumpEvent], *, skip_existing: bool = False) -> None:
+    def run(self, pump_events: list[PumpEvent], skip_existing: bool = False) -> None:
         self._start_audit(event_count=len(pump_events))
         counts = dict(written=0, reused=0, unavailable=0)
         try:
@@ -366,14 +366,13 @@ class PumpsFeatureWriter:
             raise
         self._append_audit([{"record_type": "run_end", **counts}])
 
-    def _write_task(self, task: tuple[int, PumpEvent], *, skip_existing: bool) -> str:
+    def _write_task(self, task: tuple[int, PumpEvent], skip_existing: bool) -> str:
         position, pump_event = task
         return self._write_cross_section(pump_event, position=position, skip_existing=skip_existing)
 
     def run_parallel(
         self,
         cpu_count: int | None = None,
-        *,
         skip_existing: bool = False,
         pump_events: list[PumpEvent] | None = None,
     ) -> None:
@@ -428,10 +427,7 @@ class PumpsFeatureWriter:
         return self._pump_times_by_currency
 
 
-def main(argv: list[str] | None = None):
-    import argparse
-
-    configure_logging()
+def _argument_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Generate features from local Hive trades and a complete pump manifest. Dates/times use UTC."
     )
@@ -475,32 +471,36 @@ def main(argv: list[str] | None = None):
         type=parse_utc_time,
         help="Include pump announcements strictly before this UTC date/time.",
     )
-    args = parse_config_args(
-        parser,
-        argv,
-        path_keys=("pumps_file", "hive_dir", "feature_dir", "audit_log"),
-        object_keys=("pumps",),
-    )
+    return parser
+
+
+def _validate_output_path(parser: argparse.ArgumentParser, name: str, path: Path | None) -> None:
+    if path is None:
+        return
+    if name == "audit_log" and path.is_dir():
+        parser.error(f"--audit-log must be a file path: {path}")
+    directory = path if name == "feature_dir" else path.parent
+    for parent in (directory, *directory.parents):
+        if parent.exists() and not parent.is_dir():
+            parser.error(f"--{name.replace('_', '-')} parent must be a directory: {parent}")
+
+
+def _validate_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
     if args.cpu_count < 1:
         parser.error("--cpu-count/--processes must be positive")
     if args.start is not None and args.end is not None and args.end <= args.start:
         parser.error("--end must be later than --start")
     if args.hive_dir is not None and not args.hive_dir.is_dir():
         parser.error(f"--hive-dir must be an existing directory: {args.hive_dir}")
-    for name in ("feature_dir", "audit_log"):
-        path = getattr(args, name)
-        if path is None:
-            continue
-        if name == "audit_log" and path.is_dir():
-            parser.error(f"--audit-log must be a file path: {path}")
-        required_directory = path if name == "feature_dir" else path.parent
-        for parent in (required_directory, *required_directory.parents):
-            if parent.exists() and not parent.is_dir():
-                parser.error(f"--{name.replace('_', '-')} parent must be a directory: {parent}")
+    _validate_output_path(parser, "feature_dir", args.feature_dir)
+    _validate_output_path(parser, "audit_log", args.audit_log)
     # An explicit CLI file replaces an inline config list; conflicting sources
     # inside one config are almost certainly a typo and remain an error.
     if {"pumps", "pumps_file"} <= args._config_keys:
         parser.error("config must specify only one of pumps and pumps-file")
+
+
+def _load_pump_events(parser: argparse.ArgumentParser, args: argparse.Namespace) -> list[PumpEvent]:
     use_inline_pumps = "pumps" in args._config_keys and "pumps_file" not in args._cli_keys
     try:
         pump_events = (
@@ -512,6 +512,20 @@ def main(argv: list[str] | None = None):
         parser.error(f"invalid pump manifest: {error}")
     if any(event.currency_pair.term != "BTC" for event in pump_events):
         parser.error("feature generation currently supports BTC-quoted pump instruments only")
+    return pump_events
+
+
+def main(argv: list[str] | None = None):
+    configure_logging()
+    parser = _argument_parser()
+    args = parse_config_args(
+        parser,
+        argv,
+        path_keys=("pumps_file", "hive_dir", "feature_dir", "audit_log"),
+        object_keys=("pumps",),
+    )
+    _validate_args(parser, args)
+    pump_events = _load_pump_events(parser, args)
     selected_events = [
         event
         for event in pump_events

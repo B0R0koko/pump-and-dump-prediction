@@ -1,0 +1,4 @@
+pandas==3.0.6
+pyarrow==26.0.0
+pyhocon==0.3.63
+tqdm==4.70.1

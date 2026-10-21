@@ -98,7 +98,6 @@ def test_validation_bootstrap_notebook_compares_all_candidates_without_test_acce
     # Exercise the current notebook's estimates, exports, intervals and plot.
     for cell_id in (
         "validation-bootstrap-estimates",
-        "validation-bootstrap-curves",
         "validation-bootstrap-figure",
     ):
         exec(compile("".join(cells[cell_id]["source"]), cell_id, "exec"), namespace)

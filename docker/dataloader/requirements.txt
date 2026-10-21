@@ -1,0 +1,5 @@
+pandas==3.0.6
+pyhocon==0.3.63
+requests==2.34.2
+scrapy==2.19.0
+tqdm==4.70.1

@@ -177,7 +177,7 @@ def _validate_selection(
 
 
 def _build_stages(
-    args: argparse.Namespace, selected: list[str], data_dir: Path, *, progress: bool = False
+    args: argparse.Namespace, selected: list[str], data_dir: Path, progress: bool = False
 ) -> list[Stage]:
     settings = StageSettings(
         Path("/app"),

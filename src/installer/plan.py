@@ -128,7 +128,7 @@ def ordered_stages(selected) -> list[str]:
     return [key for key in STAGE_KEYS if key in selected]
 
 
-def validate_inputs(selected, data_dir: Path, *, skip_stages=()) -> str | None:
+def validate_inputs(selected, data_dir: Path, skip_stages=()) -> str | None:
     """Require existing inputs only when the stage producing them is omitted."""
     if not selected:
         return "Select at least one stage to continue."

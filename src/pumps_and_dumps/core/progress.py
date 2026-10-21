@@ -17,7 +17,6 @@ class ProgressReporter:
     def __init__(
         self,
         task: str = "overall",
-        *,
         total: int | None = None,
         unit: str = "items",
         detail: str = "",
@@ -33,7 +32,7 @@ class ProgressReporter:
         self._last_sent = 0.0
         self.update(force=True)
 
-    def update(self, advance: int = 0, *, force: bool = False, **fields) -> None:
+    def update(self, advance: int = 0, force: bool = False, **fields) -> None:
         self.fields["completed"] += advance
         self.fields.update(fields)
         now = time.monotonic()
@@ -66,7 +65,7 @@ class ProgressReporter:
 
 
 def worker_progress(
-    *, unit: str, detail: str, total: int | None = None
+    unit: str, detail: str, total: int | None = None
 ) -> ProgressReporter:
     return ProgressReporter(
         f"worker:{os.getpid()}", total=total, unit=unit, detail=detail

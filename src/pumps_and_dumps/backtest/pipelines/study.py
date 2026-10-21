@@ -18,7 +18,7 @@ def validate_study_split(study: Study) -> None:
         )
 
 
-def delete_study_if_exists(study_name: str, *, storage: str | None = None) -> bool:
+def delete_study_if_exists(study_name: str, storage: str | None = None) -> bool:
     """Delete a study if it exists. Returns True if deleted, False if not found."""
     storage = SQLITE_URL if storage is None else storage
     for study in optuna.get_all_study_summaries(storage=storage):
@@ -32,7 +32,6 @@ def delete_study_if_exists(study_name: str, *, storage: str | None = None) -> bo
 def create_study(
     study_name: str,
     start_new: bool = True,
-    *,
     storage: str | None = None,
     direction: Literal["maximize", "minimize"] = "maximize",
 ) -> Study:

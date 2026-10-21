@@ -32,7 +32,6 @@ class Dashboard:
     def __init__(
         self,
         stages: list[Stage],
-        *,
         root: Path,
         environment: dict[str, str],
         data_dir: Path,

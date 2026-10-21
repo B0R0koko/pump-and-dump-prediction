@@ -79,7 +79,7 @@ class HiveTradeStore:
         )
 
 
-def _publish_partition(staged: Path, destination: Path, *, backup_root: Path) -> None:
+def _publish_partition(staged: Path, destination: Path, backup_root: Path) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
     if not destination.exists():
         staged.rename(destination)

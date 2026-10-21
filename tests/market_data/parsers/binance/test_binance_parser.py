@@ -78,7 +78,7 @@ def _corrupt_zip_bytes() -> bytes:
     return _make_real_zip_bytes().replace(b"1,2,3", b"9,2,3")
 
 
-def _listing_response(pair, entries, *, truncated=False, marker=None, request=None):
+def _listing_response(pair, entries, truncated=False, marker=None, request=None):
     request = request or Request(
         "https://example.com/list", meta={"currency_pair": pair}
     )

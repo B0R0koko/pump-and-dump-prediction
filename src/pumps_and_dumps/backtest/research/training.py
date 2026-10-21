@@ -17,7 +17,7 @@ def train_baseline_and_tuned(
 
 
 def train_experiment(
-    pipeline: TrainingPipeline, name: str, *, tuned: bool = True
+    pipeline: TrainingPipeline, name: str, tuned: bool = True
 ) -> Experiment:
     """Train one named experiment without changing pipeline settings or splits."""
     sample = pipeline.create_sample()

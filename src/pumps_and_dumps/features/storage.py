@@ -14,7 +14,7 @@ from pumps_and_dumps.features.schema import (
 )
 
 
-def validate_feature_file(path: Path, *, allow_compatible: bool = False) -> None:
+def validate_feature_file(path: Path, allow_compatible: bool = False) -> None:
     schema = pq.read_schema(path)
     version = (schema.metadata or {}).get(FEATURE_SCHEMA_METADATA_KEY)
     accepted_versions = {FEATURE_SCHEMA_VERSION.encode()}

@@ -49,7 +49,6 @@ def _with_origin(points: pd.DataFrame) -> pd.DataFrame:
 
 def _accuracy_trace(
     values: pd.Series,
-    *,
     percent: bool,
     auc: float | None = None,
     baseline: bool = False,
@@ -73,7 +72,6 @@ def _accuracy_trace(
 
 def plot_ranking_accuracy(
     points: pd.DataFrame,
-    *,
     dataset_type: DatasetType = DatasetType.TEST,
     percent: bool = False,
     random_baseline: Sequence[float] | None = None,

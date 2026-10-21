@@ -51,7 +51,7 @@ def has_recent_activity(ticks: pl.DataFrame, cutoff: datetime, lookback: timedel
     ).is_empty()
 
 
-def anchored_hourly_bars(trades: pl.DataFrame, cutoff: datetime, *, include_provenance: bool = False) -> pl.DataFrame:
+def anchored_hourly_bars(trades: pl.DataFrame, cutoff: datetime, include_provenance: bool = False) -> pl.DataFrame:
     """Keep complete pre-decision bars even when the cutoff falls between calendar hours."""
     offset_us = (cutoff.minute * 60 + cutoff.second) * 1_000_000 + cutoff.microsecond
     aggregations = {
@@ -169,7 +169,6 @@ def compute_window_features(
     trades: pl.DataFrame,
     cutoff: datetime,
     windows: Sequence[NamedTimeDelta],
-    *,
     audit: AuditCallback | None = None,
 ) -> dict[str, Any]:
     """Calculate predictors and optionally report each feature's actual inputs.
@@ -230,7 +229,6 @@ def compute_targets(
     trades: pl.DataFrame,
     announcement: datetime,
     windows: Sequence[NamedTimeDelta],
-    *,
     audit: AuditCallback | None = None,
 ) -> dict[str, Any]:
     """Outcome labels deliberately use future trades and never feed the regressors."""

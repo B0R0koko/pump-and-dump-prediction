@@ -46,7 +46,6 @@ class BinanceSpotTrades2Hive:
         bounds: Bounds,
         raw_data_dir: Path,
         output_dir: Path,
-        *,
         currency_pairs: list[CurrencyPair] | None = None,
         archive_source: ArchiveSource | None = None,
         batch_store: TradeBatchStore | None = None,

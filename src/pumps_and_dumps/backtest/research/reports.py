@@ -2,17 +2,80 @@
 
 from collections.abc import Sequence
 from pathlib import Path
+from shutil import copyfile
 
+import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
-from IPython.display import display
+from IPython.display import Image, display
 
 from pumps_and_dumps.backtest import evaluation
 from pumps_and_dumps.backtest.experiment import Experiment
 from pumps_and_dumps.backtest.datasets.sample import DatasetType
+from pumps_and_dumps.backtest.research import graphs
 from pumps_and_dumps.backtest.robustness.validation_bootstrap import (
     ValidationBootstrapResults,
     comparisons_for_model,
 )
+
+
+def show_figure(figure: plt.Figure, filename: str, image_dir: Path, paper_dir: Path | None = None) -> None:
+    """Display the saved Matplotlib image and copy those exact bytes to the paper."""
+    image_dir.mkdir(parents=True, exist_ok=True)
+    path = image_dir / filename
+    try:
+        figure.savefig(path, dpi=150, bbox_inches="tight", facecolor="white", transparent=False)
+        if paper_dir is not None:
+            paper_dir.mkdir(parents=True, exist_ok=True)
+            copyfile(path, paper_dir / filename)
+        display(Image(filename=str(path)))
+    finally:
+        plt.close(figure)  # Prevent a second automatic inline rendering.
+
+
+def report_model_metrics(
+    experiments: list[Experiment], dataset_type: DatasetType, output_dir: Path, paper_dir: Path
+) -> pd.DataFrame:
+    """Use the same three paper plots and compact metric table for either split."""
+    split = dataset_type.name.lower()
+    cols = [experiment.get_experiment_name() for experiment in experiments]
+    topk = evaluation.evaluate_experiments_topk(experiments, dataset_type=dataset_type)
+    topkp = evaluation.evaluate_experiments_topk_percent(experiments, dataset_type=dataset_type)
+    curves, auc_scores = evaluation.evaluate_experiments_topk_percent_curves(
+        experiments, bins=np.arange(0, 0.205, 0.005), dataset_type=dataset_type
+    )
+    classification = evaluation.evaluate_experiments_classification(experiments, dataset_type=dataset_type)
+    dataset = experiments[0].get_sample().get_dataset(dataset_type)
+    event_sizes = dataset.all_data().groupby("pump_hash").size().to_numpy()
+    random_topkp = [(np.ceil(fraction * event_sizes) / event_sizes).mean() for fraction in curves.index]
+    for filename, figure in (
+        (
+            f"topk_accuracy_{split}.png",
+            graphs.plot_topk_accuracy(topk, cols, random_baseline=evaluation.random_topk_baseline(dataset)),
+        ),
+        (
+            f"topkp_auc_{split}.png",
+            graphs.plot_topk_percent_curves(curves, cols, auc_scores, random_baseline=random_topkp),
+        ),
+        (
+            f"classification_metrics_{split}.png",
+            graphs.plot_classification_metrics(classification, cols, title=f"Classification metrics on {split}"),
+        ),
+    ):
+        show_figure(figure, filename, image_dir=output_dir / "images", paper_dir=paper_dir)
+    table = validation_metrics_table(pd.Series(auc_scores), topk, topkp, classification)
+    tables_dir = output_dir / "tables"
+    tables_dir.mkdir(parents=True, exist_ok=True)
+    for name, values in {
+        "topk": topk,
+        "topkp": topkp,
+        "curves": curves,
+        "classification": classification,
+        "metrics": table,
+    }.items():
+        values.to_csv(tables_dir / f"{split}_{name}.csv")
+    display(table.style.format("{:.3f}").highlight_max(axis=0, props="font-weight: bold;"))
+    return table
 
 
 def validation_metrics_table(
@@ -20,10 +83,9 @@ def validation_metrics_table(
     topk: pd.DataFrame,
     topk_percent: pd.DataFrame,
     classification: pd.DataFrame,
-    *,
     auc_label: str = "Top@k%AUC",
 ) -> pd.DataFrame:
-    """Align the already computed validation metrics by model name."""
+    """Align already computed ranking and classification metrics by model name."""
     table = auc_ranking.rename(auc_label).to_frame()
     for k in (1, 5, 10):
         table[f"Top@{k}"] = topk.T[k]
@@ -46,7 +108,6 @@ def validation_metrics_table(
 def report_bootstrap(
     results: ValidationBootstrapResults,
     notebook_dir: Path,
-    *,
     n_bootstrap: int,
     dataset_type: DatasetType = DatasetType.VALIDATION,
     output_dir: Path | None = None,
@@ -88,7 +149,6 @@ def report_bootstrap(
 def report_validation_bootstrap(
     results: ValidationBootstrapResults,
     notebook_dir: Path,
-    *,
     n_bootstrap: int,
     output_dir: Path | None = None,
 ) -> None:
@@ -100,7 +160,6 @@ def report_chosen_comparisons(
     pairwise: pd.DataFrame,
     model_name: str,
     notebook_dir: Path,
-    *,
     alpha: float = 0.05,
     output_dir: Path | None = None,
 ) -> pd.DataFrame:
@@ -132,7 +191,7 @@ def report_chosen_comparisons(
 
 
 def portfolio_benchmark(
-    experiment: Experiment, *, portfolio_sizes: Sequence[int] = (1, 2, 5, 10, 20, 30)
+    experiment: Experiment, portfolio_sizes: Sequence[int] = (1, 2, 5, 10, 20, 30)
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Compare fixed-size TEST portfolios with the time-aligned BTC benchmark."""
     curves = {

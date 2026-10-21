@@ -76,7 +76,7 @@ def cross_section_standardisation(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def fillna_with_median_by_cross_section(
-    df: pd.DataFrame, feature_set: FeatureSet, *, train_events: Collection[str]
+    df: pd.DataFrame, feature_set: FeatureSet, train_events: Collection[str]
 ) -> pd.DataFrame:
     """Group by PUMP_HASH and fill missing values with cross-section median values.
 
@@ -137,7 +137,6 @@ class BasePipeline(ABC):
     def __init__(
         self,
         feature_set: FeatureSet | None = None,
-        *,
         dataset_loader: Callable[[], pd.DataFrame] | None = None,
         study_storage: str | None = None,
     ):

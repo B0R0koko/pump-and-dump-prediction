@@ -17,7 +17,7 @@ class Selection:
 
 
 class SetupMenu:
-    def __init__(self, data_dir: Path, dates: str, *, configured_stages=()):
+    def __init__(self, data_dir: Path, dates: str, configured_stages=()):
         self.data_dir = data_dir
         self.dates = dates
         self.configured_stages = configured_stages
@@ -248,7 +248,7 @@ class SetupMenu:
         return None
 
 
-def choose_installation(data_dir: Path, dates: str, *, configured_stages=()) -> Selection | None:
+def choose_installation(data_dir: Path, dates: str, configured_stages=()) -> Selection | None:
     import curses
 
     return curses.wrapper(SetupMenu(data_dir, dates, configured_stages=configured_stages).run)

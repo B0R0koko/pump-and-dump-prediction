@@ -83,7 +83,6 @@ class Canvas:
         x: int,
         text: str,
         role: str = "text",
-        *,
         width: int | None = None,
         bold=False,
     ):
@@ -104,7 +103,7 @@ class Canvas:
             pass
 
     def panel(
-        self, y: int, x: int, height: int, width: int, title: str, *, focused=False
+        self, y: int, x: int, height: int, width: int, title: str, focused=False
     ):
         if height < 2 or width < 4:
             return

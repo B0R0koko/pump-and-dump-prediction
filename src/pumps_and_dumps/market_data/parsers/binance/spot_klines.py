@@ -43,7 +43,6 @@ class BinanceSpotKlinesParser(BinanceBaseParser):
         currency_pairs: List[CurrencyPair],
         output_dir: Path,
         interval: str,
-        *,
         skip_existing: bool = False,
         archive_verifier: Callable[..., None] | None = None,
         archive_installer: Callable[..., None] | None = None,

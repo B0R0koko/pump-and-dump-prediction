@@ -67,7 +67,6 @@ def _build_pipeline(
     day: date,
     currency_pair: CurrencyPair,
     num_rows: int,
-    *,
     batch_size: int = 1_000_000,
 ) -> BinanceSpotTrades2Hive:
     raw_dir: Path = tmp_path / "raw"

@@ -243,7 +243,7 @@ def _calm_trade(ts: datetime) -> dict:
 
 
 def _explosive_trade(
-    ts: datetime, *, price: float, prev_price: float, quote_abs: float
+    ts: datetime, price: float, prev_price: float, quote_abs: float
 ) -> dict:
     return {
         TRADE_TIME: ts,

@@ -167,7 +167,6 @@ class ImplementsPortfolio(ABC):
         model: ImplementsRank,
         buy_before: timedelta,
         sell_after: timedelta,
-        *,
         trade_source: TradeSource | None = None,
         pnl_calculator: PnLCalculator | None = None,
     ):

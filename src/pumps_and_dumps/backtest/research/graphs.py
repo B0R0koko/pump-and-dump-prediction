@@ -62,10 +62,11 @@ def plot_feature_distributions(
     offset: NamedTimeDelta = NamedTimeDelta.ONE_DAY,
     n_pumps: int = 5,
     save_path: Optional[str] = None,
+    random_state: int = 42,
 ) -> plt.Figure:
     """Plot feature distributions before/after cross-sectional standardisation."""
-    selected_pump_hashes = np.random.choice(
-        df_raw["pump_hash"].unique(), n_pumps, replace=False
+    selected_pump_hashes = np.random.default_rng(random_state).choice(
+        sorted(df_raw["pump_hash"].unique()), n_pumps, replace=False
     )
     df_small = df_raw[df_raw["pump_hash"].isin(selected_pump_hashes)]
     df_scaled_small = df_scaled[df_scaled["pump_hash"].isin(selected_pump_hashes)]
@@ -169,6 +170,7 @@ def plot_topk_percent_curves(
     auc_scores: Dict[str, float],
     max_k_percent: float = 0.20,
     save_path: Optional[str] = None,
+    random_baseline: Optional[Sequence[float]] = None,
 ) -> plt.Figure:
     """Plot Top@k% accuracy curves with Top@k%AUC in legend over ``k% in [0, max_k_percent]``."""
     X = np.linspace(0, max_k_percent, 101)
@@ -176,7 +178,9 @@ def plot_topk_percent_curves(
 
     fig, ax = plt.subplots(figsize=(10, 6))
     df_topkp[cols].plot(ax=ax, alpha=0.7)
-    ax.plot(X, X, linestyle="--", color="grey", label="Random ranking baseline")
+    baseline_x = X if random_baseline is None else df_topkp.index
+    baseline_y = X if random_baseline is None else random_baseline
+    ax.plot(baseline_x, baseline_y, linestyle="--", color="grey", label="Random ranking baseline")
     ax.legend(legends + ["Random ranking baseline"])
     ax.set_xlabel("k%")
     ax.set_ylabel("Top@k% accuracy")
@@ -540,6 +544,83 @@ def plot_feature_importance_distribution(
 # ---------------------------------------------------------------------------
 
 
+def _pairwise_decisions(models: list[str], pairwise: pd.DataFrame) -> np.ndarray:
+    """Validate the complete comparison family and orient each row's decision."""
+    n_models = len(models)
+    positions = {model: i for i, model in enumerate(models)}
+    decisions = np.full((n_models, n_models), np.nan)
+    for row in pairwise.itertuples(index=False):
+        if row.model_a not in positions or row.model_b not in positions or row.model_a == row.model_b:
+            raise ValueError("pairwise must compare distinct models present in summary")
+        i, j = positions[row.model_a], positions[row.model_b]
+        if np.isfinite(decisions[i, j]):
+            raise ValueError("pairwise must contain exactly one row per unordered model pair")
+        decision = 0
+        if row.reject_h0:
+            if row.better_model not in (row.model_a, row.model_b):
+                raise ValueError("rejected comparisons must identify better_model")
+            decision = 1 if row.better_model == row.model_a else -1
+        decisions[i, j], decisions[j, i] = decision, -decision
+    if np.isnan(decisions[~np.eye(n_models, dtype=bool)]).any():
+        raise ValueError("pairwise must contain a comparison for every unordered model pair")
+
+    return decisions
+
+
+def _plot_model_intervals(ax, ordered: pd.DataFrame, identifiers: list[str], split: str, confidence: float) -> None:
+    n_models = len(ordered)
+    y = np.arange(n_models)
+    # Draw intervals independently: a percentile CI need not contain its point estimate.
+    ax.hlines(y, ordered["ci_lower"], ordered["ci_upper"], color="tab:blue", linewidth=2)
+    ax.scatter(ordered["point_estimate"], y, color="tab:blue", zorder=3)
+    ax.vlines(ordered["ci_lower"], y - 0.12, y + 0.12, color="tab:blue")
+    ax.vlines(ordered["ci_upper"], y - 0.12, y + 0.12, color="tab:blue")
+    ax.set_yticks(y, [f"{identifier}: {model}" for identifier, model in zip(identifiers, ordered.index)])
+    ax.set_ylim(n_models - 0.5, -0.5)
+    ax.set_xlabel(f"{split} Top@k%AUC (higher is better)")
+    ax.set_title(f"Point estimates and {confidence:g}% pointwise bootstrap CIs")
+    ax.grid(axis="x", alpha=0.3)
+    ax.set_axisbelow(True)
+
+
+def _plot_pairwise_decisions(ax, decisions: np.ndarray, identifiers: list[str], alpha: float) -> None:
+    n_models = len(identifiers)
+    y = np.arange(n_models)
+    colors = ["#d55e00", "#ededed", "#009e73"]
+    cmap = ListedColormap(colors).with_extremes(bad="white")
+    ax.imshow(np.ma.masked_invalid(decisions), cmap=cmap, vmin=-1.5, vmax=1.5)
+    ax.set_xticks(y, identifiers)
+    ax.set_yticks(y, identifiers)
+    ax.set_xlabel("Column model (IDs match left panel)")
+    ax.set_ylabel("Row model")
+    ax.set_title(f"Paired two-sided tests; Holm-adjusted α = {alpha:g}")
+    ax.set_xticks(np.arange(-0.5, n_models), minor=True)
+    ax.set_yticks(np.arange(-0.5, n_models), minor=True)
+    ax.grid(which="minor", color="white", linewidth=1.5)
+    ax.tick_params(which="minor", bottom=False, left=False)
+    labels = {-1: "−", 0: "·", 1: "+"}
+    for (i, j), value in np.ndenumerate(decisions):
+        ax.text(
+            j,
+            i,
+            "—" if i == j else labels[value],
+            ha="center",
+            va="center",
+            color="white" if abs(value) == 1 else "black",
+        )
+    ax.legend(
+        handles=[
+            Patch(facecolor=colors[2], label="+ Row significantly better"),
+            Patch(facecolor=colors[0], label="− Row significantly worse"),
+            Patch(facecolor=colors[1], label="· Inconclusive"),
+        ],
+        loc="upper center",
+        bbox_to_anchor=(0.5, -0.15),
+        frameon=False,
+        fontsize=9,
+    )
+
+
 def plot_model_bootstrap_comparison(
     summary: pd.DataFrame,
     pairwise: pd.DataFrame,
@@ -557,45 +638,16 @@ def plot_model_bootstrap_comparison(
     determine significance. Inconclusive comparisons do not establish equality.
     """
     if summary.empty or not summary.index.is_unique:
-        raise ValueError(
-            "summary must contain at least one model and have a unique model index"
-        )
+        raise ValueError("summary must contain at least one model and have a unique model index")
     ordered = summary.sort_values("point_estimate", ascending=False, kind="stable")
     metric_label = "Top@k%AUC"
-    split = (
-        str(ordered["dataset_type"].iloc[0]).capitalize()
-        if "dataset_type" in ordered
-        else "Validation"
-    )
+    split = str(ordered["dataset_type"].iloc[0]).capitalize() if "dataset_type" in ordered else "Validation"
     models = list(ordered.index)
-    positions = {model: i for i, model in enumerate(models)}
     alpha = float(ordered["alpha"].iloc[0]) if "alpha" in ordered.columns else 0.05
     confidence = 100 * (1 - alpha)
     n_models = len(models)
 
-    decisions = np.full((n_models, n_models), np.nan)
-    for row in pairwise.itertuples(index=False):
-        if (
-            row.model_a not in positions
-            or row.model_b not in positions
-            or row.model_a == row.model_b
-        ):
-            raise ValueError("pairwise must compare distinct models present in summary")
-        i, j = positions[row.model_a], positions[row.model_b]
-        if np.isfinite(decisions[i, j]):
-            raise ValueError(
-                "pairwise must contain exactly one row per unordered model pair"
-            )
-        decision = 0
-        if row.reject_h0:
-            if row.better_model not in (row.model_a, row.model_b):
-                raise ValueError("rejected comparisons must identify better_model")
-            decision = 1 if row.better_model == row.model_a else -1
-        decisions[i, j], decisions[j, i] = decision, -decision
-    if np.isnan(decisions[~np.eye(n_models, dtype=bool)]).any():
-        raise ValueError(
-            "pairwise must contain a comparison for every unordered model pair"
-        )
+    decisions = _pairwise_decisions(models, pairwise)
 
     fig, (forest_ax, matrix_ax) = plt.subplots(
         1,
@@ -604,63 +656,10 @@ def plot_model_bootstrap_comparison(
         gridspec_kw={"width_ratios": [1.1, 1]},
         layout="constrained",
     )
-    y = np.arange(n_models)
-    # Draw intervals independently: a percentile CI need not contain its point estimate.
-    forest_ax.hlines(
-        y, ordered["ci_lower"], ordered["ci_upper"], color="tab:blue", linewidth=2
-    )
-    forest_ax.scatter(ordered["point_estimate"], y, color="tab:blue", zorder=3)
-    forest_ax.vlines(ordered["ci_lower"], y - 0.12, y + 0.12, color="tab:blue")
-    forest_ax.vlines(ordered["ci_upper"], y - 0.12, y + 0.12, color="tab:blue")
-    identifiers = [f"M{i + 1}" for i in y]
-    forest_ax.set_yticks(
-        y, [f"{identifier}: {model}" for identifier, model in zip(identifiers, models)]
-    )
-    forest_ax.set_ylim(n_models - 0.5, -0.5)
-    forest_ax.set_xlabel(f"{split} {metric_label} (higher is better)")
-    forest_ax.set_title(f"Point estimates and {confidence:g}% pointwise bootstrap CIs")
-    forest_ax.grid(axis="x", alpha=0.3)
-    forest_ax.set_axisbelow(True)
-
-    colors = ["#d55e00", "#ededed", "#009e73"]
-    cmap = ListedColormap(colors).with_extremes(bad="white")
-    matrix_ax.imshow(np.ma.masked_invalid(decisions), cmap=cmap, vmin=-1.5, vmax=1.5)
-    matrix_ax.set_xticks(y, identifiers)
-    matrix_ax.set_yticks(y, identifiers)
-    matrix_ax.set_xlabel("Column model (IDs match left panel)")
-    matrix_ax.set_ylabel("Row model")
-    matrix_ax.set_title(f"Paired two-sided tests; Holm-adjusted α = {alpha:g}")
-    matrix_ax.set_xticks(np.arange(-0.5, n_models), minor=True)
-    matrix_ax.set_yticks(np.arange(-0.5, n_models), minor=True)
-    matrix_ax.grid(which="minor", color="white", linewidth=1.5)
-    matrix_ax.tick_params(which="minor", bottom=False, left=False)
-    for i in y:
-        for j in y:
-            value = decisions[i, j]
-            label = "—" if i == j else "+" if value > 0 else "−" if value < 0 else "·"
-            matrix_ax.text(
-                j,
-                i,
-                label,
-                ha="center",
-                va="center",
-                color="white" if abs(value) == 1 else "black",
-            )
-    matrix_ax.legend(
-        handles=[
-            Patch(facecolor=colors[2], label="+ Row significantly better"),
-            Patch(facecolor=colors[0], label="− Row significantly worse"),
-            Patch(facecolor=colors[1], label="· Inconclusive"),
-        ],
-        loc="upper center",
-        bbox_to_anchor=(0.5, -0.15),
-        frameon=False,
-        fontsize=9,
-    )
-    fig.suptitle(
-        f"{split} model comparison: {metric_label}\n"
-        "Paired bootstrap over pump events"
-    )
+    identifiers = [f"M{i + 1}" for i in range(n_models)]
+    _plot_model_intervals(forest_ax, ordered, identifiers, split, confidence)
+    _plot_pairwise_decisions(matrix_ax, decisions, identifiers, alpha)
+    fig.suptitle(f"{split} model comparison: {metric_label}\n" "Paired bootstrap over pump events")
     if save_path:
         fig.savefig(save_path, bbox_inches="tight")
     return fig
@@ -676,9 +675,7 @@ def plot_bootstrap_ci(
 
     x = np.arange(len(df_topk_ci.index))
     y = df_topk_ci["point_estimate"].to_numpy()
-    yerr = np.vstack(
-        [y - df_topk_ci["ci_lower"].to_numpy(), df_topk_ci["ci_upper"].to_numpy() - y]
-    )
+    yerr = np.vstack([y - df_topk_ci["ci_lower"].to_numpy(), df_topk_ci["ci_upper"].to_numpy() - y])
     axes[0].errorbar(x, y, yerr=yerr, fmt="o-", capsize=4)
     axes[0].set_xticks(x)
     axes[0].set_xticklabels([f"Top@{k:g}" for k in df_topk_ci.index])

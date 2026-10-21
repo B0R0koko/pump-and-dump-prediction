@@ -23,7 +23,7 @@ IMAGES = {
 }
 
 
-def bind_mount(source: Path, destination: str, *, readonly: bool = False) -> str:
+def bind_mount(source: Path, destination: str, readonly: bool = False) -> str:
     """Encode Docker's CSV mount grammar, including host paths with commas/spaces."""
     result = StringIO()
     fields = ["type=bind", f"src={source}", f"dst={destination}"]
@@ -38,7 +38,6 @@ def container_stage(
     description: str,
     options: list[str],
     data_dir: Path,
-    *,
     config: Path | None = None,
     progress: bool = False,
 ) -> Stage:

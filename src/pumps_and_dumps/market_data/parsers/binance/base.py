@@ -123,7 +123,7 @@ class BinanceBaseParser(ABC, scrapy.Spider):
             disable=progress_enabled(),
         )
 
-    def _report_progress(self, detail: str, *, force: bool = False) -> None:
+    def _report_progress(self, detail: str, force: bool = False) -> None:
         listed = len(self._listed_pairs)
         self._progress.update(
             completed=self._downloaded + self._verified + self._failed,
@@ -328,7 +328,7 @@ class BinanceBaseParser(ABC, scrapy.Spider):
         async with self._archive_slots:
             await asyncio.to_thread(operation, *args, **kwargs)
 
-    def _finish_file(self, detail: str, *, force: bool = False) -> None:
+    def _finish_file(self, detail: str, force: bool = False) -> None:
         self._report_progress(detail, force=force)
         if self._pbar is not None:
             self._pbar.update(1)

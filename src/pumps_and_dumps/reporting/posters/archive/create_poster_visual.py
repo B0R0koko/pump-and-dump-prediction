@@ -402,7 +402,6 @@ def _default_directory() -> Path:
 
 def build_poster(
     directory: Path | None = None,
-    *,
     data: Mapping[str, Any] | None = None,
     output_path: Path | None = None,
     assets_dir: Path | None = None,

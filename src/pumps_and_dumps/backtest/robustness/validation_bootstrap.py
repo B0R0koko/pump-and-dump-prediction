@@ -56,7 +56,6 @@ def evaluate_validation_bootstrap(
 
 def evaluate_bootstrap(
     experiments: Sequence[Experiment],
-    *,
     dataset_type: DatasetType = DatasetType.VALIDATION,
     n_bootstrap: int = 10_000,
     alpha: float = 0.05,

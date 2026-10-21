@@ -24,7 +24,7 @@ from pumps_and_dumps.features.storage import validate_feature_file
 from pumps_and_dumps.features.schema import regressor_columns
 
 
-def _read_cross_section(pump: PumpEvent, *, feature_dir: Path | None = None) -> tuple[PumpEvent, pd.DataFrame | None]:
+def _read_cross_section(pump: PumpEvent, feature_dir: Path | None = None) -> tuple[PumpEvent, pd.DataFrame | None]:
     feature_dir = FEATURE_DIR if feature_dir is None else feature_dir
     cross_section_path = feature_dir / "pumps" / f"{pump}.parquet"
 
@@ -63,7 +63,6 @@ def _write_dropped_pumps(pumps: List[PumpEvent], path: Path) -> None:
 
 def create_dataset(
     max_workers: int | None = None,
-    *,
     pumps_path: Path | None = None,
     feature_dir: Path | None = None,
     dropped_path: Path | None = None,

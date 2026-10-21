@@ -48,7 +48,7 @@ def _verify_contents(source: Path | BinaryIO, progress: ProgressReporter) -> Non
 
 
 def verify_archive(
-    source: Path | BinaryIO, *, expected_size: int | None = None, detail: str = ""
+    source: Path | BinaryIO, expected_size: int | None = None, detail: str = ""
 ) -> None:
     """Read every member to EOF, checking decompression, lengths, and ZIP CRCs.
 
@@ -76,7 +76,7 @@ def verify_archive(
 
 
 def install_archive(
-    path: Path, body: bytes, *, expected_size: int | None = None, detail: str = ""
+    path: Path, body: bytes, expected_size: int | None = None, detail: str = ""
 ) -> None:
     """Validate before replacing the destination; interrupted writes stay temporary."""
     verify_archive(BytesIO(body), expected_size=expected_size, detail=detail)

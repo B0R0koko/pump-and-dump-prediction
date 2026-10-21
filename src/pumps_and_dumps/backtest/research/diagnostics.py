@@ -19,7 +19,7 @@ from pumps_and_dumps.features.schema import REGRESSOR_OFFSETS
 from pumps_and_dumps.features.schema import regressor_columns
 
 
-def plot_cross_section_sizes(df: pd.DataFrame, *, save_path: Path) -> None:
+def plot_cross_section_sizes(df: pd.DataFrame, save_path: Path | None = None) -> plt.Figure:
     sizes = df.groupby("pump_hash").agg(
         pump_time=("pump_time", "first"), cross_section_size=("pump_time", "count")
     )
@@ -27,8 +27,9 @@ def plot_cross_section_sizes(df: pd.DataFrame, *, save_path: Path) -> None:
         x="pump_time", y="cross_section_size", title="Cross-section size over time"
     )
     ax.figure.tight_layout()
-    ax.figure.savefig(save_path, dpi=300, bbox_inches="tight")
-    plt.show()
+    if save_path is not None:
+        ax.figure.savefig(save_path, dpi=300, bbox_inches="tight")
+    return ax.figure
 
 
 def describe_features(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -43,8 +44,8 @@ def describe_features(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
 
 
 def plot_feature_importances(
-    experiment: Experiment, *, save_path: Path, top_n: int = 20
-) -> None:
+    experiment: Experiment, save_path: Path | None = None, top_n: int = 20
+) -> plt.Figure:
     importance = feature_importances(experiment.get_model())
     ax = (
         importance.sort_values()
@@ -54,8 +55,9 @@ def plot_feature_importances(
     )
     ax.set_title(experiment.get_experiment_name())
     ax.figure.tight_layout()
-    ax.figure.savefig(save_path)
-    plt.show()
+    if save_path is not None:
+        ax.figure.savefig(save_path)
+    return ax.figure
 
 
 def impact_fit_metrics(samples: pd.DataFrame, beta: float) -> pd.Series:
@@ -75,8 +77,8 @@ def impact_fit_metrics(samples: pd.DataFrame, beta: float) -> pd.Series:
 
 
 def show_impact_example(
-    example: ImpactExample | ExitImpactExample, *, save_path: Path
-) -> None:
+    example: ImpactExample | ExitImpactExample, save_path: Path | None = None
+) -> plt.Figure:
     """Plot an illustrative fit and report per-side errors; never used for model selection."""
     is_exit = isinstance(example, ExitImpactExample)
     samples = example.fit_result.samples.copy()
@@ -85,12 +87,12 @@ def show_impact_example(
     plot = (
         graphs.plot_exit_impact_regression if is_exit else graphs.plot_impact_regression
     )
-    plot(
+    figure = plot(
         model=example.fit_result.model,
         samples=samples,
         currency_pair_name=example.currency_pair.name,
         pump_time=example.pump.time,
-        save_path=str(save_path),
+        save_path=str(save_path) if save_path is not None else None,
     )
     groups = (
         {"Exit (sell-only, 5s candles)": samples}
@@ -108,3 +110,4 @@ def show_impact_example(
     display(pd.DataFrame(metrics).T)
     print(f"β = {example.fit_result.model.beta:.6f}")
     print(f"Asset: {example.currency_pair.name}, Pump: {example.pump.time}")
+    return figure

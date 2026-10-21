@@ -49,7 +49,6 @@ class TOPKPortfolio(ImplementsPortfolio):
         self,
         model: ImplementsRank,
         config: Optional[PortfolioExecutionConfig] = None,
-        *,
         portfolio_size: int = 1,
         buy_before: timedelta = timedelta(minutes=15),
         sell_after: timedelta = timedelta(minutes=1),
@@ -336,7 +335,6 @@ class TOPKPortfolio(ImplementsPortfolio):
         ts_price: pd.Series,
         pump: PumpEvent,
         cp: CurrencyPair,
-        *,
         exit_threshold: datetime,
         is_manipulated_asset: bool,
     ) -> Transaction:

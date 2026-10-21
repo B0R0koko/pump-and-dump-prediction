@@ -128,7 +128,6 @@ def evaluate_experiments_classification(
 
 def select_best_experiment_on_validation(
     experiments: Sequence[Experiment],
-    *,
     bootstrap_results: "ValidationBootstrapResults | None" = None,
 ) -> tuple[Experiment, pd.Series]:
     """Select the highest deterministic validation Top@k%AUC, without reading TEST.
@@ -173,7 +172,6 @@ def get_equity_curve_for_experiment(
     portfolio_size: int = 5,
     use_price_impact: bool = False,
     order_notional_usdt: float = 1.0,
-    *,
     portfolio: PortfolioEvaluator | None = None,
 ) -> pd.DataFrame:
     """Evaluate one experiment using an injected portfolio or the default Top@k strategy."""

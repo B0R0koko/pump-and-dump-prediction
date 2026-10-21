@@ -68,14 +68,14 @@ class Top5Loss:
     independent of input row order. The subgradient at the hinge itself is zero.
     """
 
-    def __init__(self, groups: EventGroups, *, margin: float = 1.0):
+    def __init__(self, groups: EventGroups, margin: float = 1.0):
         if not np.isfinite(margin) or margin <= 0:
             raise ValueError("margin must be positive and finite")
         self.groups = groups
         self.margin = float(margin)
 
     @classmethod
-    def from_frame(cls, data: pd.DataFrame, *, margin: float = 1.0) -> "Top5Loss":
+    def from_frame(cls, data: pd.DataFrame, margin: float = 1.0) -> "Top5Loss":
         return cls(EventGroups.from_frame(data), margin=margin)
 
     def value(self, logits: np.ndarray) -> float:

@@ -29,7 +29,6 @@ class StageRunner(Protocol):
     def __call__(
         self,
         stage: Stage,
-        *,
         root: Path,
         environment: dict[str, str],
         log_path: Path,
@@ -171,7 +170,6 @@ def _drain_output(
 
 def monitor_stage(
     stage: Stage,
-    *,
     root: Path,
     environment: dict[str, str],
     log_path: Path,

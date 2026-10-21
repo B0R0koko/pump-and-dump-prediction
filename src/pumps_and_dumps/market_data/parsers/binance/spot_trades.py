@@ -25,7 +25,6 @@ class BinanceSpotTradesParser(BinanceBaseParser):
         bounds: Bounds,
         currency_pairs: List[CurrencyPair],
         output_dir: Path,
-        *,
         skip_existing: bool = False,
         archive_verifier: Callable[..., None] | None = None,
         archive_installer: Callable[..., None] | None = None,

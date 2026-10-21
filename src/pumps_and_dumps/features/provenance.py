@@ -42,7 +42,6 @@ def dependency(
     start_ns: int | None,
     end_ns: int | None,
     n_rows: int,
-    *,
     provenance_complete: bool = True,
 ) -> dict[str, Any]:
     """Describe one shared input slice, or an untraceable lag dependency."""

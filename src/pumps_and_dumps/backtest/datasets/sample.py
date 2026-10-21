@@ -17,7 +17,7 @@ class DatasetType(Enum):
     TUNING = auto()
 
 
-def event_time_midpoint(df: pd.DataFrame, *, event_col: str, time_col: str) -> pd.Timestamp:
+def event_time_midpoint(df: pd.DataFrame, event_col: str, time_col: str) -> pd.Timestamp:
     """Find the closest chronological half split without separating tied times.
 
     Each event has equal weight regardless of its candidate-asset count. On a
