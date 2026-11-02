@@ -1,0 +1,15 @@
+{
+  "paper_commit": "0167dddfa6b55819e276812836ac7537c5d3a00b",
+  "paper_pdf_git_blob": "862c708896830497e87e88f0069027c1e3c4424a",
+  "source_commit": "73ba716dfe39be3f2da9b0ccd7d6663ff544b570",
+  "source_manifest_path": "research_snapshots/73ba716/pumps.json",
+  "source_manifest_sha256": "3f0cab25093a2c304d15b071b7b40344a7ce58c03ef79dd7b1e9b3a29b319467",
+  "historical_exclusions_path": "research_snapshots/paper_0167ddd/excluded_pumps.json",
+  "historical_exclusions_sha256": "ff16500dce73763527f06cbee5fb32cec90572445e0fb1b206ef28440bab7500",
+  "construction": "Original 498-event manifest minus the 25 recorded unavailable events; preserve original order",
+  "source_events": 498,
+  "excluded_events": 25,
+  "retained_events": 473,
+  "manifest_path": "research_snapshots/paper_0167ddd/pumps.json",
+  "manifest_sha256": "c91389bf376087f113054fd7ce3a41a4cd344beadd58a2abf8fa02127e751cd6"
+}

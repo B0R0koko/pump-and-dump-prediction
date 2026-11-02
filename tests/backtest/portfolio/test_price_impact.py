@@ -297,7 +297,7 @@ def test_topk_portfolio_defaults_to_14_day_price_impact_lookback() -> None:
     assert manager.impact_lookback_days == 14
 
 
-def test_manipulated_exit_impact_requires_minimum_sample_count(monkeypatch) -> None:
+def test_manipulated_exit_impact_requires_minimum_sample_count(monkeypatch, caplog) -> None:
     cp = CurrencyPair.from_string("AAA-BTC")
     pump = PumpEvent(
         currency_pair=cp,
@@ -340,6 +340,7 @@ def test_manipulated_exit_impact_requires_minimum_sample_count(monkeypatch) -> N
 
     assert tx.exit_impact_bps == 0.0
     assert tx.exit_impact_num_bars == pre_pump_model.num_samples
+    assert "Manipulated impact model has only" not in caplog.text
 
 
 def test_topk_transaction_converts_usdt_to_quote_before_price_impact(

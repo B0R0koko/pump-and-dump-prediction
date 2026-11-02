@@ -25,10 +25,44 @@ notebooks/analysis_outputs/
 # Image outputs from runs
 **/images/
 
-# Paper — keep only the final and highlighted-changes PDFs
+# Paper source and shareable PDFs; build products and archives stay local.
 paper/*
 !paper/access.pdf
 !paper/access_highlighted.pdf
+!paper/src/
+paper/src/*
+!paper/src/*.tex
+!paper/src/build_highlighted.py
+
+# Files required to build the manuscript from a clean checkout.
+!paper/styles/
+!paper/styles/**
+!paper/src/images/
+paper/src/images/*
+!paper/src/images/auc_distributions.png
+!paper/src/images/bogutsky.png
+!paper/src/images/bullet.png
+!paper/src/images/cs_size.jpeg
+!paper/src/images/cs_standardization_impact.png
+!paper/src/images/exit_impact_regression_example.png
+!paper/src/images/impact_regression_example.png
+!paper/src/images/logo.png
+!paper/src/images/lukyanchenko.png
+!paper/src/images/mironov.png
+!paper/src/images/notaglinelogo.png
+!paper/src/images/pnl_vs_quantity_with_impact.png
+!paper/src/images/portfolios_1000usdt_with_slippage.png
+!paper/src/images/portfolios_vs_btc_test.png
+!paper/src/images/pump_and_dump_example.png
+!paper/src/images/submitted_classification_metrics_test.png
+!paper/src/images/submitted_classification_metrics_validation.png
+!paper/src/images/submitted_feature_importances.png
+!paper/src/images/submitted_robustness_metrics_distribution.png
+!paper/src/images/submitted_significance_bootstrap_ci.png
+!paper/src/images/submitted_topk_accuracy_test.png
+!paper/src/images/submitted_topk_accuracy_validation.png
+!paper/src/images/submitted_topkp_auc_test.png
+!paper/src/images/submitted_topkp_auc_validation.png
 
 # Resources — keep event labels and the historical download universe
 resources/*

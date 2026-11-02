@@ -1,0 +1,390 @@
+{
+  "commit": "73ba716dfe39be3f2da9b0ccd7d6663ff544b570",
+  "runtime_sha256": "36565f832e9463a00eef784b373be19ace5cb224bfdb472a30ab3df5c3dd1150",
+  "pumps_sha256": "3f0cab25093a2c304d15b071b7b40344a7ce58c03ef79dd7b1e9b3a29b319467",
+  "active_pumps_commit": "73ba716dfe39be3f2da9b0ccd7d6663ff544b570",
+  "active_pumps_path": "research_snapshots/paper_0167ddd/pumps.json",
+  "active_pumps_sha256": "c91389bf376087f113054fd7ce3a41a4cd344beadd58a2abf8fa02127e751cd6",
+  "paper_cohort": {
+    "paper_commit": "0167dddfa6b55819e276812836ac7537c5d3a00b",
+    "paper_pdf_git_blob": "862c708896830497e87e88f0069027c1e3c4424a",
+    "source_commit": "73ba716dfe39be3f2da9b0ccd7d6663ff544b570",
+    "source_manifest_path": "research_snapshots/73ba716/pumps.json",
+    "source_manifest_sha256": "3f0cab25093a2c304d15b071b7b40344a7ce58c03ef79dd7b1e9b3a29b319467",
+    "historical_exclusions_path": "research_snapshots/paper_0167ddd/excluded_pumps.json",
+    "historical_exclusions_sha256": "ff16500dce73763527f06cbee5fb32cec90572445e0fb1b206ef28440bab7500",
+    "construction": "Original 498-event manifest minus the 25 recorded unavailable events; preserve original order",
+    "source_events": 498,
+    "excluded_events": 25,
+    "retained_events": 473,
+    "manifest_path": "research_snapshots/paper_0167ddd/pumps.json",
+    "manifest_sha256": "c91389bf376087f113054fd7ce3a41a4cd344beadd58a2abf8fa02127e751cd6"
+  },
+  "files": [
+    {
+      "path": "backtest/__init__.py",
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "runtime_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "adaptations": []
+    },
+    {
+      "path": "backtest/pipelines/BaseModel.py",
+      "original_sha256": "e0d98cdadcceec7b805046f3c00602b67fca53881f82ecdea6f08199335603e1",
+      "runtime_sha256": "e0d98cdadcceec7b805046f3c00602b67fca53881f82ecdea6f08199335603e1",
+      "adaptations": []
+    },
+    {
+      "path": "backtest/pipelines/BasePipeline.py",
+      "original_sha256": "472b7d0b3218220bf1ac1b2a710f46c9995e21a26d7c68d3e62585f54fe30e21",
+      "runtime_sha256": "472b7d0b3218220bf1ac1b2a710f46c9995e21a26d7c68d3e62585f54fe30e21",
+      "adaptations": []
+    },
+    {
+      "path": "backtest/pipelines/CatboostClassifier/__init__.py",
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "runtime_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "adaptations": []
+    },
+    {
+      "path": "backtest/pipelines/CatboostClassifier/model.py",
+      "original_sha256": "7477913a393e07851ca0b721e9ca72107388eb972c709c0900eb026e1ae2b425",
+      "runtime_sha256": "7477913a393e07851ca0b721e9ca72107388eb972c709c0900eb026e1ae2b425",
+      "adaptations": []
+    },
+    {
+      "path": "backtest/pipelines/CatboostClassifier/pipe.py",
+      "original_sha256": "90d49c86423427c8b55b4081b71067a8a92cc9eaab35aaa75987e9a25a7ad038",
+      "runtime_sha256": "90d49c86423427c8b55b4081b71067a8a92cc9eaab35aaa75987e9a25a7ad038",
+      "adaptations": []
+    },
+    {
+      "path": "backtest/pipelines/CatboostClassifierSMOTE/__init__.py",
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "runtime_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "adaptations": []
+    },
+    {
+      "path": "backtest/pipelines/CatboostClassifierSMOTE/pipe.py",
+      "original_sha256": "f93bf2b8867ad2503310bf09ba328d049d9c4cc3d2e0f7a1029abc1bff20c9dd",
+      "runtime_sha256": "f93bf2b8867ad2503310bf09ba328d049d9c4cc3d2e0f7a1029abc1bff20c9dd",
+      "adaptations": []
+    },
+    {
+      "path": "backtest/pipelines/CatboostClassifierTOPKAUC/__init__.py",
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "runtime_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "adaptations": []
+    },
+    {
+      "path": "backtest/pipelines/CatboostClassifierTOPKAUC/pipe.py",
+      "original_sha256": "e9cf25d2dede8bff0e5aa26b77cb993c68f7a941626bd689562c83d67d09b919",
+      "runtime_sha256": "e9cf25d2dede8bff0e5aa26b77cb993c68f7a941626bd689562c83d67d09b919",
+      "adaptations": []
+    },
+    {
+      "path": "backtest/pipelines/CatboostRanker/__init__.py",
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "runtime_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "adaptations": []
+    },
+    {
+      "path": "backtest/pipelines/CatboostRanker/model.py",
+      "original_sha256": "27c12509071601e136c1abed3b18ac6e92bf1e62c414004597ab18d60563e21a",
+      "runtime_sha256": "27c12509071601e136c1abed3b18ac6e92bf1e62c414004597ab18d60563e21a",
+      "adaptations": []
+    },
+    {
+      "path": "backtest/pipelines/CatboostRanker/pipe.py",
+      "original_sha256": "32d9a830e544e52f9772de0fcb703e2feb6c3c197f78bd77d0493778a7b0bd85",
+      "runtime_sha256": "32d9a830e544e52f9772de0fcb703e2feb6c3c197f78bd77d0493778a7b0bd85",
+      "adaptations": []
+    },
+    {
+      "path": "backtest/pipelines/LogisticRegression/__init__.py",
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "runtime_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "adaptations": []
+    },
+    {
+      "path": "backtest/pipelines/LogisticRegression/model.py",
+      "original_sha256": "c8b6f4b4cacdc0c0efab82e712545cc2638e6a0a03a9e7c131e1ee65f400b3e4",
+      "runtime_sha256": "c8b6f4b4cacdc0c0efab82e712545cc2638e6a0a03a9e7c131e1ee65f400b3e4",
+      "adaptations": []
+    },
+    {
+      "path": "backtest/pipelines/LogisticRegression/pipe.py",
+      "original_sha256": "953054da45f023bf084e041d4a6cc25b031f2d26ad2d2cd4012428d49d89056b",
+      "runtime_sha256": "953054da45f023bf084e041d4a6cc25b031f2d26ad2d2cd4012428d49d89056b",
+      "adaptations": []
+    },
+    {
+      "path": "backtest/pipelines/RandomForest/__init__.py",
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "runtime_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "adaptations": []
+    },
+    {
+      "path": "backtest/pipelines/RandomForest/model.py",
+      "original_sha256": "2ca51495730737432b7022f202666ee1d2c52915d946279046c0cf6caa44584d",
+      "runtime_sha256": "2ca51495730737432b7022f202666ee1d2c52915d946279046c0cf6caa44584d",
+      "adaptations": []
+    },
+    {
+      "path": "backtest/pipelines/RandomForest/pipe.py",
+      "original_sha256": "852d0643b3f938553476cc47ae7f9c8265fd65568c2e846c6d97de5872375e06",
+      "runtime_sha256": "852d0643b3f938553476cc47ae7f9c8265fd65568c2e846c6d97de5872375e06",
+      "adaptations": []
+    },
+    {
+      "path": "backtest/pipelines/__init__.py",
+      "original_sha256": "1694104f0690b38927abd6aa22572dffa83c4b9b7e1c9c5b6abe347596023750",
+      "runtime_sha256": "1694104f0690b38927abd6aa22572dffa83c4b9b7e1c9c5b6abe347596023750",
+      "adaptations": []
+    },
+    {
+      "path": "backtest/pipelines/study.py",
+      "original_sha256": "304cfab1d09ba5a9dfe24b478b55325cbdb9bd6a0e3d10a3c7ae307fee5bc0cb",
+      "runtime_sha256": "304cfab1d09ba5a9dfe24b478b55325cbdb9bd6a0e3d10a3c7ae307fee5bc0cb",
+      "adaptations": []
+    },
+    {
+      "path": "backtest/portfolio/BasePortfolio.py",
+      "original_sha256": "57e96e19ec25bbb1372edb61097a116a8b0b2f3ac824a14088223a8e94df27b7",
+      "runtime_sha256": "593c4c6b129c097164b643a0c233a3bc73c93c9c886034ace96ad9d4d11b095e",
+      "adaptations": [
+        "Share partitioned trade reads with the refactored pipeline; preserve execution logic"
+      ]
+    },
+    {
+      "path": "backtest/portfolio/PriceImpact.py",
+      "original_sha256": "bf714b920dbe29333a7031b825fefb882177161e75f3f450645490033c1b0ec2",
+      "runtime_sha256": "bf714b920dbe29333a7031b825fefb882177161e75f3f450645490033c1b0ec2",
+      "adaptations": []
+    },
+    {
+      "path": "backtest/portfolio/TOPKPortfolio.py",
+      "original_sha256": "417a88ad93adf856bc7ec85aabf93bf60a25ede2a0ec6d4c45a0a793085c9301",
+      "runtime_sha256": "be099c11105977e9d7ff68dc5d1a9cf7aa51d6f84bfc322532c348e6ca371152",
+      "adaptations": [
+        "Silence the expected small-sample impact fallback; preserve execution and error warnings"
+      ]
+    },
+    {
+      "path": "backtest/portfolio/__init__.py",
+      "original_sha256": "21971d50ee08ec92fd2ffafb75d74192516d01fc15ff730415a851d99ae4eeb4",
+      "runtime_sha256": "21971d50ee08ec92fd2ffafb75d74192516d01fc15ff730415a851d99ae4eeb4",
+      "adaptations": []
+    },
+    {
+      "path": "backtest/portfolio/config.py",
+      "original_sha256": "aa6c0171a8bd480189b5b4537b24ee0fbb47c1df8628c9329e2696c840717ec1",
+      "runtime_sha256": "aa6c0171a8bd480189b5b4537b24ee0fbb47c1df8628c9329e2696c840717ec1",
+      "adaptations": []
+    },
+    {
+      "path": "backtest/portfolio/impact_provider.py",
+      "original_sha256": "41bdeb0b682f1358438883ae476e931427afa4bf6a803f15231819d9fbf0687f",
+      "runtime_sha256": "41bdeb0b682f1358438883ae476e931427afa4bf6a803f15231819d9fbf0687f",
+      "adaptations": []
+    },
+    {
+      "path": "backtest/portfolio/interfaces.py",
+      "original_sha256": "5bcab41f35d108f1e9f5d3a69c9422e1148c5661a042b2dc65f21c3cbb526325",
+      "runtime_sha256": "5bcab41f35d108f1e9f5d3a69c9422e1148c5661a042b2dc65f21c3cbb526325",
+      "adaptations": []
+    },
+    {
+      "path": "backtest/portfolio/manipulated_impact_provider.py",
+      "original_sha256": "6f1d3b4114cf4e7729db2736e138535cd8dc7fd6b3360269b988162cbb546685",
+      "runtime_sha256": "6f1d3b4114cf4e7729db2736e138535cd8dc7fd6b3360269b988162cbb546685",
+      "adaptations": []
+    },
+    {
+      "path": "backtest/portfolio/models.py",
+      "original_sha256": "3275dbe6f737330c642c4a6267e8969286fe5c0f25fd79ba10ed70714e70d3f3",
+      "runtime_sha256": "3275dbe6f737330c642c4a6267e8969286fe5c0f25fd79ba10ed70714e70d3f3",
+      "adaptations": []
+    },
+    {
+      "path": "backtest/portfolio/pnl.py",
+      "original_sha256": "73f7eeb8897a3c1637466398b3dec45e1c9e045a330b577c085c93378018497e",
+      "runtime_sha256": "73f7eeb8897a3c1637466398b3dec45e1c9e045a330b577c085c93378018497e",
+      "adaptations": []
+    },
+    {
+      "path": "backtest/portfolio/selector.py",
+      "original_sha256": "c4d9130ad6cfa24abfc867c57cb8ac69f4240ee0765f9643e07e62c6add54a64",
+      "runtime_sha256": "c4d9130ad6cfa24abfc867c57cb8ac69f4240ee0765f9643e07e62c6add54a64",
+      "adaptations": []
+    },
+    {
+      "path": "backtest/portfolio/sizing.py",
+      "original_sha256": "d1d6e38296e86f62fed1f1240dd838c96f6b99602209ec77c6fb5a332ed78199",
+      "runtime_sha256": "d1d6e38296e86f62fed1f1240dd838c96f6b99602209ec77c6fb5a332ed78199",
+      "adaptations": []
+    },
+    {
+      "path": "backtest/portfolio/vwap_estimator.py",
+      "original_sha256": "897eb8b89046371d8125c4be102607eef923c6344e79bda54121181f1797acb8",
+      "runtime_sha256": "897eb8b89046371d8125c4be102607eef923c6344e79bda54121181f1797acb8",
+      "adaptations": []
+    },
+    {
+      "path": "backtest/robust/__init__.py",
+      "original_sha256": "a2c9e1a1e671878195657d5d0c3fbe7a5b6337d993bac6adb7a0c77e22b12cea",
+      "runtime_sha256": "a2c9e1a1e671878195657d5d0c3fbe7a5b6337d993bac6adb7a0c77e22b12cea",
+      "adaptations": []
+    },
+    {
+      "path": "backtest/robust/robustness.py",
+      "original_sha256": "878832e2fe0b517e8213a62ced710f653d33766e3f5eb82cace4a582b0d835d7",
+      "runtime_sha256": "878832e2fe0b517e8213a62ced710f653d33766e3f5eb82cace4a582b0d835d7",
+      "adaptations": []
+    },
+    {
+      "path": "backtest/robust/significance.py",
+      "original_sha256": "22d7a33ca5d876aab0899ff3388291b9dfc58b98cd067eb9b385cd8c2ca189e1",
+      "runtime_sha256": "22d7a33ca5d876aab0899ff3388291b9dfc58b98cd067eb9b385cd8c2ca189e1",
+      "adaptations": []
+    },
+    {
+      "path": "backtest/utils/IndicativePriceProvider.py",
+      "original_sha256": "5bdd39334687ccef1147a12cf72a4b0a4e1e069505977ed8b2b7eb9b8535af39",
+      "runtime_sha256": "5bdd39334687ccef1147a12cf72a4b0a4e1e069505977ed8b2b7eb9b8535af39",
+      "adaptations": []
+    },
+    {
+      "path": "backtest/utils/__init__.py",
+      "original_sha256": "02d17b2988cc8c96807d304bc05f517082de737b65223e870b080c29489e25d1",
+      "runtime_sha256": "02d17b2988cc8c96807d304bc05f517082de737b65223e870b080c29489e25d1",
+      "adaptations": []
+    },
+    {
+      "path": "backtest/utils/build_dataset.py",
+      "original_sha256": "951a7978020639bbd80b12616aa5100fff087f63f89a59995ba14151bb86196d",
+      "runtime_sha256": "98c2a30c767d37df7b7393a5800ba7138f6f27374703b5b7e866a0dc12117c40",
+      "adaptations": [
+        "Use the exact 473-event historical paper cohort and isolate generated missing-event reports"
+      ]
+    },
+    {
+      "path": "backtest/utils/columns.py",
+      "original_sha256": "6bd61f1d6cf714ab66a80b3844e220666103cf9315c3aa8eef12bf69a44cb639",
+      "runtime_sha256": "6bd61f1d6cf714ab66a80b3844e220666103cf9315c3aa8eef12bf69a44cb639",
+      "adaptations": []
+    },
+    {
+      "path": "backtest/utils/evaluation.py",
+      "original_sha256": "3ccd0b8b65ad3c302c1c88f304ed66ecf03ab66684e2bc779f42e9dd0f055d63",
+      "runtime_sha256": "3ccd0b8b65ad3c302c1c88f304ed66ecf03ab66684e2bc779f42e9dd0f055d63",
+      "adaptations": []
+    },
+    {
+      "path": "backtest/utils/experiment.py",
+      "original_sha256": "640a5b137a15fe2264c447a2359f21eddea5e8fa281ecdbbec778d01483ebbdf",
+      "runtime_sha256": "640a5b137a15fe2264c447a2359f21eddea5e8fa281ecdbbec778d01483ebbdf",
+      "adaptations": []
+    },
+    {
+      "path": "backtest/utils/feature_set.py",
+      "original_sha256": "965d44335da226e80e293f906634c02862c7f8860729c20dd21812b41380fa2a",
+      "runtime_sha256": "965d44335da226e80e293f906634c02862c7f8860729c20dd21812b41380fa2a",
+      "adaptations": []
+    },
+    {
+      "path": "backtest/utils/metrics.py",
+      "original_sha256": "60b8bb7bd71f36d67a9b712927331e546343eb40098fbe5c758134fb3b3f2e79",
+      "runtime_sha256": "60b8bb7bd71f36d67a9b712927331e546343eb40098fbe5c758134fb3b3f2e79",
+      "adaptations": []
+    },
+    {
+      "path": "backtest/utils/preprocessing.py",
+      "original_sha256": "9ac1610f00588950249e7d10e097c20a1cf412c6c6e69d872905661bb8c98a64",
+      "runtime_sha256": "9ac1610f00588950249e7d10e097c20a1cf412c6c6e69d872905661bb8c98a64",
+      "adaptations": []
+    },
+    {
+      "path": "backtest/utils/sample.py",
+      "original_sha256": "13303ec249f2546067f3052dffe3529f7d998654cd9db23e1a6184cfde81587c",
+      "runtime_sha256": "13303ec249f2546067f3052dffe3529f7d998654cd9db23e1a6184cfde81587c",
+      "adaptations": []
+    },
+    {
+      "path": "core/__init__.py",
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "runtime_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "adaptations": []
+    },
+    {
+      "path": "core/columns.py",
+      "original_sha256": "0481f48968e6e405e07de18b327858f9be0dec5a101eaaad5f123d2012794d93",
+      "runtime_sha256": "0481f48968e6e405e07de18b327858f9be0dec5a101eaaad5f123d2012794d93",
+      "adaptations": []
+    },
+    {
+      "path": "core/currency_pair.py",
+      "original_sha256": "ab4a3497e5fd11cb1668a416102cd2b7835801d3b55181e009e10ee8a3fdf32f",
+      "runtime_sha256": "ab4a3497e5fd11cb1668a416102cd2b7835801d3b55181e009e10ee8a3fdf32f",
+      "adaptations": []
+    },
+    {
+      "path": "core/exchange.py",
+      "original_sha256": "08efd481e477d3042803fcfdd2417400286c0aba17f0b5698ac1d3a107de9f89",
+      "runtime_sha256": "08efd481e477d3042803fcfdd2417400286c0aba17f0b5698ac1d3a107de9f89",
+      "adaptations": []
+    },
+    {
+      "path": "core/feature_type.py",
+      "original_sha256": "572e2d6ef07889bb2556b56f2f6525eaadd08765c5627bf8589034b2155a2552",
+      "runtime_sha256": "572e2d6ef07889bb2556b56f2f6525eaadd08765c5627bf8589034b2155a2552",
+      "adaptations": []
+    },
+    {
+      "path": "core/paths.py",
+      "original_sha256": "d37bd8254bfb04f77b47df21666205bd00832df689e8bd571f60807444402672",
+      "runtime_sha256": "c8a05dd48d8d196ea22f53f55bae635358c34b2c0fc9eb78ebfbababe3cf88b0",
+      "adaptations": [
+        "Use the installer's configured data directory and the original studies.db"
+      ]
+    },
+    {
+      "path": "core/pump_event.py",
+      "original_sha256": "1662c0fbd94fa2dfc4971addc7897b9e1fa85a95934f63bd24d9d4a99a25d71a",
+      "runtime_sha256": "1662c0fbd94fa2dfc4971addc7897b9e1fa85a95934f63bd24d9d4a99a25d71a",
+      "adaptations": []
+    },
+    {
+      "path": "core/time_utils.py",
+      "original_sha256": "b4453d76218da7236726ab2a252d113aa27e5dc432129afa68bd3d5deafd18e7",
+      "runtime_sha256": "b4453d76218da7236726ab2a252d113aa27e5dc432129afa68bd3d5deafd18e7",
+      "adaptations": []
+    },
+    {
+      "path": "core/utils.py",
+      "original_sha256": "7c21560c5b6285c2cff07b070067b6883c9c824d890c56e0c2387a232b51afb7",
+      "runtime_sha256": "7c21560c5b6285c2cff07b070067b6883c9c824d890c56e0c2387a232b51afb7",
+      "adaptations": []
+    },
+    {
+      "path": "features/FeatureWriter.py",
+      "original_sha256": "e2bcb6019d035efbcf52eb70c7976b0822ef005145a86535e08e1cc4f7212e2d",
+      "runtime_sha256": "7c4c163a53ccc0817060ad3fbb57f9dc1431428f87b75679affd2ad0b9a1bc28",
+      "adaptations": [
+        "Retain only original model feature offsets; data generation uses the current installer"
+      ]
+    },
+    {
+      "path": "features/__init__.py",
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "runtime_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "adaptations": []
+    },
+    {
+      "path": "features/utils.py",
+      "original_sha256": "28452d05e8061957ff08928fe55ad8988b85c2eb679da21c503562197ce8bb83",
+      "runtime_sha256": "28452d05e8061957ff08928fe55ad8988b85c2eb679da21c503562197ce8bb83",
+      "adaptations": []
+    }
+  ],
+  "purpose": "Preserve historical model/split code and the exact 473-event cohort analyzed in the 0167ddd paper"
+}

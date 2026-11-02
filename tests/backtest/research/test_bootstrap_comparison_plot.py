@@ -7,7 +7,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from pumps_and_dumps.backtest.research.graphs import plot_model_bootstrap_comparison
+from tests.notebook_helpers import analysis
+
+plot_model_bootstrap_comparison = analysis.plot_model_bootstrap_comparison
 
 
 @pytest.mark.parametrize("split", ["VALIDATION", "TEST"])

@@ -1,7 +1,9 @@
 import numpy as np
 import pandas as pd
 
-from pumps_and_dumps.backtest.research.ranking_report import plot_ranking_accuracy
+from tests.notebook_helpers import analysis
+
+plot_ranking_accuracy = analysis.plot_ranking_accuracy
 
 
 def test_ranking_chart_preserves_supplied_metrics_and_exact_baseline(tmp_path) -> None:

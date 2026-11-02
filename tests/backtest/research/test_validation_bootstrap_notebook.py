@@ -1,4 +1,4 @@
-"""Execute the validation section with fitted stand-ins, without accessing market data."""
+"""Execute the retained refactored notebook's validation section with fitted stand-ins."""
 
 import json
 from pathlib import Path
@@ -12,8 +12,8 @@ import pandas as pd
 import pytest
 
 from pumps_and_dumps.backtest.datasets.columns import COL_IS_PUMPED, COL_PUMP_HASH
-from pumps_and_dumps.backtest.research import reports
-from pumps_and_dumps.backtest.research import graphs
+from tests.notebook_helpers import analysis as reports
+from tests.notebook_helpers import analysis as graphs
 from pumps_and_dumps.backtest.experiment import Experiment
 from pumps_and_dumps.backtest.datasets.sample import DatasetType
 
@@ -32,7 +32,7 @@ def test_validation_bootstrap_notebook_compares_all_candidates_without_test_acce
     Reversing the chosen-model view must reverse signs but preserve the
     original multiple-comparison correction without rescoring any model.
     """
-    notebook_path = Path(__file__).resolve().parents[3] / "notebooks" / "research_notebook.ipynb"
+    notebook_path = Path(__file__).resolve().parents[3] / "notebooks" / "research_refactored_19063b5.ipynb"
     notebook = json.loads(notebook_path.read_text())
     cells = {cell["id"]: cell for cell in notebook["cells"]}
     for cell_id in ("validation-bootstrap-estimates", "test-bootstrap-estimates"):
@@ -84,6 +84,7 @@ def test_validation_bootstrap_notebook_compares_all_candidates_without_test_acce
     images = bootstrap_output / "images"
     images.mkdir(parents=True)
     namespace = {
+        **vars(reports),
         "NOTEBOOK_DIR": notebook_dir,
         "OUTPUT_DIR": output_dir,
         "reports": reports,

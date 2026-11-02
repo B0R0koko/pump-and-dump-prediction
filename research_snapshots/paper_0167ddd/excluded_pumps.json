@@ -1,0 +1,127 @@
+[
+  {
+    "currency_pair": "AAPC-BTC",
+    "time": "2020-11-18T18:00:11",
+    "exchange": "BINANCE_SPOT"
+  },
+  {
+    "currency_pair": "BRX-BTC",
+    "time": "2019-04-04T20:00:02",
+    "exchange": "BINANCE_SPOT"
+  },
+  {
+    "currency_pair": "CRACK-BTC",
+    "time": "2021-08-07T12:00:24",
+    "exchange": "BINANCE_SPOT"
+  },
+  {
+    "currency_pair": "CREA-BTC",
+    "time": "2021-07-28T12:00:09",
+    "exchange": "BINANCE_SPOT"
+  },
+  {
+    "currency_pair": "CRUMB-BTC",
+    "time": "2021-07-26T12:00:09",
+    "exchange": "BINANCE_SPOT"
+  },
+  {
+    "currency_pair": "CTCX-BTC",
+    "time": "2020-06-03T16:00:12",
+    "exchange": "BINANCE_SPOT"
+  },
+  {
+    "currency_pair": "CURE-BTC",
+    "time": "2019-03-19T20:01:23",
+    "exchange": "BINANCE_SPOT"
+  },
+  {
+    "currency_pair": "DTB-BTC",
+    "time": "2019-03-28T20:00:55",
+    "exchange": "BINANCE_SPOT"
+  },
+  {
+    "currency_pair": "ETHOS-BTC",
+    "time": "2019-04-01T17:00:13",
+    "exchange": "BINANCE_SPOT"
+  },
+  {
+    "currency_pair": "GHD-BTC",
+    "time": "2021-07-06T15:00:01",
+    "exchange": "BINANCE_SPOT"
+  },
+  {
+    "currency_pair": "GTEA-BTC",
+    "time": "2021-08-09T12:00:14",
+    "exchange": "BINANCE_SPOT"
+  },
+  {
+    "currency_pair": "GUA-BTC",
+    "time": "2021-08-03T12:00:06",
+    "exchange": "BINANCE_SPOT"
+  },
+  {
+    "currency_pair": "HGR-BTC",
+    "time": "2021-08-12T12:00:17",
+    "exchange": "BINANCE_SPOT"
+  },
+  {
+    "currency_pair": "HONOR-BTC",
+    "time": "2021-07-27T12:00:12",
+    "exchange": "BINANCE_SPOT"
+  },
+  {
+    "currency_pair": "NAX-BTC",
+    "time": "2021-08-22T17:00:30",
+    "exchange": "BINANCE_SPOT"
+  },
+  {
+    "currency_pair": "OAS-BTC",
+    "time": "2021-12-28T15:00:13",
+    "exchange": "BINANCE_SPOT"
+  },
+  {
+    "currency_pair": "ORB-BTC",
+    "time": "2021-08-16T12:00:30",
+    "exchange": "BINANCE_SPOT"
+  },
+  {
+    "currency_pair": "ORC-BTC",
+    "time": "2022-01-15T17:00:12",
+    "exchange": "BINANCE_SPOT"
+  },
+  {
+    "currency_pair": "RYTK-BTC",
+    "time": "2021-07-25T14:00:16",
+    "exchange": "BINANCE_SPOT"
+  },
+  {
+    "currency_pair": "STND-BTC",
+    "time": "2022-01-18T15:00:14",
+    "exchange": "BINANCE_SPOT"
+  },
+  {
+    "currency_pair": "UNIC-BTC",
+    "time": "2022-01-08T17:00:24",
+    "exchange": "BINANCE_SPOT"
+  },
+  {
+    "currency_pair": "YOYOW-BTC",
+    "time": "2018-05-12T18:00:00",
+    "exchange": "BINANCE_SPOT"
+  },
+  {
+    "currency_pair": "YOYOW-BTC",
+    "time": "2019-08-08T16:00:00",
+    "exchange": "BINANCE_SPOT"
+  },
+  {
+    "currency_pair": "YOYOW-BTC",
+    "time": "2020-05-14T16:00:00",
+    "exchange": "BINANCE_SPOT"
+  },
+  {
+    "currency_pair": "YOYOW-BTC",
+    "time": "2020-11-01T18:00:00",
+    "exchange": "BINANCE_SPOT"
+  }
+]

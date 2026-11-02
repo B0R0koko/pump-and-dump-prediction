@@ -1,4 +1,4 @@
-"""Run the actual test-bootstrap notebook cells without training or market data."""
+"""Run the retained refactored notebook's test cells without training or market data."""
 
 import json
 from pathlib import Path
@@ -13,7 +13,8 @@ import pandas as pd
 from pumps_and_dumps.backtest.datasets.columns import COL_CURRENCY_PAIR, COL_IS_PUMPED, COL_PUMP_HASH
 from pumps_and_dumps.backtest.datasets.sample import DatasetType
 from pumps_and_dumps.backtest.experiment import Experiment
-from pumps_and_dumps.backtest.research import graphs, reports
+from tests.notebook_helpers import analysis as graphs
+from tests.notebook_helpers import analysis as reports
 
 
 def test_test_bootstrap_notebook_reuses_frozen_models_and_exports_paired_metric_distributions(
@@ -34,7 +35,7 @@ def test_test_bootstrap_notebook_reuses_frozen_models_and_exports_paired_metric_
     CSVs and metadata. Check the Matplotlib comparison and its identical paper
     export without duplicate inline rendering or interactive HTML payloads.
     """
-    notebook_path = Path(__file__).resolve().parents[3] / "notebooks" / "research_notebook.ipynb"
+    notebook_path = Path(__file__).resolve().parents[3] / "notebooks" / "research_refactored_19063b5.ipynb"
     cells = {cell["id"]: cell for cell in json.loads(notebook_path.read_text())["cells"]}
     n_events, n_assets, n_models, n_bootstrap = 4, 6, 3, 40
     requested_splits = []
@@ -84,6 +85,7 @@ def test_test_bootstrap_notebook_reuses_frozen_models_and_exports_paired_metric_
     paper_images = tmp_path / "paper" / "images"
     output_dir = tmp_path / "analysis_outputs" / "deterministic_selection"
     namespace = {
+        **vars(reports),
         "OUTPUT_DIR": output_dir,
         "PAPER_IMAGES": paper_images,
         "graphs": graphs,

@@ -7,12 +7,12 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from pumps_and_dumps.backtest.research.bootstrap_report import (
-    METRIC_LABELS,
-    export_metric_bootstrap,
-    plot_metric_distributions,
-    plot_metric_intervals,
-)
+from tests.notebook_helpers import analysis
+
+METRIC_LABELS = analysis.METRIC_LABELS
+export_metric_bootstrap = analysis.export_metric_bootstrap
+plot_metric_distributions = analysis.plot_metric_distributions
+plot_metric_intervals = analysis.plot_metric_intervals
 
 
 def _draws() -> pd.DataFrame:

@@ -195,14 +195,6 @@ class TOPKPortfolio(ImplementsPortfolio):
         if candidate.num_samples >= self.MIN_MANIPULATED_EXIT_SAMPLES:
             return candidate
 
-        logging.warning(
-            "Manipulated impact model has only %d samples for %s at pump=%s; "
-            "minimum is %d; falling back to pre-pump impact model for exit",
-            candidate.num_samples,
-            intent.currency_pair.name,
-            intent.pump.time,
-            self.MIN_MANIPULATED_EXIT_SAMPLES,
-        )
         return entry_model
 
     def _get_execution_models(

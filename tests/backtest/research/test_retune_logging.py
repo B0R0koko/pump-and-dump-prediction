@@ -7,7 +7,7 @@ import sys
 import optuna
 import pytest
 
-from pumps_and_dumps.backtest.research import retune
+from pumps_and_dumps.backtest.pipelines import tuning as retune
 
 
 @pytest.mark.parametrize("exit_code", [0, 7])
