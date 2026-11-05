@@ -1,0 +1,44 @@
+{
+  "supplied_pdf": "/home/borokoko/Downloads/IEEE_Final_submission (2).pdf",
+  "pdf_sha256": "0c3b40e93a729f8840ed8f62e714e827981703acf29cee6082f59fb1451ad361",
+  "tex_origin": "research_snapshots/submitted_results/access.tex",
+  "tex_reconciliation": [
+    "Figure 2 caption",
+    "Conclusion",
+    "Reference 18 wording and date",
+    "Removed page break before final biography"
+  ],
+  "tex_status": "Reconstructed from the archived source and reconciled against the supplied PDF; not claimed to be its original source file.",
+  "image_source": "research_snapshots/submitted_results/images",
+  "verification": {
+    "normalized_pdf_body_text": "Exact match after compiling reconstructed source; running headers and page numbers excluded.",
+    "decoded_pdf_images": "All 22 unique image streams match the supplied PDF pixel-for-pixel.",
+    "pages": 20
+  },
+  "tex_sha256": "666bb21909c26461ef99fed1bcb3c9494749a4ad883fe78b091048eab590cd59",
+  "image_sha256": {
+    "bogutsky.png": "0b5b00ca74f64404a583bbc9bb84bda326ee9c815191c273e27597ebb6bd5897",
+    "bullet.png": "754772e36aab389556f98c14f5deeb4031e792b68a766dc5f9766e76e114fffc",
+    "classification_metrics_test.png": "d3ff4201779f65640276ed905024de981f04a9213e90973c624d4212d7bad723",
+    "classification_metrics_validation.png": "646c395cbc21bda37325baa3ad88c3513d8d3cfe6adf6f9e75f46e47ee64ca8f",
+    "cs_size.jpeg": "d2779165d187d98fb0bc7aa0d89dd2995e7d4406416a6335e744b4474a074399",
+    "cs_standardization_impact.png": "56f5f3585516571a9b4a2a41462075b2d0d09ffd507ea989f89bbe3032368075",
+    "exit_impact_regression_example.png": "623eec589aa5d2bd87ce8067298ff2460f4459991f9d216c8a51fea946608283",
+    "feature_importances.png": "76101f90e9735687a3350eb3c91248533ae0769da4d38154fc7af20112958ed8",
+    "impact_regression_example.png": "92de4216b7eb00b317b13c78f3065132bca89f73a632eb7157146cb86be7f678",
+    "logo.png": "7e04ba7f0c579f3765941680e2a19437e15a81b84a138d73c54bd4afead752cd",
+    "lukyanchenko.png": "cacb5c3410d61e1344cd7552aab8a069ff53e7bb1ec0a91c0ede734fa6feb317",
+    "mironov.png": "51f9573973a15564b06e8515dbd63c13157874d7338e44cb271a5a462ea8badf",
+    "notaglinelogo.png": "955e9a07fb35ffbc8a41597b8c6e7ec4cedf6a8652f5c73a33957044aae64900",
+    "pnl_vs_quantity_with_impact.png": "0316be719cd5bd9805a77f2c595ba9b1ecdf68468b915bd529583d4b44ef7b8f",
+    "portfolios_test.png": "94c268dad0f3b1fea784c1d4434d9f0a4dfdf53a2fce2c5d20d0510c1fb3cc22",
+    "portfolios_vs_btc_test.png": "7795465754ac1bbbb9260fcc76cd15c019d9893fd5235dce1306a6c3163adbb0",
+    "pump_and_dump_example.png": "a3e31e1df4e4190aaf13744910a18dd223d84c2b6038ebe021472bef87399e52",
+    "robustness_metrics_distribution.png": "70ee2742b69e855a590519a0aee120f12c7e3a03961808aa2bdd3b81203130ef",
+    "significance_bootstrap_ci.png": "50575fdc56d9bfce9485928d03af00dad81cdf27c580282f086a5ff6222b5d2a",
+    "topk_accuracy_test.png": "eaa106c1f157575d9176f6bf84455b4e74de017857a296c084ed82390b541587",
+    "topk_accuracy_validation.png": "6f18a2aa806f7ebe0722654ac168ef0826e1ccb7da60a49e04b8d9cf30a2da62",
+    "topkp_auc_test.png": "a5ae05e2b7c94ecd41d4cac0400e533a30d5f3b6bd2dec7a41e4059cdb5d43f7",
+    "topkp_auc_validation.png": "ca111f4f86dcab5e050a778808b5b827dce32555cf7d96bd07e33e87a9797d80"
+  }
+}

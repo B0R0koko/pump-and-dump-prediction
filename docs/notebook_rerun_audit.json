@@ -1,0 +1,75 @@
+{
+  "status": "PASS",
+  "models": 7,
+  "model_checkpoint_verification": {
+    "status": "PASS",
+    "models": 7,
+    "all_test_predictions_exactly_reproduced": true,
+    "all_validation_metrics_recomputed": true
+  },
+  "events": 80,
+  "shared_bootstrap_draws": 10000,
+  "paired_comparisons": 21,
+  "point_metrics_recomputed_from_predictions": true,
+  "bootstrap_replayed": true,
+  "portfolio_returns_and_target_hits_replayed": {
+    "no_impact": {
+      "1": {
+        "cumulative_return": 0.728059656208199,
+        "target_hits": 15
+      },
+      "2": {
+        "cumulative_return": 1.1267948244350485,
+        "target_hits": 22
+      },
+      "5": {
+        "cumulative_return": 0.974638200592025,
+        "target_hits": 36
+      },
+      "10": {
+        "cumulative_return": 0.4654267428689961,
+        "target_hits": 40
+      },
+      "20": {
+        "cumulative_return": 0.34688096850444144,
+        "target_hits": 53
+      },
+      "30": {
+        "cumulative_return": 0.1997626353420149,
+        "target_hits": 57
+      }
+    },
+    "impact_1000": {
+      "1": {
+        "cumulative_return": 0.34959511630513557,
+        "target_hits": 15
+      },
+      "2": {
+        "cumulative_return": 0.7467018404608224,
+        "target_hits": 22
+      },
+      "5": {
+        "cumulative_return": 0.6149465859404469,
+        "target_hits": 36
+      },
+      "10": {
+        "cumulative_return": 0.11134007652699292,
+        "target_hits": 40
+      },
+      "20": {
+        "cumulative_return": 0.004837713099228813,
+        "target_hits": 53
+      },
+      "30": {
+        "cumulative_return": -0.12982398912857016,
+        "target_hits": 57
+      }
+    }
+  },
+  "random_selections_replayed": true,
+  "same_predictions_used_throughout": true,
+  "annualized_portfolio_statistics_replayed": true,
+  "training_subset_summaries_and_feature_quantiles_recomputed": true,
+  "temporal_metric_and_l2_grid_choice_verified": true,
+  "prediction_sha256": "fb0afc7e3c580d4609c48d63a36ec6bdd52139ac81f118b9f97cb991752640a1"
+}

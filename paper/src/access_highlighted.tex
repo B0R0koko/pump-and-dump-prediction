@@ -32,8 +32,11 @@
 %Your document starts from here ___________________________________________________
 \usepackage{color}
 \definecolor{revisionblue}{RGB}{0,70,170}
-% Blue marks revised words/numbers relative to before_reviewer2_20261102.
-% Superseded text is omitted; updated figures retain their original colors.
+\definecolor{REVISIONBLUE}{RGB}{0,70,170}
+\newcommand{\revisionfigure}[1]{{\setlength{\fboxsep}{0pt}\setlength{\fboxrule}{0.8pt}\smash{\rlap{\hspace{-\fboxrule}\fcolorbox{revisionblue}{white}{\phantom{#1}}}}#1}}
+% Baseline: paper/baselines/ieee_final_submission/submitted.pdf (user-supplied IEEE_Final_submission (2).pdf).
+% Blue text marks revisions; blue captions also flag changed tables and figures.
+% Blue borders flag changed figure images. Removed text is recorded in access_highlighted_changes.json.
 \begin{document}
 \history{Date of publication xxxx 00, 0000, date of current version xxxx 00, 0000.}
 \doi{10.1109/ACCESS.2024.0429000}
@@ -60,8 +63,8 @@ This work was supported by the grant for research centers in the field of AI pro
 \begin{abstract}
 The cryptocurrency market has been subject to various forms of exploitation, with pump-and-dump schemes being a persistent problem that can lead to significant price volatility and financial losses. Previous studies have focused on predicting attack targets using machine learning approaches; however, these methods are often compromised by class imbalance and biases inherent in historical data. To address this limitation, we present \textcolor{revisionblue}{an empirical} framework for \textcolor{revisionblue}{comparing manipulation-target prediction methods.}
 We employ two-step bias-minimizing data normalization techniques to mitigate the effects of class imbalance and temporal heterogeneity. We \textcolor{revisionblue}{compare established class-weighted, oversampling, and ranking} approaches \textcolor{revisionblue}{using a common event-level protocol.}
-Validation Top@k\%AUC selects CatBoost with Top@k\%AUC early stopping ($0.667$). \textcolor{revisionblue}{The reported model attains} test Top@1 $0.150$, Top@10 $0.563$, and Top@k\%AUC $0.674$ on 80 \textcolor{revisionblue}{events;} tuned logistic regression has the highest descriptive AUC \textcolor{revisionblue}{among the original candidates} ($0.697$).
-We \textcolor{revisionblue}{compare model AUC distributions using paired event bootstrapping and evaluate} the validation-selected model \textcolor{revisionblue}{in} portfolio \textcolor{revisionblue}{backtests incorporating transaction costs} and \textcolor{revisionblue}{price impact.}
+Validation Top@k\%AUC selects CatBoost \textcolor{revisionblue}{($0.653$). It attains test Top@1 $0.188$, Top@10 $0.500$, and} Top@k\%AUC \textcolor{revisionblue}{$0.689$ on 80 events. L2 logistic regression has the highest descriptive test AUC} (\textcolor{revisionblue}{$0.710$); paired resampling does not establish a significant} AUC \textcolor{revisionblue}{difference between these two models.}
+We \textcolor{revisionblue}{validate} the \textcolor{revisionblue}{results using resampling and evaluate the} validation-selected model \textcolor{revisionblue}{in} portfolio \textcolor{revisionblue}{backtests incorporating transaction costs} and \textcolor{revisionblue}{price impact.}
 \end{abstract}
 
 \begin{keywords}
@@ -150,7 +153,7 @@ The released event \textcolor{revisionblue}{list} contains 498 unique announced 
 We identified eight candidate Telegram channels through a two-step procedure. First, we searched Telegram directly using the keywords ``crypto pump,'' ``pump signal,'' ``pump and dump,'' and their localized equivalents, retaining public channels whose stated purpose was the coordination of pump events. Second, we cross-referenced the resulting list with channels named or cited in prior literature~\cite{la_morgia_pump_2020, pd_anatomy, econometrics11030022}. For each channel, we exported the full message history (JSON format) using the Telegram Desktop client's built-in export functionality. The channel names cannot always be redistributed, but the timestamps and tickers of the retained events are in the public event file.
 
 \paragraph{Labeling procedure.}
-The operational label record contains one row per \{ticker, exchange, announcement timestamp\}; there are no exact or ticker--timestamp duplicates. The repository does not contain Telegram message text or message URLs, so \textcolor{revisionblue}{the released event labels support} exact computational reproduction of the experiments but not an independent reconstruction of the original social-media annotation decisions.
+The operational label record contains one row per \{ticker, exchange, announcement timestamp\}; there are no exact or ticker--timestamp duplicates. The repository does not contain Telegram message text or message URLs, so the \textcolor{revisionblue}{released event labels identify the event cohort} but \textcolor{revisionblue}{do} not \textcolor{revisionblue}{independently reconstruct} the social-media annotation decisions.
 
 \paragraph{Inclusion criteria.}
 A manifest event enters a model sample only if \emph{all} of the following data-availability conditions hold:
@@ -175,10 +178,8 @@ The resulting dataset contains 473 unique market manipulation events. Restrictin
 
 \begin{figure}[!t]
     \centering
-    \includegraphics[scale=0.5]{images/cs_size.jpeg}
-    \caption{Binance has been increasing the number of tickers traded against BTC by listing more tokens. 
-    %This tendency was likely to remain up until the end 2022 when more regulation came in with much stricter listing requirements.
-    }
+    \revisionfigure{\includegraphics[scale=0.5]{images/cs_size.jpeg}}
+    \caption{\textcolor{revisionblue}{Number of eligible Binance BTC-quoted pairs in the event cross-sections over time.}}
     \label{fig:cross-section_size_over_time}
 \end{figure}
 
@@ -186,21 +187,21 @@ We split the data into training, validation and testing samples by 2020-09-01 an
 
 \begin{table}[!t]
     \centering
-    \setlength{\tabcolsep}{8pt} % Adjust the column spacing
-    \renewcommand{\arraystretch}{1.2} % Adjust the row spacing
-    
-        \begin{tabular}{lrrr}
-            \toprule
-             & Train & Validation & Test \\
-            \midrule
-                Positive & 290 & 103 & 80 \\
-                Negative & 44578 & 24274 & 22935 \\
-                Total & 44868 & 24377 & 23015 \\
-                Avg. Cross-section Size & 154.72 & 236.67 & 287.69 \\
-            \bottomrule
-        \end{tabular}
-        \caption{P\&D Train-Validation-Test samples statistics}
-     \label{table:train_val_test_stats}
+    \small
+    \setlength{\tabcolsep}{5pt}
+    \renewcommand{\arraystretch}{1.15}
+    \caption{\textcolor{revisionblue}{P\&D training, validation and test sample statistics.}}
+    \begin{tabular}{lrrr}
+        \toprule
+          & Train & Validation & Test \\
+        \midrule
+        Positive & 290 & 103 & 80 \\
+        Negative & 44578 & 24274 & 22935 \\
+        Total & 44868 & 24377 & 23015 \\
+        Avg. Cross-section Size & 154.72 & 236.67 & 287.69 \\
+        \bottomrule
+    \end{tabular}
+    \label{table:train_val_test_stats}
 \end{table}
 
 \subsection{Market data}
@@ -238,7 +239,7 @@ We collected trade-level data as compressed daily archives for the required Bina
     \item Combine features for all tickers into a single event-level dataset and assign labels by adding \textit{is\_pumped}, which equals 1 for the pumped ticker and 0 otherwise.
 \end{enumerate}
 
-This modular pipeline \textcolor{revisionblue}{supports reproducible} feature \textcolor{revisionblue}{construction with explicit decision-time boundaries. All models use} the \textcolor{revisionblue}{same frozen feature inputs, with a feature file available for each} of the \textcolor{revisionblue}{473 retained events. The implementation and reproduction instructions are available in \cite{code_github}, and} the \textcolor{revisionblue}{reproduction bundle records the exact inputs, tests} and \textcolor{revisionblue}{outputs} described below.
+This modular pipeline \textcolor{revisionblue}{supports} feature \textcolor{revisionblue}{construction with explicit decision-time boundaries. The implementation and instructions are available} in \cite{code_github}. We group features into several categories, described below.
 
 \subsubsection{Imbalance features}
 
@@ -336,8 +337,8 @@ If a selected feature is constant within an event, it contains no relative ranki
 
 \begin{figure*}[!t]
     \centering
-    \includegraphics[scale=0.4]{images/cs_standardization_impact.png}
-    \caption{Features with and without cross-sectional standardization: histograms and kernel-density estimates for five P\&D events. Applying standardization helps to align distributions more closely with one another across pumps.}
+    \revisionfigure{\includegraphics[scale=0.4]{images/cs_standardization_impact.png}}
+    \caption{\textcolor{revisionblue}{Features with and without cross-sectional standardization: histograms and kernel-density estimates for five P\&D events. Applying standardization helps to align distributions more closely with one another across pumps.}}
     \label{fig:data_with_crossnorm}
 \end{figure*}
 
@@ -369,341 +370,285 @@ We additionally report three standard metrics on both the validation and test se
 
 \subsection{Baseline model}
 
-We use logistic regression as a simple baseline and compare it with a random-ranking model that selects candidate targets uniformly within each event cross-section. \textcolor{revisionblue}{The tuned L1 baseline uses} the \textcolor{revisionblue}{\texttt{liblinear} solver and retains} the \textcolor{revisionblue}{saved validation-tuned $C=0.001880$ and positive-class weight $72.550$ (negative-class weight 1).} We \textcolor{revisionblue}{additionally compare L2-penalized logistic regression with} the \textcolor{revisionblue}{same predictors and class weights. All logistic models are fitted on} training \textcolor{revisionblue}{rows only. Our primary metrics are Top@k} and Top@k\%\textcolor{revisionblue}{AUC, discussed} in \textcolor{revisionblue}{Section~}\ref{section:results}.
+We use logistic regression as a simple baseline and compare it with a random-ranking model that selects candidate targets uniformly within each event cross-section. \textcolor{revisionblue}{Class weights account for} the \textcolor{revisionblue}{imbalance between pump targets and other assets. Models are fitted on the training} set \textcolor{revisionblue}{and selected} using \textcolor{revisionblue}{validation} Top@k\%AUC. \textcolor{revisionblue}{Our primary} metrics are \textcolor{revisionblue}{Top@k and Top@k\%AUC, discussed} in \textcolor{revisionblue}{Section~}\ref{section:results}.
 
 \subsection{Training}
 We used the training set to train the models. To reduce overfitting, tree depth was limited through the \textit{max\_depth} hyperparameter for both random forest and CatBoost models. We also applied early stopping for both CatBoost classifier and CatBoost ranker and used validation set to compute evaluation metrics. We created a custom evaluation metric Top@k\%AUC, this metric was used by the trainer to find the optimal number of boosted trees. We also set the number of early stopping rounds to 50 which implies that there is no improvement in Top@k\%AUC for more than 50 rounds, the training process will stop and the model will rollback to the best state. This was used in the training process of the model CatBoost classifier + Top@k\%AUC early stopping (early stopping model with custom evaluation metric).
 
-\textcolor{revisionblue}{Hyperparameters were originally optimized using 100 completed Optuna trials per pipeline on the historical validation period~\cite{optuna_2019}.} For \textcolor{revisionblue}{the additional analyses we retain those saved parameter sets and refit the historical tuned candidates} on \textcolor{revisionblue}{the training sample without} a \textcolor{revisionblue}{new search. An additional L2 logistic comparator selects only $C$ from a fixed 25-value logarithmic grid from $10^{-6}$ to $10^{2}$ on} validation \textcolor{revisionblue}{Top@k\%AUC, with} the \textcolor{revisionblue}{L1 class weights held fixed and ties resolved toward smaller $C$. It uses the same preprocessing and \texttt{liblinear} solver, with tolerance $10^{-8}$ and at most 2000 iterations; a convergence warning stops the search. The selected L2 value is $C=4.642\times10^{-5}$. This additional comparison follows earlier} test \textcolor{revisionblue}{inspection and remains exploratory. The original validation-AUC rule favors CatBoost + ES; validation is also used} for \textcolor{revisionblue}{early stopping, so its score is selection evidence rather than an unbiased performance estimate. We select} the \textcolor{revisionblue}{candidate with} the \textcolor{revisionblue}{highest} validation Top@k\%AUC \textcolor{revisionblue}{across all models} and \textcolor{revisionblue}{use that fitted model for portfolio analysis. This rule selects CatBoost + ES; descriptive test rankings do not change that decision. The test period has been inspected in earlier research, so} the \textcolor{revisionblue}{resulting comparisons remain exploratory.}
+\textcolor{revisionblue}{The released notebook fixes the random seed to 42 for Optuna's TPE sampler, stochastic model training, SMOTE, and resampling. Tuning trials run sequentially, and CPU fitting uses one thread per model by default. L2 grid-search ties favor smaller $C$; the unpenalized logistic diagnostic uses deterministic Newton optimization. Run records include these settings, model parameters, feature order, input hashes, and software versions. Reproduction requires the same inputs and environment, with} a \textcolor{revisionblue}{fresh study when repeating} hyperparameter \textcolor{revisionblue}{tuning.}
+
+% BEGIN MODEL CONFIGURATION
+\textcolor{revisionblue}{We compare tuned L1 and L2 logistic regression, random forest, CatBoost, CatBoost with SMOTE, CatBoost ranker, and CatBoost + ES. L2 uses the L1 predictors and class weights and selects $C$} on validation Top@k\%AUC \textcolor{revisionblue}{from 25 logarithmically spaced values between $10^{-6}$} and \textcolor{revisionblue}{$10^2$, breaking ties toward smaller $C$. The} selected \textcolor{revisionblue}{value is $C=4.642\times10^{-5}$. The standalone unweighted, unpenalized statsmodels diagnostic is excluded from predictive comparisons.}
+% END MODEL CONFIGURATION
+
+\textcolor{revisionblue}{We validated} the results using \textcolor{revisionblue}{event-level resampling (Section~\ref{sec:significance}).}
 
 We also used SMOTE proposed by \cite{chawla2002smote} to tackle the problem of class imbalance. It allows to create new observations for the minority class to balance the dataset. Instead of copying existing minority points, it generates new, slightly different ones by interpolating between neighbors.
 
 
-\section{Results}
+\section{\textcolor{revisionblue}{Model Comparison}}
 \label{section:results}
 
 \subsection{Validation Performance and Model Selection}
-
-Table~\ref{table:validation_model_selection} reports the \textcolor{revisionblue}{tuned candidates from the original} validation \textcolor{revisionblue}{comparison.} CatBoost + ES \textcolor{revisionblue}{has} the highest validation Top@k\%AUC ($0.667$), ahead of tuned CatBoost ($0.655$) and tuned random forest ($0.628$\textcolor{revisionblue}{). Its validation Top@1, Top@5,} and Top@10 are $0.175$, $0.427$, and $0.583$\textcolor{revisionblue}{;} Top@1\%, Top@5\%, and Top@10\% are $0.320$, $0.641$, and $0.718$. It \textcolor{revisionblue}{shares the highest F1 ($0.175$) and balanced accuracy ($0.586$), and} leads \textcolor{revisionblue}{PR-AUC ($0.098$). CatBoost + ES is} the \textcolor{revisionblue}{portfolio model because it maximizes the} validation \textcolor{revisionblue}{criterion;} the \textcolor{revisionblue}{bootstrap does not establish superiority over logistic regression on new data.\footnote{The original model-comparison and CatBoost robustness estimates are retained as reported. The seven-model bootstrap and random-portfolio comparison use refitted models and their saved predictions; their intervals describe those fits.}}
+Table~\ref{table:validation_model_selection} \textcolor{revisionblue}{compares seven tuned candidates using} the \textcolor{revisionblue}{same chronological split. CatBoost has the largest} validation Top@k\%AUC (\textcolor{revisionblue}{$0.653$). Validation guides model selection} and \textcolor{revisionblue}{early stopping; it is not an independent performance estimate. The selected model supplies all portfolio} and \textcolor{revisionblue}{price-impact results.}
 
 \begin{table*}[!t]
     \centering
-    \scriptsize
-    \setlength{\tabcolsep}{3pt}
+    \small
+    \setlength{\tabcolsep}{5pt}
     \renewcommand{\arraystretch}{1.15}
-    \caption{Validation metrics and final model selection. Top@k\%AUC is the selection criterion; the maximum in each metric column is shown in bold. F1 and balanced accuracy use the Top@1-per-cross-section decision rule.}
-    \resizebox{\textwidth}{!}{%
+    \caption{\textcolor{revisionblue}{Validation metrics for the seven tuned candidates. Top@k\%AUC selects the portfolio model; maxima are bold. F1 and balanced accuracy use one predicted target per event.}}
+    \resizebox{\ifdim\width>\textwidth\textwidth\else\width\fi}{!}{%
     \begin{tabular}{lrrrrrrrrrr}
         \toprule
-        & Top@k\%AUC & Top@1 & Top@5 & Top@10 & Top@1\% & Top@5\% & Top@10\% & PR-AUC & F1 & Balanced accuracy \\
+        \textcolor{revisionblue}{Model} & \textcolor{revisionblue}{Top@k\%AUC} & \textcolor{revisionblue}{Top@1} & \textcolor{revisionblue}{Top@5} & \textcolor{revisionblue}{Top@10} & \textcolor{revisionblue}{Top@1\%} & \textcolor{revisionblue}{Top@5\%} & \textcolor{revisionblue}{Top@10\%} & \textcolor{revisionblue}{PR-AUC} & \textcolor{revisionblue}{F1} & \textcolor{revisionblue}{Balanced accuracy} \\
         \midrule
-        CatBoost classifier + Top@k\%AUC early stopping & \bfseries 0.667 & \bfseries 0.175 & \bfseries 0.427 & \bfseries 0.583 & 0.320 & \bfseries 0.641 & \bfseries 0.718 & \bfseries 0.098 & \bfseries 0.175 & \bfseries 0.586 \\
-        CatBoost classifier + Tuned & 0.655 & 0.165 & 0.417 & 0.524 & 0.301 & 0.592 & 0.709 & 0.087 & 0.165 & 0.581 \\
-        Random forest + Tuned & 0.628 & \bfseries 0.175 & 0.398 & 0.485 & \bfseries 0.330 & 0.534 & 0.689 & 0.085 & \bfseries 0.175 & \bfseries 0.586 \\
-        Logistic regression + Tuned & 0.616 & 0.107 & 0.301 & 0.485 & 0.223 & 0.563 & 0.680 & 0.059 & 0.107 & 0.552 \\
-        CatBoost ranker + Tuned & 0.550 & 0.107 & 0.301 & 0.466 & 0.223 & 0.476 & 0.602 & 0.048 & 0.107 & 0.552 \\
-        CatBoost classifier + SMOTE + Tuned & 0.524 & 0.107 & 0.320 & 0.437 & 0.233 & 0.456 & 0.544 & 0.060 & 0.107 & 0.552 \\
+        \textcolor{revisionblue}{CatBoost} & \textcolor{revisionblue}{\bfseries 0.653} & \textcolor{revisionblue}{\bfseries 0.165} & \textcolor{revisionblue}{\bfseries 0.417} & \textcolor{revisionblue}{0.524} & \textcolor{revisionblue}{\bfseries 0.330} & \textcolor{revisionblue}{0.573} & \textcolor{revisionblue}{0.689} & \textcolor{revisionblue}{\bfseries 0.089} & \textcolor{revisionblue}{\bfseries 0.165} & \textcolor{revisionblue}{\bfseries 0.581} \\
+        \textcolor{revisionblue}{CatBoost + ES} & \textcolor{revisionblue}{0.646} & \textcolor{revisionblue}{0.126} & \textcolor{revisionblue}{\bfseries 0.417} & \textcolor{revisionblue}{\bfseries 0.553} & \textcolor{revisionblue}{0.252} & \textcolor{revisionblue}{\bfseries 0.612} & \textcolor{revisionblue}{0.699} & \textcolor{revisionblue}{0.081} & \textcolor{revisionblue}{0.126} & \textcolor{revisionblue}{0.561} \\
+        \textcolor{revisionblue}{Logistic regression L2} & \textcolor{revisionblue}{0.611} & \textcolor{revisionblue}{0.097} & \textcolor{revisionblue}{0.311} & \textcolor{revisionblue}{0.456} & \textcolor{revisionblue}{0.243} & \textcolor{revisionblue}{0.505} & \textcolor{revisionblue}{0.670} & \textcolor{revisionblue}{0.057} & \textcolor{revisionblue}{0.097} & \textcolor{revisionblue}{0.547} \\
+        \textcolor{revisionblue}{Logistic regression L1} & \textcolor{revisionblue}{0.610} & \textcolor{revisionblue}{0.107} & \textcolor{revisionblue}{0.282} & \textcolor{revisionblue}{0.456} & \textcolor{revisionblue}{0.214} & \textcolor{revisionblue}{0.505} & \textcolor{revisionblue}{\bfseries 0.709} & \textcolor{revisionblue}{0.057} & \textcolor{revisionblue}{0.107} & \textcolor{revisionblue}{0.552} \\
+        Random forest & \textcolor{revisionblue}{0.565} & \textcolor{revisionblue}{0.117} & \textcolor{revisionblue}{0.320} & \textcolor{revisionblue}{0.417} & \textcolor{revisionblue}{0.262} & \textcolor{revisionblue}{0.456} & \textcolor{revisionblue}{0.602} & \textcolor{revisionblue}{0.084} & \textcolor{revisionblue}{0.117} & \textcolor{revisionblue}{0.556} \\
+        \textcolor{revisionblue}{CatBoost + SMOTE} & \textcolor{revisionblue}{0.524} & \textcolor{revisionblue}{0.097} & \textcolor{revisionblue}{0.233} & \textcolor{revisionblue}{0.379} & \textcolor{revisionblue}{0.214} & \textcolor{revisionblue}{0.408} & \textcolor{revisionblue}{0.583} & \textcolor{revisionblue}{0.075} & \textcolor{revisionblue}{0.097} & \textcolor{revisionblue}{0.547} \\
+        CatBoost ranker & \textcolor{revisionblue}{0.501} & \textcolor{revisionblue}{0.078} & \textcolor{revisionblue}{0.330} & \textcolor{revisionblue}{0.398} & \textcolor{revisionblue}{0.204} & \textcolor{revisionblue}{0.427} & \textcolor{revisionblue}{0.534} & \textcolor{revisionblue}{0.038} & \textcolor{revisionblue}{0.078} & \textcolor{revisionblue}{0.537} \\
         \bottomrule
-    \end{tabular}%
+    \end{tabular}
     }
     \label{table:validation_model_selection}
 \end{table*}
 
-Fig.~\ref{fig:validation_topk} shows validation Top@k against the validation-specific random-ranking baseline, while Fig.~\ref{fig:validation_topkp} shows validation Top@k\% curves and their Top@k\%AUC values. Fig.~\ref{fig:validation_classification} provides the corresponding validation classification comparison. Together with Table~\ref{table:validation_model_selection}, these figures make the selection decision auditable without consulting the test set.
 
 \begin{figure*}[!t]
     \centering
-    \includegraphics[scale=0.5]{images/submitted_topk_accuracy_validation.png}
-    \caption{Top@k accuracy on the validation sample for each tuned baseline, CatBoost + ES, and the validation random-ranking baseline. \textcolor{revisionblue}{Validation supplies} the \textcolor{revisionblue}{original selection criterion.}}
+    \revisionfigure{\includegraphics[width=\textwidth]{images/topk_accuracy_validation.png}}
+    \caption{\textcolor{revisionblue}{Validation Top@k accuracy for the seven tuned candidates and the random-ranking baseline.}}
     \label{fig:validation_topk}
 \end{figure*}
 
 \begin{figure*}[!t]
     \centering
-    \includegraphics[scale=0.5]{images/submitted_topkp_auc_validation.png}
-    \caption{Top@k\% accuracy and Top@k\%AUC on the validation sample. CatBoost + ES has the largest validation Top@k\%AUC ($0.667$) and \textcolor{revisionblue}{selects CatBoost + ES} for \textcolor{revisionblue}{portfolio analysis.}}
+    \revisionfigure{\includegraphics[width=\textwidth]{images/topkp_auc_validation.png}}
+    \caption{\textcolor{revisionblue}{Validation Top@k\% curves and normalized Top@k\%AUC. Model selection uses this validation criterion.}}
     \label{fig:validation_topkp}
 \end{figure*}
 
 \begin{figure*}[!t]
     \centering
-    \includegraphics[scale=0.5]{images/submitted_classification_metrics_validation.png}
-    \caption{PR-AUC, F1, and balanced accuracy on the validation sample. F1 and balanced accuracy use the Top@1-per-cross-section decision rule.}
+    \revisionfigure{\includegraphics[width=\textwidth]{images/classification_metrics_validation.png}}
+    \caption{\textcolor{revisionblue}{Validation PR-AUC, F1 and balanced accuracy for the seven candidates; classification uses one predicted target per event.}}
     \label{fig:validation_classification}
 \end{figure*}
 
-\subsection{Top@k accuracy}
-\textcolor{revisionblue}{We report test Top@k accuracy for the tuned candidates. The validation-selected} CatBoost + ES \textcolor{revisionblue}{model is retained for portfolio analysis; descriptive test comparisons do not change} the selection \textcolor{revisionblue}{rule.}
+\subsection{\textcolor{revisionblue}{Test Ranking Performance}}
+\textcolor{revisionblue}{Tables~\ref{table:results_topk} and~\ref{table:results_topkp} report target inclusion at fixed portfolio sizes and cross-section fractions. CatBoost achieves Top@1 $0.188$, Top@5 $0.450$ (36 of 80 events), and Top@10 $0.500$. Test comparisons describe the selected models; they do not change the validation selection rule.}
 
 \begin{table*}[!t]
     \centering
-    \setlength{\tabcolsep}{6pt} % Adjust the column spacing
-    \renewcommand{\arraystretch}{1.2} % Adjust the row spacing
-    \caption{Top@k accuracy of models on test sample}
-    \begin{tabular}{lcccccc}
+    \small
+    \setlength{\tabcolsep}{5pt}
+    \renewcommand{\arraystretch}{1.15}
+    \caption{\textcolor{revisionblue}{Test Top@k accuracy for the seven tuned candidates.}}
+    \resizebox{\ifdim\width>\textwidth\textwidth\else\width\fi}{!}{%
+    \begin{tabular}{lrrrrrr}
         \toprule
         Model & Top@1 & Top@2 & Top@5 & Top@10 & Top@20 & Top@30 \\
         \midrule
-        Logistic regression + Tuned & 0.100 & 0.200 & \textbf{0.425} & \textbf{0.575} & \textbf{0.700} & \textbf{0.763} \\
-        Random forest + Tuned & 0.113 & 0.175 & 0.350 & 0.500 & 0.650 & 0.713 \\
-        CatBoost classifier + Tuned & 0.138 & \textbf{0.275} & 0.400 & 0.525 & 0.650 & 0.725 \\
-        CatBoost classifier + SMOTE + Tuned & 0.113 & 0.163 & 0.300 & 0.425 & 0.538 & 0.600 \\
-        CatBoost ranker + Tuned & 0.063 & 0.163 & 0.275 & 0.463 & 0.613 & 0.700 \\
-        CatBoost classifier + Top@k\%AUC early stopping & \textbf{0.150} & 0.225 & 0.388 & 0.563 & 0.663 & 0.750 \\
+        \textcolor{revisionblue}{CatBoost} & \textcolor{revisionblue}{0.188} & \textcolor{revisionblue}{0.275} & \textcolor{revisionblue}{0.450} & \textcolor{revisionblue}{0.500} & \textcolor{revisionblue}{0.662} & \textcolor{revisionblue}{0.713} \\
+        \textcolor{revisionblue}{CatBoost + ES} & \textcolor{revisionblue}{0.125} & \textcolor{revisionblue}{0.212} & \textcolor{revisionblue}{0.438} & \textcolor{revisionblue}{0.575} & \textcolor{revisionblue}{0.688} & \textcolor{revisionblue}{0.750} \\
+        \textcolor{revisionblue}{Logistic regression L2} & \textcolor{revisionblue}{0.113} & \textcolor{revisionblue}{0.200} & \textcolor{revisionblue}{0.400} & \textcolor{revisionblue}{0.588} & \textcolor{revisionblue}{0.713} & \textcolor{revisionblue}{0.787} \\
+        \textcolor{revisionblue}{Logistic regression L1} & \textcolor{revisionblue}{0.100} & \textcolor{revisionblue}{0.150} & \textcolor{revisionblue}{0.438} & \textcolor{revisionblue}{0.550} & \textcolor{revisionblue}{0.713} & \textcolor{revisionblue}{0.750} \\
+        Random forest & \textcolor{revisionblue}{0.087} & \textcolor{revisionblue}{0.163} & \textcolor{revisionblue}{0.312} & \textcolor{revisionblue}{0.450} & 0.575 & 0.675 \\
+        \textcolor{revisionblue}{CatBoost + SMOTE} & \textcolor{revisionblue}{0.050} & \textcolor{revisionblue}{0.163} & \textcolor{revisionblue}{0.250} & \textcolor{revisionblue}{0.325} & \textcolor{revisionblue}{0.438} & \textcolor{revisionblue}{0.537} \\
+        CatBoost ranker & \textcolor{revisionblue}{0.050} & \textcolor{revisionblue}{0.125} & \textcolor{revisionblue}{0.212} & \textcolor{revisionblue}{0.400} & \textcolor{revisionblue}{0.537} & \textcolor{revisionblue}{0.588} \\
         \bottomrule
     \end{tabular}
+    }
     \label{table:results_topk}
 \end{table*}
 
-
-Table~\ref{table:results_topk} shows that logistic regression remains a competitive baseline, indicating that the engineered features contain predictive signal. CatBoost + ES leads at $k=1$ ($0.150$); tuned CatBoost leads at $k=2$ ($0.275$); and tuned logistic regression leads at $k=5$ ($0.425$), $k=10$ ($0.575$), $k=20$ ($0.700$), and $k=30$ ($0.763$). \textcolor{revisionblue}{The tuned SMOTE variant remains} below the leading class-weighted models across the reported thresholds, suggesting that synthetic oversampling is poorly aligned with the cross-sectional microstructure features used in this setting. Fig.~\ref{fig:results_topk} reports the corresponding Top@k curves.
-
-
-\begin{figure*}[!t]
-    \centering
-    \includegraphics[scale=0.5]{images/submitted_topk_accuracy_test.png}
-    \caption{Top@k accuracy on the test sample for each tuned baseline, CatBoost + ES, and the random-ranking baseline. The horizontal axis is the portfolio size $k$; the vertical axis is the empirical probability that the manipulation target appears among the $k$ highest-scored assets. Table~\ref{table:results_topk} reports \textcolor{revisionblue}{the} tuned variants.}
-    \label{fig:results_topk}
-\end{figure*}
-
-All trained models outperform the random-ranking baseline, indicating that the feature set contains predictive information about future manipulation targets. Top@k values for the random-ranking model are computed as follows:
-
-\begin{equation}
-    \mathrm{Top@k}_{\text{random}} = \frac{1}{N} \sum_{i=1}^{N}{\frac{k}{T_{i}}}
-\end{equation}
-
-where $N$ is the number of cross-sections in the test set and $T_i$ is the $i$-th cross-section size. This \textcolor{revisionblue}{is evidence of predictive signal within this sample. With its saved tuned parameters, the ranker remains below the leading classification} models \textcolor{revisionblue}{on} the \textcolor{revisionblue}{aggregate} ranking metric (test Top@k\%AUC $0.629$); the mechanism is analyzed later in this section.
-
-\subsection{Top@k\% accuracy}
-
-Table~\ref{table:results_topkp} reports the corresponding Top@k\% pattern. Tuned CatBoost leads at $k\%=1\%$ ($0.338$). \textcolor{revisionblue}{Tuned} logistic regression leads at $k\%=2\%$ (\textcolor{revisionblue}{$0.475$}), \textcolor{revisionblue}{$5\%$} ($0.638$), $10\%$ ($0.750$), $20\%$ ($0.863$\textcolor{revisionblue}{), and $50\%$ ($0.963$}). The aggregate ranking differences are assessed in Section~\ref{sec:significance}.
-
-%Then, we estimated Top@k\% for all models using the same test sample, the results are reported in Table~\ref{table:results_topkp}:
-
 \begin{table*}[!t]
     \centering
-    \setlength{\tabcolsep}{6pt}
-    \renewcommand{\arraystretch}{1.2}
-    \caption{Top@k\% accuracy of models on test sample}
-    \begin{tabular}{lcccccc}
+    \small
+    \setlength{\tabcolsep}{5pt}
+    \renewcommand{\arraystretch}{1.15}
+    \caption{\textcolor{revisionblue}{Test Top@k\% accuracy for the seven tuned candidates.}}
+    \resizebox{\ifdim\width>\textwidth\textwidth\else\width\fi}{!}{%
+    \begin{tabular}{lrrrrrr}
         \toprule
-        Model & Top@1\% & Top@2\% & Top@5\% & Top@10\% & Top@20\% & Top@50\% \\
+        \textcolor{revisionblue}{Model} & \textcolor{revisionblue}{Top@1\%} & \textcolor{revisionblue}{Top@2\%} & \textcolor{revisionblue}{Top@5\%} & \textcolor{revisionblue}{Top@10\%} & \textcolor{revisionblue}{Top@20\%} & \textcolor{revisionblue}{Top@50\%} \\
         \midrule
-        Logistic regression + Tuned & 0.325 & \textcolor{revisionblue}{\textbf{0.475}} & \textbf{0.638} & \textbf{0.750} & \textbf{0.863} & \textbf{0.963} \\
-        Random forest + Tuned & 0.275 & 0.425 & 0.575 & 0.700 & 0.825 & 0.925 \\
-        CatBoost classifier + Tuned & \textbf{0.338} & 0.425 & 0.625 & 0.725 & 0.813 & 0.950 \\
-        CatBoost classifier + SMOTE + Tuned & 0.238 & 0.325 & 0.513 & 0.588 & 0.763 & 0.900 \\
-        CatBoost ranker + Tuned & 0.200 & 0.375 & 0.525 & 0.700 & 0.825 & 0.888 \\
-        CatBoost classifier + Top@k\%AUC early stopping & 0.313 & 0.463 & 0.600 & 0.738 & 0.838 & 0.950 \\
+        \textcolor{revisionblue}{CatBoost} & \textcolor{revisionblue}{0.388} & \textcolor{revisionblue}{0.450} & \textcolor{revisionblue}{0.625} & \textcolor{revisionblue}{0.713} & \textcolor{revisionblue}{0.875} & \textcolor{revisionblue}{0.963} \\
+        \textcolor{revisionblue}{CatBoost + ES} & \textcolor{revisionblue}{0.312} & \textcolor{revisionblue}{0.500} & \textcolor{revisionblue}{0.662} & \textcolor{revisionblue}{0.750} & \textcolor{revisionblue}{0.863} & \textcolor{revisionblue}{0.963} \\
+        \textcolor{revisionblue}{Logistic regression L2} & \textcolor{revisionblue}{0.312} & \textcolor{revisionblue}{0.500} & \textcolor{revisionblue}{0.637} & \textcolor{revisionblue}{0.787} & \textcolor{revisionblue}{0.875} & \textcolor{revisionblue}{0.950} \\
+        \textcolor{revisionblue}{Logistic regression L1} & \textcolor{revisionblue}{0.287} & \textcolor{revisionblue}{0.500} & \textcolor{revisionblue}{0.625} & \textcolor{revisionblue}{0.725} & \textcolor{revisionblue}{0.887} & \textcolor{revisionblue}{0.963} \\
+        \textcolor{revisionblue}{Random forest} & \textcolor{revisionblue}{0.263} & \textcolor{revisionblue}{0.375} & \textcolor{revisionblue}{0.512} & \textcolor{revisionblue}{0.662} & \textcolor{revisionblue}{0.775} & \textcolor{revisionblue}{0.950} \\
+        \textcolor{revisionblue}{CatBoost + SMOTE} & \textcolor{revisionblue}{0.200} & \textcolor{revisionblue}{0.275} & \textcolor{revisionblue}{0.412} & \textcolor{revisionblue}{0.537} & \textcolor{revisionblue}{0.750} & \textcolor{revisionblue}{0.900} \\
+        \textcolor{revisionblue}{CatBoost ranker} & \textcolor{revisionblue}{0.163} & \textcolor{revisionblue}{0.263} & \textcolor{revisionblue}{0.500} & \textcolor{revisionblue}{0.588} & \textcolor{revisionblue}{0.688} & \textcolor{revisionblue}{0.912} \\
         \bottomrule
     \end{tabular}
+    }
     \label{table:results_topkp}
 \end{table*}
 
-
-\subsection{Top@k\%AUC}
-
-
-In order to control for the problem of various cross-section sizes, we  want to compute Top@k\% instead of regular Top@k. Taking the normalized area under the Top@k\% curve over $k\% \in (0, 20\%]$ allows us to compare models in the economically relevant low-portfolio-size region, consistent with Eq.~\ref{eq:topkpauc}. In Fig.~\ref{fig:results_topkp} we compare the models based on this metric.
+\textcolor{revisionblue}{The random-ranking baseline averages $\min(k,T_i)/T_i$ across events, where $T_i$ is} the \textcolor{revisionblue}{number of eligible assets in event $i$. Normalized Top@k\%AUC integrates} the \textcolor{revisionblue}{inclusion curve from 0 to 20\%} in \textcolor{revisionblue}{0.5\% increments, as in Eq.~\ref{eq:topkpauc}.}
 
 \begin{figure*}[!t]
     \centering
-    \includegraphics[scale=0.5]{images/submitted_topkp_auc_test.png}
-    \caption{Top@k\% accuracy on the test sample, normalizing the portfolio size by the cross-section size to control for its growth over time. The horizontal axis is the fraction $k\%$ of the cross-section retained; the vertical axis is the probability that the target is covered.}
+    \revisionfigure{\includegraphics[width=\textwidth]{images/topk_accuracy_test.png}}
+    \caption{\textcolor{revisionblue}{Test Top@k accuracy and the event-specific random-ranking baseline.}}
+    \label{fig:results_topk}
+\end{figure*}
+
+\begin{figure*}[!t]
+    \centering
+    \revisionfigure{\includegraphics[width=\textwidth]{images/topkp_auc_test.png}}
+    \caption{\textcolor{revisionblue}{Test Top@k\% accuracy curves and normalized Top@k\%AUC for the same seven fitted candidates.}}
     \label{fig:results_topkp}
 \end{figure*}
 
-\subsection{Classification Metrics}
+\textcolor{revisionblue}{L2 logistic regression has the largest test Top@k\%AUC point estimate ($0.710$), followed by L1 logistic regression ($0.702$), CatBoost + ES ($0.694$), CatBoost ($0.689$), and random forest ($0.598$). Statistical comparisons use paired event resampling in Section~\ref{sec:significance}.}
 
-We complement the ranking-based Top@k metrics with three standard classification metrics (defined in Section~\ref{sec:evaluation_metrics}): PR-AUC, F1-score (Top@1-per-cross-section decision rule), and balanced accuracy. PR-AUC is preferred over ROC-AUC at this imbalance ratio~\cite{elkan2001cost}. Fig.~\ref{fig:classification_metrics} reports all three for the tuned baselines and CatBoost + \textcolor{revisionblue}{ES. Among these models,} tuned CatBoost leads PR-AUC ($0.0866$), followed by CatBoost + ES ($0.0836$). CatBoost + ES leads F1 ($0.1500$) and balanced accuracy ($0.5735$), followed by tuned CatBoost at $0.1375$ and $0.5672$. This pattern is consistent with the strong low-$k$ ranking performance of both CatBoost variants.
+\subsection{\textcolor{revisionblue}{Classification Metrics}}
+\textcolor{revisionblue}{Fig.~\ref{fig:classification_metrics} reports PR-AUC, F1 and balanced accuracy. F1 and balanced accuracy use} the \textcolor{revisionblue}{Top@1-per-event rule, so these scores measure the identification} of \textcolor{revisionblue}{one target within each event rather than an arbitrary probability threshold.}
+
+\textcolor{revisionblue}{CatBoost has} the \textcolor{revisionblue}{highest test PR-AUC ($0.0799$).} CatBoost \textcolor{revisionblue}{has PR-AUC $0.0799$, F1 $0.1875$} and \textcolor{revisionblue}{balanced accuracy $0.5923$}.
 
 \begin{figure*}[!t]
     \centering
-    \includegraphics[scale=0.5]{images/submitted_classification_metrics_test.png}
-    \caption{Standard classification metrics on the test set for all tuned models and CatBoost + ES. Each grouped bar reports Precision-Recall AUC (left), F1-score under a Top@1-per-cross-section decision rule (middle), and balanced accuracy, the average of sensitivity and specificity (right). PR-AUC is preferred over ROC-AUC under the $\sim 1{:}287$ class imbalance.}
+    \revisionfigure{\includegraphics[width=\textwidth]{images/classification_metrics_test.png}}
+    \caption{\textcolor{revisionblue}{Test classification metrics for the seven tuned candidates.}}
     \label{fig:classification_metrics}
 \end{figure*}
 
-\subsection{Analysis of SMOTE Performance}
+\subsection{\textcolor{revisionblue}{SMOTE and Ranking Models}}
+\textcolor{revisionblue}{CatBoost with SMOTE attains test Top@1 $5.00\%$ and Top@k\%AUC $0.517$, below the leading class-weighted classifiers. With 81 predictors and 290 positive training events, synthetic interpolation may mix observations with different event-specific reference distributions. This is a plausible explanation, rather than a causal test, and is consistent with known limitations of SMOTE in high-dimensional data~\cite{blagus2013smote}.}
 
-\textcolor{revisionblue}{Tuned} CatBoost \textcolor{revisionblue}{with SMOTE performs} worse than the leading class-weighted \textcolor{revisionblue}{classifiers, attaining Top@1 of $11.25\%$} and Top@k\%AUC of $0.574$\textcolor{revisionblue}{;} tuned logistic regression reaches $0.697$. \textcolor{revisionblue}{Three properties of} the \textcolor{revisionblue}{panel offer plausible explanations, rather than experimentally isolated causes, for} the remaining \textcolor{revisionblue}{deficit.}
+\textcolor{revisionblue}{The CatBoost ranker attains test Top@1 $5.00\%$ and Top@k\%AUC $0.532$. It learns an ordering of post-announcement returns, whereas evaluation asks whether} the \textcolor{revisionblue}{single manipulation target appears near the top. Noise} in \textcolor{revisionblue}{the returns of other assets} and \textcolor{revisionblue}{the mismatch between these objectives may explain its weaker performance. Ranking advantages in other financial applications~\cite{poh_ltr} do not automatically transfer to} this \textcolor{revisionblue}{sample.}
 
-\begin{enumerate}
-    \item \textbf{Bounded and sign-meaningful features.} Several of our features---flow imbalance, slippage imbalance, share of buy-initiated trades---are naturally bounded in $[-1,1]$ (or $[0,1]$) and are informative primarily near the positive extreme (e.g., heavy buy-side imbalance just before a pump). Interpolating between two pumped samples whose imbalance is $+0.85$ and another whose imbalance is $-0.20$ yields a synthetic ``pump'' with imbalance $+0.32$, which lies inside the bulk of the negative-class distribution. SMOTE therefore dilutes rather than reinforces the class-discriminative region of the feature space.
-    \item \textbf{Cross-sectional reference.} The unbounded return, standardized-volume, and tail-shape features are standardized within the event cross-section (Eq.~\ref{eq:cs_standardization}); for those columns, a value of $+2$ means ``two cross-sectional standard deviations above the same-event average.'' Bounded ratios and count features retain their direct scales but are still interpreted jointly with those relative columns. SMOTE's nearest-neighbor interpolation mixes complete feature vectors from \emph{different} events, producing synthetic samples whose relative and absolute components have no single corresponding cross-section in which they are coherent. The synthetic samples can be plausible marginally but out-of-distribution jointly with respect to the panel structure.
-    \item \textbf{High-dimensional sparsity.} With 81 features and only 290 positive training samples, the nearest-neighbor graph that SMOTE relies on is sparse and noisy: each minority point has few true neighbors in its class, and interpolation typically bridges across different sub-populations (e.g., small-cap vs.\ medium-cap pumps). This is the regime in which Blagus and Lusa~\cite{blagus2013smote} showed that SMOTE is at best neutral and frequently \emph{degrades} classification performance.
-\end{enumerate}
-
-By contrast, class-weight reweighting in the CatBoost loss function does not add, remove, or perturb any feature value. It only changes the per-sample gradient magnitude, concentrating the optimizer on the decision boundary between the real positive and negative samples in their native, cross-sectionally-normalized feature space. This \textcolor{revisionblue}{is consistent with} the \textcolor{revisionblue}{observed} performance of class-weight-based imbalance handling over synthetic oversampling in our setting and is consistent with the cost-sensitive-learning literature~\cite{elkan2001cost}.
-
-\subsection{Analysis of Ranking Model Performance}
-
-The ranker \textcolor{revisionblue}{with saved tuned parameters attains} test Top@k\%AUC of $0.629$ and Top@1 of $6.25\%$\textcolor{revisionblue}{. It remains} below CatBoost + ES ($0.674$) and tuned logistic regression ($0.697$\textcolor{revisionblue}{) on aggregate AUC. Ranking advantages reported in cross-sectional equity prediction~}\cite{poh_ltr} \textcolor{revisionblue}{therefore do} not \textcolor{revisionblue}{transfer automatically to this target-prediction sample.}
-
-\textbf{Target-signal density.}
-In the cross-sectional LTR setup of~\cite{poh_ltr}, every asset in the cross-section carries an informative continuous return target, so the listwise loss receives dense, ordinally-meaningful supervision. In our setup, exactly one asset per cross-section is a true manipulation target. All other assets contribute noise to the ordering: their 5-minute post-announcement returns are driven by background market movements, independent news, or incidental volatility, none of which the model is asked to predict. The ranker therefore spends most of its gradient on nuisance ordering among non-pumped assets, while the classifier only has to separate the single pump from the rest.
-
-\textbf{Loss-function alignment with the Top@k evaluation objective.}
-Pairwise and listwise ranking losses (YetiRank, PairLogit, etc.) integrate pairwise or position-weighted comparisons across the entire list. When the positive cardinality is 1, most of those pairs are negative-vs.-negative and therefore non-informative for Top@k. The classification log-loss, conversely, concentrates gradient mass on the decision boundary between the single positive and the $\sim$290 negatives, which is exactly the boundary that Top@k accuracy measures. Class-weight reweighting further tilts the log-loss toward the positive class, yielding a gradient that is sample-efficient in the 1-vs.-many regime.
-
-\textbf{Target-construction noise.}
-The continuous ranking target (realized arithmetic return over the first five minutes after announcement) is additionally noisy because (i) coincident market-wide moves can push a non-pumped asset's five-minute return above the pump target's, and (ii) micro-cap order books produce large relative returns on very small trades, which the ranker has no way to discount. In the classification formulation the binary label is immune to this type of noise.
-
-Taken together, these three factors \textcolor{revisionblue}{may help} explain why, in the extreme-imbalance cross-sectional setting that characterizes P\&D target prediction, \textcolor{revisionblue}{class-weighted} classification \textcolor{revisionblue}{outperforms the evaluated ranker even though the evaluation metric is itself a} ranking metric.
-
-\textcolor{revisionblue}{Among} the \textcolor{revisionblue}{original candidates,} tuned logistic regression \textcolor{revisionblue}{has} the \textcolor{revisionblue}{largest} test Top@k\%AUC point estimate ($0.697$), followed by CatBoost + ES ($0.674$), tuned CatBoost ($0.662$), and tuned random forest ($0.651$). Section~\ref{sec:significance} \textcolor{revisionblue}{adds a comparison of tuned models with shared resamples and multiplicity correction; CatBoost + ES remains} the \textcolor{revisionblue}{validation-selected model.}
-
-\subsection{Interpretation of the Selected Model}
-
-\textcolor{revisionblue}{We use CatBoost PredictionValuesChange} to \textcolor{revisionblue}{describe} the \textcolor{revisionblue}{selected model's fitted feature} importance. Fig.~\ref{fig:catboost_fi} \textcolor{revisionblue}{shows} the \textcolor{revisionblue}{full-training fit. Prior-pump history and multi-day trade activity are prominent, alongside return and order-flow features. These importance scores describe the fitted model and are not causal effects or evidence of manipulation} by \textcolor{revisionblue}{themselves.}
-
-\textcolor{revisionblue}{The same importances are recorded in each} of the 25 random 70\% training-subset \textcolor{revisionblue}{fits} of Section~\ref{sec:robustness}\textcolor{revisionblue}{.} Table~\ref{table:feature_importance_quantiles} reports the 15 \textcolor{revisionblue}{highest median importances. Prior-pump history leads, followed} by \textcolor{revisionblue}{14-day, 7-day,} and \textcolor{revisionblue}{2-day trade counts and 4-hour returns. The} broad \textcolor{revisionblue}{history/activity} pattern \textcolor{revisionblue}{persists, although feature} ordering \textcolor{revisionblue}{varies} across fits.
+\subsection{\textcolor{revisionblue}{Interpretation of CatBoost + ES}}
+\textcolor{revisionblue}{Fig.~\ref{fig:catboost_fi} reports CatBoost PredictionValuesChange for CatBoost + ES fitted on all training events. Table~\ref{table:feature_importance_quantiles} summarizes} the \textcolor{revisionblue}{15 largest median importances across the 25 training-subset fits} in Section~\textcolor{revisionblue}{\ref{sec:robustness}}. \textcolor{revisionblue}{These describe} the \textcolor{revisionblue}{fitted prediction function; they are not causal effects or evidence of manipulation} by \textcolor{revisionblue}{themselves.}
 
 \begin{figure*}[!t]
     \centering
-    \includegraphics[scale=0.5]{images/submitted_feature_importances.png}
-    \caption{Feature importances for the CatBoost classifier + Top@k\%AUC early stopping. Bars report CatBoost PredictionValuesChange for the full-training fit; the leading features are prior pump history, 7-day and 14-day trade counts, two-day standardized return, and the one-hour share of long trades.}
+    \revisionfigure{\includegraphics[width=\textwidth]{images/feature_importances.png}}
+    \caption{\textcolor{revisionblue}{Feature importance for the CatBoost + ES model fitted on all training events.}}
     \label{fig:catboost_fi}
 \end{figure*}
 
 \begin{table*}[!t]
     \centering
-    \setlength{\tabcolsep}{6pt}
-    \renewcommand{\arraystretch}{1.2}
-    \caption{Training-subset distribution of CatBoost + ES feature importances (PredictionValuesChange) across the 25 random 70\% training-subset retraining runs of Section~\ref{sec:robustness}. The 15 features with the highest median importance are shown; columns report per-feature percentiles and rows are sorted by median.}
+    \small
+    \setlength{\tabcolsep}{5pt}
+    \renewcommand{\arraystretch}{1.15}
+    \caption{\textcolor{revisionblue}{CatBoost PredictionValuesChange quantiles across 25 fits on random 70\% training-event subsets. Rows are ordered by median importance.}}
+    \resizebox{\ifdim\width>\textwidth\textwidth\else\width\fi}{!}{%
     \begin{tabular}{lrrrrr}
         \toprule
-        & 10\% & 25\% & Median & 75\% & 90\% \\
-        Feature & & & & & \\
+        Feature & \textcolor{revisionblue}{10\%} & \textcolor{revisionblue}{25\%} & \textcolor{revisionblue}{Median} & \textcolor{revisionblue}{75\%} & \textcolor{revisionblue}{90\%} \\
         \midrule
-        num\_prev\_pump & 8.74 & 12.58 & 16.28 & 20.57 & 25.88 \\
-        num\_trades@14D & 2.69 & 4.03 & 7.11 & 8.68 & 13.04 \\
-        num\_trades@7D & 2.55 & 3.72 & 5.92 & 8.67 & 10.91 \\
-        num\_trades@2D & 0.50 & 2.17 & 5.02 & 8.57 & 16.60 \\
-        asset\_return@4H & 0.45 & 1.84 & 2.68 & 4.12 & 4.82 \\
-        slippage\_imbalance@12H & 0.00 & 0.83 & 2.60 & 4.87 & 8.76 \\
-        slippage\_imbalance@2D & 0.44 & 1.12 & 2.35 & 3.83 & 7.52 \\
-        asset\_return@2H & 0.66 & 1.80 & 2.25 & 4.08 & 5.37 \\
-        quote\_abs\_zscore@1H & 0.26 & 1.14 & 2.24 & 2.95 & 4.49 \\
-        asset\_return@12H & 0.19 & 1.22 & 2.06 & 2.62 & 4.65 \\
-        num\_trades@1D & 0.00 & 0.61 & 1.83 & 2.92 & 4.02 \\
-        asset\_return\_zscore@12H & 0.00 & 0.48 & 1.73 & 2.63 & 4.36 \\
-        asset\_return\_zscore@1H & 0.06 & 0.78 & 1.69 & 2.70 & 4.09 \\
-        asset\_return\_zscore@4H & 0.03 & 0.57 & 1.51 & 2.85 & 3.53 \\
-        asset\_return@1D & 0.00 & 0.66 & 1.48 & 1.95 & 3.04 \\
+        num\_prev\_pump & \textcolor{revisionblue}{9.70} & \textcolor{revisionblue}{11.35} & \textcolor{revisionblue}{12.89} & \textcolor{revisionblue}{16.86} & \textcolor{revisionblue}{20.92} \\
+        num\_trades@7D & \textcolor{revisionblue}{3.17} & \textcolor{revisionblue}{5.06} & \textcolor{revisionblue}{8.73} & \textcolor{revisionblue}{13.11} & \textcolor{revisionblue}{16.11} \\
+        num\_trades@2D & \textcolor{revisionblue}{5.03} & \textcolor{revisionblue}{5.23} & \textcolor{revisionblue}{7.19} & \textcolor{revisionblue}{9.75} & \textcolor{revisionblue}{12.79} \\
+        num\_trades@14D & \textcolor{revisionblue}{1.48} & \textcolor{revisionblue}{3.32} & \textcolor{revisionblue}{4.97} & \textcolor{revisionblue}{8.84} & \textcolor{revisionblue}{11.37} \\
+        slippage\_imbalance@12H & \textcolor{revisionblue}{0.92} & \textcolor{revisionblue}{2.15} & \textcolor{revisionblue}{3.38} & \textcolor{revisionblue}{5.22} & \textcolor{revisionblue}{7.00} \\
+        asset\_return@12H & \textcolor{revisionblue}{1.26} & \textcolor{revisionblue}{1.65} & \textcolor{revisionblue}{2.56} & \textcolor{revisionblue}{3.23} & \textcolor{revisionblue}{3.95} \\
+        asset\_return@1D & \textcolor{revisionblue}{1.05} & \textcolor{revisionblue}{1.37} & \textcolor{revisionblue}{2.43} & \textcolor{revisionblue}{3.19} & \textcolor{revisionblue}{4.35} \\
+        quote\_abs\_zscore@1H & \textcolor{revisionblue}{0.30} & \textcolor{revisionblue}{0.92} & \textcolor{revisionblue}{2.38} & \textcolor{revisionblue}{2.83} & \textcolor{revisionblue}{3.55} \\
+        slippage\_imbalance@2D & \textcolor{revisionblue}{0.71} & \textcolor{revisionblue}{1.39} & \textcolor{revisionblue}{2.24} & \textcolor{revisionblue}{3.40} & \textcolor{revisionblue}{4.73} \\
+        asset\_return@4H & \textcolor{revisionblue}{0.73} & \textcolor{revisionblue}{1.71} & \textcolor{revisionblue}{2.22} & \textcolor{revisionblue}{3.09} & \textcolor{revisionblue}{3.84} \\
+        \textcolor{revisionblue}{asset\_return\_zscore@2H} & \textcolor{revisionblue}{0.57} & \textcolor{revisionblue}{1.31} & \textcolor{revisionblue}{2.14} & \textcolor{revisionblue}{3.10} & \textcolor{revisionblue}{4.52} \\
+        \textcolor{revisionblue}{slippage\_imbalance@4H} & \textcolor{revisionblue}{0.00} & \textcolor{revisionblue}{0.36} & \textcolor{revisionblue}{1.69} & \textcolor{revisionblue}{1.95} & \textcolor{revisionblue}{2.49} \\
+        asset\_return@2H & \textcolor{revisionblue}{0.08} & \textcolor{revisionblue}{0.69} & \textcolor{revisionblue}{1.54} & \textcolor{revisionblue}{2.25} & \textcolor{revisionblue}{2.34} \\
+        asset\_return\_zscore@1H & \textcolor{revisionblue}{0.42} & \textcolor{revisionblue}{1.12} & \textcolor{revisionblue}{1.51} & \textcolor{revisionblue}{2.47} & \textcolor{revisionblue}{4.13} \\
+        \textcolor{revisionblue}{slippage\_imbalance@1D} & \textcolor{revisionblue}{0.07} & \textcolor{revisionblue}{0.46} & \textcolor{revisionblue}{1.49} & \textcolor{revisionblue}{2.61} & \textcolor{revisionblue}{4.27} \\
         \bottomrule
     \end{tabular}
+    }
     \label{table:feature_importance_quantiles}
 \end{table*}
 
 \subsection{Statistical Significance}
 \label{sec:significance}
+\textcolor{revisionblue}{We validate the results using 10{,}000 paired bootstrap samples of the 80 whole test events. All candidate assets stay with their event, repeated events retain their multiplicity, and identical event draws are used for all seven fixed models. Models are not retrained within this bootstrap. The percentile intervals quantify sampling uncertainty conditional on the fitted models and assume independent events; they do not account for training uncertainty, temporal dependence or prior test inspection.}
 
-\subsubsection{CatBoost paired comparison}
-Table~\textcolor{revisionblue}{\ref{table:submitted_significance_ci} retains} the \textcolor{revisionblue}{original intervals for CatBoost + ES and the validation-selected tuned CatBoost comparator. Their observed} AUC \textcolor{revisionblue}{difference is $0.0116$,} with \textcolor{revisionblue}{paired} 95\% \textcolor{revisionblue}{CI $[-0.0120,\,0.0369]$} and \textcolor{revisionblue}{one-sided $p=0.1739$ from 2000 paired event resamples. The original comparison does not establish an aggregate-ranking advantage at} the \textcolor{revisionblue}{5}\% \textcolor{revisionblue}{level.}
+\textcolor{revisionblue}{Pairwise differences use a two-sided null distribution centered at zero, an add-one Monte Carlo correction and Holm adjustment across} the \textcolor{revisionblue}{21 unordered model pairs. We use paired differences rather} than \textcolor{revisionblue}{marginal-interval overlap} to \textcolor{revisionblue}{assess significance.}
 
 \begin{table}[!t]
     \centering
-    \setlength{\tabcolsep}{6pt}
-    \renewcommand{\arraystretch}{1.2}
-    \caption{Top@k\%AUC on the test set with 95\% cross-section-level bootstrap confidence intervals (1000 iterations). Top@k\%AUC is integrated and normalized over $k\% \in (0, 20\%]$ (Eq.~\ref{eq:topkpauc}).}
-    \begin{tabular}{lcc}
+    \small
+    \setlength{\tabcolsep}{5pt}
+    \renewcommand{\arraystretch}{1.15}
+    \caption{\textcolor{revisionblue}{Test sample Top@k\%AUC point estimates and 95\% percentile intervals from 10{,}000 paired event resamples.}}
+    \begin{tabular}{lrr}
         \toprule
         Model & Top@k\%AUC & 95\% CI \\
         \midrule
-        \textbf{CatBoost + ES} & \textbf{0.674} & $[\textbf{0.592},\,\textbf{0.755}]$ \\
-        CatBoost classifier + Tuned & 0.662 & $[0.575,\,0.747]$ \\
-        \bottomrule
-    \end{tabular}
-    \label{table:submitted_significance_ci}
-\end{table}
-
-\begin{figure*}[!t]
-    \centering
-    \includegraphics[scale=0.5]{images/submitted_significance_bootstrap_ci.png}
-    \caption{\textcolor{revisionblue}{Cross-section-level bootstrap 95\% confidence intervals for CatBoost + ES on the test set, based on 1000 resamples of the 80 test cross-sections with replacement. Left: Top@k accuracy with error bars at $k\in\{1,2,3,5,10,20,30\}$. Right: Top@k\% accuracy with error bars at $k\%\in\{1,2,5,10,20\}$. \textbf{Takeaway:} the point estimates lie above random, while the interval widths argue for cautious interpretation of narrow differences between models.}}
-    \label{fig:submitted_bootstrap_ci}
-\end{figure*}
-
-\subsubsection{Event resampling of tuned models}
-
-\textcolor{revisionblue}{For the tuned models in the bootstrap, validation Top@k\%AUC is $0.646$ for CatBoost + ES, $0.611$ for L2 logistic regression, and $0.610$ for tuned L1. To quantify test-sample uncertainty, we draw 10{,}000 samples of 80 whole pump events with replacement (seed 42), using identical draws for all seven fixed fitted tuned models. Repeated events retain their multiplicity. Top@k\%AUC is recomputed from each resampled event set; models are not retrained within this bootstrap. Resampling candidate rows separately would ignore their within-event dependence. The event bootstrap assumes independent events and does not account for remaining temporal dependence, training uncertainty, or earlier inspection of the test period.}
-
-\textcolor{revisionblue}{Table~\ref{table:significance_ci} reports all model point estimates and pointwise 95\% percentile intervals. The normalised Top@k\%AUC integrates the curve from 0 to 20\% in 0.5\% increments. Pairwise differences use a two-sided bootstrap null distribution centred at zero, an add-one Monte Carlo correction, and Holm adjustment across all 21 unordered model pairs. Marginal-interval overlap is not used as a significance test.}
-
-\begin{table}[!t]
-    \centering
-    \setlength{\tabcolsep}{6pt}
-    \renewcommand{\arraystretch}{1.2}
-    \caption{\textcolor{revisionblue}{Top@k\%AUC on the test set with 95\% cross-section-level bootstrap confidence intervals (10{,}000 paired resamples). Top@k\%AUC is integrated and normalized over $k\% \in (0, 20\%]$ (Eq.~\ref{eq:topkpauc}).}}
-    \begin{tabular}{lcc}
-        \toprule
-        \textcolor{revisionblue}{Model} & \textcolor{revisionblue}{Top@k\%AUC} & \textcolor{revisionblue}{95\% CI} \\
-        \midrule
-        \textcolor{revisionblue}{Logistic regression L2 + Tuned} & \textcolor{revisionblue}{0.710} & \textcolor{revisionblue}{$[0.633,\,0.784]$} \\
-        \textcolor{revisionblue}{Logistic regression + Tuned} & \textcolor{revisionblue}{0.702} & \textcolor{revisionblue}{$[0.625,\,0.776]$} \\
-        \textcolor{revisionblue}{CatBoost + ES} & \textcolor{revisionblue}{0.697} & \textcolor{revisionblue}{$[0.617,\,0.775]$} \\
-        \textcolor{revisionblue}{CatBoost + Tuned} & \textcolor{revisionblue}{0.683} & \textcolor{revisionblue}{$[0.605,\,0.757]$} \\
-        \textcolor{revisionblue}{Random forest + Tuned} & \textcolor{revisionblue}{0.598} & \textcolor{revisionblue}{$[0.513,\,0.682]$} \\
-        \textcolor{revisionblue}{CatBoost ranker + Tuned} & \textcolor{revisionblue}{0.532} & \textcolor{revisionblue}{$[0.442,\,0.621]$} \\
-        \textcolor{revisionblue}{CatBoost + SMOTE + Tuned} & \textcolor{revisionblue}{0.518} & \textcolor{revisionblue}{$[0.433,\,0.601]$} \\
+        \textcolor{revisionblue}{Logistic regression L2} & \textcolor{revisionblue}{0.710} & \textcolor{revisionblue}{$[0.633,\,0.784]$} \\
+        \textcolor{revisionblue}{Logistic regression L1} & \textcolor{revisionblue}{0.702} & \textcolor{revisionblue}{$[0.625,\,0.776]$} \\
+        \textcolor{revisionblue}{CatBoost + ES} & \textcolor{revisionblue}{0.694} & \textcolor{revisionblue}{$[0.614,\,0.771]$} \\
+        \textcolor{revisionblue}{CatBoost} & \textcolor{revisionblue}{0.689} & \textcolor{revisionblue}{$[0.612,\,0.764]$} \\
+        \textcolor{revisionblue}{Random forest} & \textcolor{revisionblue}{0.598} & \textcolor{revisionblue}{$[0.513,\,0.682]$} \\
+        \textcolor{revisionblue}{CatBoost ranker} & \textcolor{revisionblue}{0.532} & \textcolor{revisionblue}{$[0.442,\,0.621]$} \\
+        \textcolor{revisionblue}{CatBoost + SMOTE} & \textcolor{revisionblue}{0.517} & \textcolor{revisionblue}{$[0.433,\,0.601]$} \\
         \bottomrule
     \end{tabular}
     \label{table:significance_ci}
 \end{table}
 
-\textcolor{revisionblue}{The L1-minus-L2} test Top@k\%AUC difference is \textcolor{revisionblue}{$-0.0080$,} with paired 95\% CI \textcolor{revisionblue}{$[-0.0264,\,0.0113]$} and \textcolor{revisionblue}{Holm-adjusted $p=1.000$. These comparisons do not establish superiority or equivalence;} the \textcolor{revisionblue}{primary model} is \textcolor{revisionblue}{chosen by validation Top@k}\%\textcolor{revisionblue}{AUC.}
+\textcolor{revisionblue}{CatBoost minus L1 logistic regression has AUC difference $-0.0133$, paired} 95\% \textcolor{revisionblue}{CI $[-0.0678,\,0.0380]$, two-sided $p=0.6137$} and \textcolor{revisionblue}{Holm-adjusted $p=1.000$}. \textcolor{revisionblue}{Against L2 logistic regression,} the \textcolor{revisionblue}{difference} is \textcolor{revisionblue}{$-0.0212$,} paired 95\% CI \textcolor{revisionblue}{$[-0.0794,\,0.0345]$, two-sided $p=0.4570$} and \textcolor{revisionblue}{Holm-adjusted $p=1.000$. Against CatBoost + ES,} the \textcolor{revisionblue}{difference} is \textcolor{revisionblue}{$-0.0055$, paired 95\% CI $[-0.0362,\,0.0259]$, two-sided $p=0.7363$ and Holm-adjusted $p=1.000$. The L1-minus-L2 difference is $-0.0080$, paired 95\% CI $[-0.0264,\,0.0112]$, two-sided $p=0.4100$ and Holm-adjusted $p=1.000$. These comparisons} do not \textcolor{revisionblue}{establish superiority or equivalence. Model selection remains based on validation performance.}
 
-CatBoost + ES \textcolor{revisionblue}{minus} tuned \textcolor{revisionblue}{L1 logistic regression has} observed Top@k\%AUC difference \textcolor{revisionblue}{$-0.0048$,} paired 95\% CI \textcolor{revisionblue}{$[-0.0511,\,0.0388]$,} and \textcolor{revisionblue}{two-sided $p=0.8368$ (Holm-adjusted $p=1.000$). Against L2 logistic regression,} the \textcolor{revisionblue}{difference is $-0.0128$, CI $[-0.0630,\,0.0345]$, two-sided $p=0.6063$ and adjusted $p=1.000$. Neither comparison establishes superiority or equivalence.} CatBoost + ES is \textcolor{revisionblue}{significantly above tuned random forest, tuned SMOTE, and the tuned ranker after adjustment, but} not \textcolor{revisionblue}{above every candidate. Fig.~\ref{fig:bootstrap_ci} shows} the \textcolor{revisionblue}{tuned-model AUC intervals;} the \textcolor{revisionblue}{complete AUC distributions, paired comparisons, predictions, and event draws accompany} the \textcolor{revisionblue}{reproduction bundle.}
+\textcolor{revisionblue}{The selected model's differences against random forest, CatBoost with SMOTE and} the \textcolor{revisionblue}{ranker are, respectively: $0.0903$, paired} 95\% \textcolor{revisionblue}{CI $[0.0286,\,0.1542]$, two-sided $p=0.0045$} and \textcolor{revisionblue}{Holm-adjusted $p=0.049$; $0.1713$,} paired 95\% CI \textcolor{revisionblue}{$[0.1094,\,0.2331]$, two-sided $p=0.0001$} and \textcolor{revisionblue}{Holm-adjusted $p=0.002$; and $0.1564$, paired 95\% CI $[0.0747,\,0.2389]$, two-sided $p=0.0003$ and Holm-adjusted $p=0.004$. These three differences remain significant after Holm correction at} the 5\% \textcolor{revisionblue}{level, subject to} the sampling \textcolor{revisionblue}{assumptions} and \textcolor{revisionblue}{test-inspection limitation above.}
 
 \begin{figure*}[!t]
     \centering
-    \includegraphics[width=\textwidth]{images/auc_distributions.png}
-    \caption{\textcolor{revisionblue}{Test Top@k\%AUC intervals from 10{,}000 paired resamples of the same 80 pump events for the seven fixed tuned models: central 50\% (thick) and} 95\% \textcolor{revisionblue}{(thin) bootstrap intervals, unresampled} test estimates \textcolor{revisionblue}{(dots), and medians (ticks). Intervals are pointwise; significance uses paired differences and Holm correction across 21 comparisons, not} interval \textcolor{revisionblue}{overlap.}}
+    \revisionfigure{\includegraphics[width=\textwidth]{images/auc_distributions.png}}
+    \caption{\textcolor{revisionblue}{Test Top@k\%AUC bootstrap distributions for the seven fixed models: central 50\% and 95\% intervals, medians and test sample point estimates. All models use the same 10{,}000 event draws.}}
+    \label{fig:auc_bootstrap}
+\end{figure*}
+
+\begin{figure*}[!t]
+    \centering
+    \revisionfigure{\includegraphics[width=\textwidth]{images/significance_bootstrap_ci.png}}
+    \caption{\textcolor{revisionblue}{CatBoost test Top@k and Top@k\% point estimates with 95\% intervals from 10{,}000 whole-event resamples.}}
     \label{fig:bootstrap_ci}
 \end{figure*}
 
 \subsection{Robustness Analysis}
 \label{sec:robustness}
-
-\subsubsection{Training data perturbation}
-\textcolor{revisionblue}{Twenty-five fits of} the \textcolor{revisionblue}{L2 logistic comparator on} random 70\% \textcolor{revisionblue}{training-event subsets give mean test Top@k\%AUC $0.707$, standard deviation $0.007$, and a central 80\% interval $[0.698, 0.715]$. The selected L2 penalty, $C$, class weights and validation/test membership remain fixed. These are conditional training-sensitivity results, not a new model-selection experiment;} the \textcolor{revisionblue}{full distributions accompany} the \textcolor{revisionblue}{reproduction bundle.}
-
-We assess the stability of \textcolor{revisionblue}{the selected} CatBoost + ES \textcolor{revisionblue}{model} by retraining it 25 times, each time using a random 70\% subset of the training cross-sections while keeping the validation and test sets fixed. Table~\ref{table:robustness_summary} summarizes the distribution of test-set metrics across runs.
+\subsubsection{\textcolor{revisionblue}{Training-event sensitivity}}
+We \textcolor{revisionblue}{retrain} CatBoost + ES 25 \textcolor{revisionblue}{times on} random 70\% \textcolor{revisionblue}{subsets} of the training \textcolor{revisionblue}{events,} keeping \textcolor{revisionblue}{hyperparameters} and \textcolor{revisionblue}{validation/test membership} fixed. Table~\ref{table:robustness_summary} \textcolor{revisionblue}{and Fig.~\ref{fig:robustness_distribution} summarize test performance. Mean AUC is $0.688$, its standard deviation is $0.014$, and} the \textcolor{revisionblue}{central 80\% range is $[0.668,\,0.702]$.}
 
 \begin{table}[!t]
     \centering
-    \setlength{\tabcolsep}{4pt}
-    \renewcommand{\arraystretch}{1.2}
-    \caption{Robustness analysis: distribution of test-set metrics across 25 runs with random 70\% training subsets. Top@k\%AUC is integrated and normalized over $k\% \in (0, 20\%]$ (Eq.~\ref{eq:topkpauc}). The standard deviation of Top@k\%AUC is $0.013$.}
-    \begin{tabular}{lccc}
+    \small
+    \setlength{\tabcolsep}{5pt}
+    \renewcommand{\arraystretch}{1.15}
+    \caption{\textcolor{revisionblue}{Test performance across 25 random 70\% training-event subset fits of CatBoost + ES.}}
+    \begin{tabular}{lrrr}
         \toprule
         Metric & Mean & Std & [10\%, 90\%] \\
         \midrule
-        Top@k\%AUC & 0.678 & 0.013 & [0.662, 0.693] \\
-        Top@1\% & 0.334 & 0.038 & [0.305, 0.370] \\
-        Top@2\% & 0.463 & 0.032 & [0.438, 0.500] \\
-        Top@5\% & 0.619 & 0.023 & [0.593, 0.645] \\
-        Top@10\% & 0.727 & 0.016 & [0.705, 0.745] \\
-        Top@20\% & 0.839 & 0.017 & [0.825, 0.858] \\
+        Top@k\%AUC & \textcolor{revisionblue}{0.688} & \textcolor{revisionblue}{0.014} & \textcolor{revisionblue}{[0.668, 0.702]} \\
+        Top@1\% & \textcolor{revisionblue}{0.326} & \textcolor{revisionblue}{0.047} & \textcolor{revisionblue}{[0.260, 0.375]} \\
+        Top@2\% & \textcolor{revisionblue}{0.469} & \textcolor{revisionblue}{0.038} & \textcolor{revisionblue}{[0.427, 0.512]} \\
+        Top@5\% & \textcolor{revisionblue}{0.629} & \textcolor{revisionblue}{0.028} & [0.593, \textcolor{revisionblue}{0.650]} \\
+        Top@10\% & \textcolor{revisionblue}{0.747} & \textcolor{revisionblue}{0.021} & \textcolor{revisionblue}{[0.725, 0.775]} \\
+        Top@20\% & \textcolor{revisionblue}{0.846} & \textcolor{revisionblue}{0.025} & [0.825, \textcolor{revisionblue}{0.863]} \\
         \bottomrule
     \end{tabular}
     \label{table:robustness_summary}
 \end{table}
 
-The Top@k\%AUC \textcolor{revisionblue}{standard deviation is $0.013$ across the 25 subset fits, with} a central 80\% \textcolor{revisionblue}{interval} of $[0.662, 0.693]$. Fig.~\ref{fig:robustness_distribution} \textcolor{revisionblue}{visualises this conditional sensitivity to training composition. These subset fits are} not \textcolor{revisionblue}{independent external validation} and \textcolor{revisionblue}{do not establish future-regime stability.}
-
 \begin{figure*}[!t]
     \centering
-    \includegraphics[scale=0.5]{images/submitted_robustness_metrics_distribution.png}
-    \caption{Distribution of test-set metrics of CatBoost + ES across 25 independent retraining runs. Each run uses a different random 70\% subset of the training cross-sections; the validation and test sets are held fixed. Left: histogram of Top@k\%AUC (integrated and normalized over $k\% \in (0, 20\%]$) across the 25 runs; the vertical dashed line is the across-run mean. Right: box plots of Top@k\% at $k\% \in \{1,2,5,10,20\}$. \textbf{Takeaway:} $\sigma_{\mathrm{Top@k\%AUC}} = 0.013$ and the central 80\% of runs fall in $[0.662,\,0.693]$.}
+    \revisionfigure{\includegraphics[width=\textwidth]{images/robustness_metrics_distribution.png}}
+    \caption{\textcolor{revisionblue}{Distribution of test ranking metrics across 25 CatBoost + ES fits on different 70\% training-event subsets, with validation and test membership fixed.}}
     \label{fig:robustness_distribution}
 \end{figure*}
 
-\subsubsection{Temporal subperiod analysis}
-Our test set spans from May~2021 to August~2022, covering the late-2021 bull market and the onset of the 2022 contagion around the Terra/LUNA collapse. We conducted the subperiod analysis with June~1, 2022 chosen \emph{ex ante} as the bull$\rightarrow$bear regime boundary, so that the split is not a function of the model's test-set performance.
+\textcolor{revisionblue}{The corresponding L2 logistic regression analysis keeps the selected penalty, $C$, and class weights fixed. Its mean test AUC is $0.707$, standard deviation $0.007$, and central 80\% range $[0.698,\,0.715]$. Preprocessing is fitted using each training subset. These experiments measure conditional training sensitivity and do not provide independent external validation.}
 
-The early subperiod $[\text{May 2021},\text{June 1, 2022})$ contains 76 pump \textcolor{revisionblue}{events; CatBoost + ES} attains Top@k\%AUC $0.676$. The late subperiod contains only 4 \textcolor{revisionblue}{events and is excluded by the fixed \texttt{min\_pumps=10} rule. Consequently this sample does not support} a \textcolor{revisionblue}{reliable} quantitative \textcolor{revisionblue}{claim about sustained bear-market} performance \textcolor{revisionblue}{or cross-regime generalisation.}
+\subsubsection{Temporal subperiod analysis}
+\textcolor{revisionblue}{Using June~1, 2022 as the subperiod boundary, the early test period contains 76 events and has CatBoost AUC $0.695$.} The \textcolor{revisionblue}{late period} contains \textcolor{revisionblue}{only four} events and \textcolor{revisionblue}{is excluded by the minimum} of \textcolor{revisionblue}{ten events per subperiod. This sample} therefore \textcolor{revisionblue}{does not support} a \textcolor{revisionblue}{reliable claim about bear-market or cross-regime performance.}
 
 \section{Portfolio strategy}
 \label{sec:portfolio}
@@ -721,60 +666,47 @@ We propose using models tuned for Top@k\%AUC which will ensure that the models a
 \end{enumerate}
 
 
-\textcolor{revisionblue}{We use CatBoost + ES as the portfolio model selected by validation Top@k\%AUC. The execution-aware sensitivity analysis retains the original $k=5$ specification; test results for $k\in\{1,2,5,10,20,30\}$ are descriptive concentration checks and are not used to retune portfolio settings. The test period was inspected in earlier research, so these simulation results remain exploratory.}
+\textcolor{revisionblue}{We use the validation-selected CatBoost model for every portfolio and price-impact analysis. We compare $k\in\{1,2,5,10,20,30\}$ and retain $k=5$ for order-size sensitivity. At $k=5$, target inclusion is $45.00\%$ (36 of 80 events), exactly matching Top@5 in Table~\ref{table:results_topk}.}
 
-\textcolor{revisionblue}{To benchmark asset selection, we generate 10{,}000 random portfolios at each $k$ (seed 42). At every test event, $k$ distinct eligible assets are selected uniformly without replacement and assigned weight $1/k$, using common random asset orders across portfolio sizes. Entry/exit rules, USDT conversion and the 25 bp round-trip cost match the CatBoost strategy; unfilled allocations remain in cash. The 80 events stay fixed in chronological order, and this comparison excludes size-dependent impact. Returns are accumulated without reinvestment. Annualized statistics} use \textcolor{revisionblue}{zero-filled daily returns over} the \textcolor{revisionblue}{same calendar and 365 days per year; return, volatility and Sharpe are computed for each draw before averaging.} The \textcolor{revisionblue}{plotted mean path is an average across selections,} not \textcolor{revisionblue}{a single traded portfolio.}
+\textcolor{revisionblue}{For each size, we generate 10{,}000 random portfolios. At each event, $k$ different eligible assets are selected uniformly and assigned equal weights, using common random asset orders across sizes. Trading rules, USDT conversion and the 25 bp round-trip cost match the model strategy. Unfilled allocations remain in cash. Events stay in chronological order and returns are summed without reinvestment. Annualized statistics} use \textcolor{revisionblue}{zero-filled daily returns over} the \textcolor{revisionblue}{same calendar and 365 days per year; each statistic is computed} for \textcolor{revisionblue}{each draw before averaging.}
 
-
-\begin{table*}[h!]
+\textcolor{revisionblue}{At $k=5$, CatBoost cumulative return is $97.46\%$ and Sharpe is $2.86$. Random selection has mean return $-10.22\%$ with a central 95\% range of $[-23.29\%,\,20.90\%]$ and mean target inclusion $1.74\%$. These ranges describe random selection within the observed test period, not event-bootstrap confidence intervals or confirmatory significance tests.}
+\begin{table*}[!t]
     \centering
+    \small
     \setlength{\tabcolsep}{5pt}
-    \renewcommand{\arraystretch}{1.2}
-    \begin{tabular}{lccccc}
+    \renewcommand{\arraystretch}{1.15}
+    \caption{\textcolor{revisionblue}{Portfolio performance without size-dependent impact. Random rows average statistics computed separately for 10{,}000 draws. All returns are decimal fractions.}}
+    \resizebox{\ifdim\width>\textwidth\textwidth\else\width\fi}{!}{%
+    \begin{tabular}{lrrrrr}
         \toprule
-        \makecell[c]{Portfolio /\\benchmark} &
-        \makecell[c]{Avg. event\\return} &
-        \makecell[c]{Cumulative\\return} &
-        \makecell[c]{Annualized\\portfolio\\return} &
-        \makecell[c]{Annualized\\portfolio\\volatility} &
-        \makecell[c]{Sharpe ratio} \\
+        \textcolor{revisionblue}{Portfolio} & \textcolor{revisionblue}{Avg. event return} & \textcolor{revisionblue}{Cumulative return} & \textcolor{revisionblue}{Annualized return} & \textcolor{revisionblue}{Annualized volatility} & \textcolor{revisionblue}{Sharpe} \\
         \midrule
-        \textcolor{revisionblue}{CatBoost + ES $k=1$} & \textcolor{revisionblue}{0.0097} & \textcolor{revisionblue}{0.7747} & \textcolor{revisionblue}{0.6004} & \textcolor{revisionblue}{0.7319} & \textcolor{revisionblue}{0.8203} \\
-        \textcolor{revisionblue}{CatBoost + ES $k=2$} & \textcolor{revisionblue}{0.0182} & \textcolor{revisionblue}{1.4529} & \textcolor{revisionblue}{1.1259} & \textcolor{revisionblue}{0.5143} & \textcolor{revisionblue}{2.1892} \\
-        \textcolor{revisionblue}{CatBoost + ES $k=5$} & \textcolor{revisionblue}{0.0135} & \textcolor{revisionblue}{1.0789} & \textcolor{revisionblue}{0.8361} & \textcolor{revisionblue}{0.3141} & \textcolor{revisionblue}{2.6622} \\
-        \textcolor{revisionblue}{CatBoost + ES $k=10$} & \textcolor{revisionblue}{0.0079} & \textcolor{revisionblue}{0.6311} & \textcolor{revisionblue}{0.4890} & \textcolor{revisionblue}{0.1926} & \textcolor{revisionblue}{2.5396} \\
-        \textcolor{revisionblue}{CatBoost + ES $k=20$} & \textcolor{revisionblue}{0.0043} & \textcolor{revisionblue}{0.3441} & \textcolor{revisionblue}{0.2667} & \textcolor{revisionblue}{0.1271} & \textcolor{revisionblue}{2.0976} \\
-        \textcolor{revisionblue}{CatBoost + ES $k=30$} & \textcolor{revisionblue}{0.0029} & \textcolor{revisionblue}{0.2332} & \textcolor{revisionblue}{0.1807} & \textcolor{revisionblue}{0.0888} & \textcolor{revisionblue}{2.0349} \\
-        \midrule
+        \textcolor{revisionblue}{CatBoost $k=1$} & \textcolor{revisionblue}{0.0091} & \textcolor{revisionblue}{0.7281} & \textcolor{revisionblue}{0.5642} & \textcolor{revisionblue}{0.6839} & \textcolor{revisionblue}{0.8250} \\
+        \textcolor{revisionblue}{CatBoost $k=2$} & \textcolor{revisionblue}{0.0141} & \textcolor{revisionblue}{1.1268} & \textcolor{revisionblue}{0.8732} & \textcolor{revisionblue}{0.4534} & \textcolor{revisionblue}{1.9258} \\
+        \textcolor{revisionblue}{CatBoost $k=5$} & \textcolor{revisionblue}{0.0122} & \textcolor{revisionblue}{0.9746} & \textcolor{revisionblue}{0.7553} & \textcolor{revisionblue}{0.2643} & \textcolor{revisionblue}{2.8581} \\
+        \textcolor{revisionblue}{CatBoost $k=10$} & \textcolor{revisionblue}{0.0058} & \textcolor{revisionblue}{0.4654} & \textcolor{revisionblue}{0.3607} & \textcolor{revisionblue}{0.2010} & \textcolor{revisionblue}{1.7943} \\
+        \textcolor{revisionblue}{CatBoost $k=20$} & \textcolor{revisionblue}{0.0043} & \textcolor{revisionblue}{0.3469} & \textcolor{revisionblue}{0.2688} & \textcolor{revisionblue}{0.1293} & \textcolor{revisionblue}{2.0796} \\
+        \textcolor{revisionblue}{CatBoost $k=30$} & \textcolor{revisionblue}{0.0025} & \textcolor{revisionblue}{0.1998} & \textcolor{revisionblue}{0.1548} & \textcolor{revisionblue}{0.0877} & \textcolor{revisionblue}{1.7648} \\
         \textcolor{revisionblue}{Random $k=1$} & \textcolor{revisionblue}{-0.0013} & \textcolor{revisionblue}{-0.1023} & \textcolor{revisionblue}{-0.0793} & \textcolor{revisionblue}{0.1313} & \textcolor{revisionblue}{-1.2805} \\
         \textcolor{revisionblue}{Random $k=2$} & \textcolor{revisionblue}{-0.0013} & \textcolor{revisionblue}{-0.1015} & \textcolor{revisionblue}{-0.0787} & \textcolor{revisionblue}{0.1089} & \textcolor{revisionblue}{-1.3999} \\
         \textcolor{revisionblue}{Random $k=5$} & \textcolor{revisionblue}{-0.0013} & \textcolor{revisionblue}{-0.1022} & \textcolor{revisionblue}{-0.0792} & \textcolor{revisionblue}{0.0843} & \textcolor{revisionblue}{-1.4597} \\
         \textcolor{revisionblue}{Random $k=10$} & \textcolor{revisionblue}{-0.0013} & \textcolor{revisionblue}{-0.1029} & \textcolor{revisionblue}{-0.0798} & \textcolor{revisionblue}{0.0699} & \textcolor{revisionblue}{-1.4881} \\
         \textcolor{revisionblue}{Random $k=20$} & \textcolor{revisionblue}{-0.0013} & \textcolor{revisionblue}{-0.1033} & \textcolor{revisionblue}{-0.0801} & \textcolor{revisionblue}{0.0587} & \textcolor{revisionblue}{-1.5473} \\
         \textcolor{revisionblue}{Random $k=30$} & \textcolor{revisionblue}{-0.0013} & \textcolor{revisionblue}{-0.1035} & \textcolor{revisionblue}{-0.0802} & \textcolor{revisionblue}{0.0536} & \textcolor{revisionblue}{-1.6031} \\
-        \midrule
         \textcolor{revisionblue}{BTCUSDT buy-and-hold} & \textcolor{revisionblue}{---} & \textcolor{revisionblue}{-0.5727} & \textcolor{revisionblue}{-0.4448} & \textcolor{revisionblue}{0.7340} & \textcolor{revisionblue}{-0.6060} \\
         \bottomrule
     \end{tabular}
-    \caption{\textcolor{revisionblue}{Validation-selected CatBoost + ES portfolio performance} by size \textcolor{revisionblue}{without size-dependent price impact,} and the time-aligned BTC/USDT \textcolor{revisionblue}{benchmark. Random rows are means of the statistics computed separately for 10{,}000 draws; all returns are decimal fractions.}}
+    }
     \label{table:performance_by_k}
 \end{table*}
-
-
-Table~\ref{table:performance_by_k} and Fig.~\ref{fig:portfolio_test} show that the \textcolor{revisionblue}{descriptive Sharpe ratio peaks at the retained $k=5$ specification ($2.66$). The $k=2$ portfolio has the largest no-reinvestment cumulative} return \textcolor{revisionblue}{($1.453$). The six simulated CatBoost portfolios have cumulative returns ranging from $0.233$ to $1.453$, compared with a $57.3\%$ BTC/USDT decline over} the \textcolor{revisionblue}{same calendar. This concentration comparison does not change the} $k=5$ \textcolor{revisionblue}{impact-sensitivity specification or establish executable profits; returns use fixed event notional} and \textcolor{revisionblue}{stated fill assumptions.}
-
-\textcolor{revisionblue}{For $k=5$, the random reference has mean cumulative return $-10.22\%$} and \textcolor{revisionblue}{a central 95\% selection range of $[-23.29\%,\,20.90\%]$, compared with $107.89\%$ for CatBoost + ES. Its mean Sharpe is $-1.46$ (95\% range $[-3.22,\,0.62]$), versus $2.66$ for CatBoost; mean target inclusion is $1.74\%$, versus $45.00\%$. These ranges describe random asset selection conditional on} the \textcolor{revisionblue}{observed test period, not event-bootstrap confidence intervals or confirmatory significance tests; independent holdout assessment remains necessary.}
-
 \begin{figure*}[!t]
     \centering
-    \includegraphics[scale=0.6]{images/portfolios_vs_btc_test.png}
-    \caption{Cumulative return paths on the test set for portfolios of size $k \in \{1,2,5,10,20,30\}$, ranked by \textcolor{revisionblue}{validation-selected} CatBoost + ES scores, together with a continuous BTC/USDT buy-and-hold benchmark over the identical calendar interval. Portfolio returns are accumulated without reinvestment and include a 25 bps round-trip cost. The \textcolor{revisionblue}{BTC} benchmark is the solid black line. \textcolor{revisionblue}{The dashed gray line is the mean of 10{,}000 uniformly sampled $k=5$ portfolios; shading is the pointwise 95\% range across selections. Size-dependent price impact is excluded here.}}
+    \revisionfigure{\includegraphics[width=\textwidth]{images/portfolios_vs_btc_test.png}}
+    \caption{\textcolor{revisionblue}{CatBoost portfolio cumulative returns, random selection and BTC/USDT over the same calendar. Returns include 25 bp round-trip costs and exclude size-dependent impact. The dashed curve averages 10{,}000 random $k=5$ portfolios; shading is the pointwise 95\% selection range. The solid black line is BTC/USDT buy-and-hold.}}
     \label{fig:portfolio_test}
 \end{figure*}
-
-For market context, Fig.~\ref{fig:portfolio_test} includes a continuous BTC/USDT buy-and-hold position over the exact strategy calendar, from May~1, 2021 16:45:08 UTC to August~14, 2022 16:01:05 UTC. It enters at the first decision timestamp ($T-15$ minutes) and is valued finally at the last strategy exit ($T+1$ minute), using completed one-minute BTC/USDT VWAPs. Daily UTC observations connect those exact endpoints. Each plotted price increment is expressed relative to the fixed initial BTC price, so its cumulative sum equals the simple full-period BTC return exactly. BTC/USDT records cumulative return $-0.573$, annualized return $-0.445$, daily annualized volatility $0.734$, and Sharpe ratio $-0.606$. This is a calendar-aligned market benchmark rather than an exposure-matched strategy: BTC remains invested between events, whereas each Top@k portfolio is exposed only during its event window.
-
-\FloatBarrier
+BTC/USDT buy-and-hold \textcolor{revisionblue}{has} cumulative return $-0.573$, annualized return $-0.445$, annualized volatility $0.734$ and Sharpe $-0.606$. \textcolor{revisionblue}{Its calendar runs from the first strategy decision to the last exit using completed one-minute conversion bars.} BTC remains invested between events, whereas \textcolor{revisionblue}{the model portfolios are} exposed only during \textcolor{revisionblue}{their} event \textcolor{revisionblue}{windows.}
 
 \subsection{Execution-Aware Backtesting with Price Impact}
 \label{sec:price_impact}
@@ -840,7 +772,7 @@ Buying pushes the fill price above the initial quote; selling pushes it below. L
 \end{equation}
 where the 25 bps term is charged against entry capital and covers the round-trip exchange fee. This accounting includes the BTC/USDT move over the holding interval and never mixes a BTC-denominated asset return with an exit-time USDT conversion.
 
-\textbf{Manipulated-asset exit.} The sell leg occurs during the manipulation window where buying and selling pressure are not balanced. Its impact model uses 5-second sell-dominated candles available strictly before the exit, never observations after the simulated transaction. A manipulation-window fit is used only when at least 20 sell-dominated candle samples are available; otherwise the framework falls back to the pre-pump entry model. The ten-minute diagnostic fit below is illustrative; each execution fit uses only observations before its own exit.
+\textbf{Manipulated-asset exit.} The sell leg occurs during the manipulation window where buying and selling pressure are not balanced. Its impact model uses 5-second sell-dominated candles available strictly before the exit, never observations after the simulated transaction. A manipulation-window fit is used only when at least 20 sell-dominated candle samples are available; otherwise the framework \textcolor{revisionblue}{falls back to} the pre-pump entry model. \textcolor{revisionblue}{The ten-minute diagnostic fit below is illustrative; each execution fit uses only observations before its own exit.}
 
 \subsubsection{Regression fit quality}
 Fig.~\ref{fig:impact_regression} shows an example of the fitted entry impact regression for one pump asset. The absolute-impact approach pools buy and sell 5-minute candles into a single regression ($I = \beta\sqrt{Q}$, no intercept), yielding $R^2 = 0.310$ on the buy side, $R^2 = 0.355$ on the sell side, and $\beta = 0.7224$ in the example shown.
@@ -849,85 +781,66 @@ Fig.~\ref{fig:exit_impact_regression} is a descriptive fit over the full capped 
 
 \begin{figure*}[!t]
     \centering
-    \includegraphics[width=\textwidth]{images/impact_regression_example.png}
-    \caption{Fitted entry price-impact regression for the SKY-BTC pair, using the 14 trading days of 5-minute candles ending 15 minutes before the pump announcement. Left panel: candles with net buying pressure (positive $Q_{\mathrm{net}}$); right panel: candles with net selling pressure (negative $Q_{\mathrm{net}}$). Each scatter point is one 5-minute candle; horizontal axis $|Q_{\mathrm{net}}|$ is absolute net volume in USDT and vertical axis $|\Delta p|$ is the absolute close-to-close price change in basis points. Solid line: fitted $|\Delta p| = \beta\sqrt{|Q_{\mathrm{net}}|}$ (no intercept, $\beta = 0.72$), estimated on both panels jointly. \textbf{Takeaway:} the single-parameter square-root fit captures the concave impact$-$size relation on both sides of the book, consistent with the square-root impact law documented across asset classes~\cite{toth2011anomalous,donier2015million}; this is the curve used to translate order size into VWAP slippage in the backtest.}
+    \revisionfigure{\includegraphics[width=\textwidth]{images/impact_regression_example.png}}
+    \caption{\textcolor{revisionblue}{Fitted entry price-impact regression for the SKY-BTC pair, using the 14 trading days of 5-minute candles ending 15 minutes before the pump announcement. Left panel: candles with net buying pressure (positive $Q_{\mathrm{net}}$); right panel: candles with net selling pressure (negative $Q_{\mathrm{net}}$). Each scatter point is one 5-minute candle; horizontal axis $|Q_{\mathrm{net}}|$ is absolute net volume in USDT and vertical axis $|\Delta p|$ is the absolute close-to-close price change in basis points. Solid line: fitted $|\Delta p| = \beta\sqrt{|Q_{\mathrm{net}}|}$ (no intercept, $\beta = 0.72$), estimated on both panels jointly. \textbf{Takeaway:} the single-parameter square-root fit captures the concave impact$-$size relation on both sides of the book, consistent with the square-root impact law documented across asset classes~\cite{toth2011anomalous,donier2015million}; this is the curve used to translate order size into VWAP slippage in the backtest.}}
     \label{fig:impact_regression}
 \end{figure*}
 
 \begin{figure}[!t]
     \centering
-    \includegraphics[width=\columnwidth]{images/exit_impact_regression_example.png}
-    \caption{Descriptive exit price-impact regression for the DLT-BTC pair, using 5-second candles from the first 10 minutes after the pump announcement and restricted to sell-dominated candles ($n = 83$). This full-window illustration is not the execution fit: each backtested exit uses only candles strictly preceding its own exit timestamp. Horizontal axis: absolute sell-side net notional $|Q_{\mathrm{net}}|$ in USDT. Vertical axis: absolute close-to-close price change in basis points. Solid line: fitted $|\Delta p| = \beta\sqrt{|Q_{\mathrm{net}}|}$ ($\beta = 1.32$). \textbf{Takeaway:} the exit coefficient is nearly twice the entry coefficient ($1.32$ vs.\ $0.72$ on the earlier example), which \textcolor{revisionblue}{illustrates different fitted coefficients in these two examples rather than a general estimate of} the \textcolor{revisionblue}{relative cost of entry and exit.}}
+    \revisionfigure{\includegraphics[width=\columnwidth]{images/exit_impact_regression_example.png}}
+    \caption{\textcolor{revisionblue}{Descriptive exit price-impact regression for the DLT-BTC pair, using 5-second candles from the first 10 minutes after the pump announcement and restricted to sell-dominated candles ($n = 83$). This full-window illustration is not the execution fit: each backtested exit uses only candles strictly preceding its own exit timestamp. Horizontal axis: absolute sell-side net notional $|Q_{\mathrm{net}}|$ in USDT. Vertical axis: absolute close-to-close price change in basis points. Solid line: fitted $|\Delta p| = \beta\sqrt{|Q_{\mathrm{net}}|}$ ($\beta = 1.32$). \textbf{Takeaway:} the exit coefficient is nearly twice the entry coefficient ($1.32$ vs.\ $0.72$ on the earlier example), which illustrates different fitted coefficients in these two examples rather than a general estimate of the relative cost of entry and exit.}}
     \label{fig:exit_impact_regression}
 \end{figure}
 
 \subsubsection{Unmodeled execution frictions}
 The fitted impact model captures average slippage against historical candle-level liquidity but intentionally omits several real-world frictions in order to keep the estimate interpretable. Specifically, we do not model (i) order-book depth exhaustion at the deepest levels (which would manifest as partial fills rather than a smooth $\beta\sqrt{Q}$ curve), (ii) queue priority and time-in-force dynamics on the exchange matching engine, (iii) exchange-side API latency between signal generation and order arrival, and (iv) the risk that other market participants detect the same pump signature and front-run the entry. Each of these frictions works in the same direction and would reduce realized PnL further, so the sensitivity numbers reported below should be read as \textcolor{revisionblue}{assumption-dependent scenarios, not a validated} upper bound on achievable performance.
 
-\FloatBarrier
-
-\subsubsection{Portfolio performance with price impact}
-
-\textcolor{revisionblue}{We repeat the portfolio comparison in Table~\ref{table:performance_by_k} and Fig.~\ref{fig:portfolio_test} with the fitted price-impact model enabled on both entry and exit, using an intended position of 1{,}000 USDT per selected asset. A size-$k$ portfolio therefore targets $k\times1{,}000$ USDT at each event; returns are normalized by this intended capital, with unfilled allocations retained as cash.} The \textcolor{revisionblue}{80 test events, model predictions, random asset selections, entry/exit rules, and 25 bp round-trip cost are identical to the preceding comparison. Thus the change in returns isolates the modeled effect of price} impact \textcolor{revisionblue}{at this} order \textcolor{revisionblue}{size.}
-
-\textcolor{revisionblue}{Table~\ref{table:performance_by_k_impact} and Fig.~\ref{fig:portfolio_test_impact} report the resulting metrics and cumulative paths. At $k=5$, CatBoost + ES cumulative return decreases from $107.89\%$ to $71.19\%$, and Sharpe decreases from $2.66$ to $1.81$.} The \textcolor{revisionblue}{random $k=5$ reference has mean cumulative return $-32.99\%$ and a central 95\% selection range of $[-46.11\%,\,-2.22\%]$, with mean Sharpe $-3.38$. The largest} model \textcolor{revisionblue}{cumulative return remains at $k=2$ ($108.51\%$), while the $k=20$ and $k=30$ portfolios fall} to \textcolor{revisionblue}{$-0.49\%$ and $-10.34\%$. These descriptive comparisons retain} the \textcolor{revisionblue}{original portfolio settings and} the same \textcolor{revisionblue}{continuous BTC/USDT benchmark.}
-
+\subsubsection{\textcolor{revisionblue}{Portfolio performance with price impact}}
+\textcolor{revisionblue}{We apply the fitted impact model to both execution legs with 1{,}000 USDT per selected asset, so a size-$k$ portfolio targets $k\times1{,}000$ USDT per event. Predictions, event order, random selections and other trading rules are identical to the no-impact comparison. At $k=5$, CatBoost cumulative return is $61.49\%$ and Sharpe is $1.87$. Random selection has mean return $-32.99\%$, with a central 95\% range of $[-46.11\%,\,-2.22\%]$.}
 \begin{table*}[!t]
     \centering
+    \small
     \setlength{\tabcolsep}{5pt}
-    \renewcommand{\arraystretch}{1.2}
-    \begin{tabular}{lccccc}
+    \renewcommand{\arraystretch}{1.15}
+    \caption{\textcolor{revisionblue}{Portfolio performance with 1{,}000 USDT per asset, fitted entry and exit impact, and 25 bp costs. Random rows average 10{,}000 draws; returns are decimal fractions.}}
+    \resizebox{\ifdim\width>\textwidth\textwidth\else\width\fi}{!}{%
+    \begin{tabular}{lrrrrr}
         \toprule
-        \makecell[c]{Portfolio /\\benchmark} &
-        \makecell[c]{Avg. event\\return} &
-        \makecell[c]{Cumulative\\return} &
-        \makecell[c]{Annualized\\portfolio\\return} &
-        \makecell[c]{Annualized\\portfolio\\volatility} &
-        \makecell[c]{Sharpe ratio} \\
+        \textcolor{revisionblue}{Portfolio} & \textcolor{revisionblue}{Avg. event return} & \textcolor{revisionblue}{Cumulative return} & \textcolor{revisionblue}{Annualized return} & \textcolor{revisionblue}{Annualized volatility} & \textcolor{revisionblue}{Sharpe} \\
         \midrule
-        \textcolor{revisionblue}{CatBoost + ES $k=1$} & \textcolor{revisionblue}{0.0049} & \textcolor{revisionblue}{0.3937} & \textcolor{revisionblue}{0.3051} & \textcolor{revisionblue}{0.7279} & \textcolor{revisionblue}{0.4191} \\
-        \textcolor{revisionblue}{CatBoost + ES $k=2$} & \textcolor{revisionblue}{0.0136} & \textcolor{revisionblue}{1.0851} & \textcolor{revisionblue}{0.8409} & \textcolor{revisionblue}{0.5021} & \textcolor{revisionblue}{1.6747} \\
-        \textcolor{revisionblue}{CatBoost + ES $k=5$} & \textcolor{revisionblue}{0.0089} & \textcolor{revisionblue}{0.7119} & \textcolor{revisionblue}{0.5516} & \textcolor{revisionblue}{0.3041} & \textcolor{revisionblue}{1.8142} \\
-        \textcolor{revisionblue}{CatBoost + ES $k=10$} & \textcolor{revisionblue}{0.0033} & \textcolor{revisionblue}{0.2662} & \textcolor{revisionblue}{0.2063} & \textcolor{revisionblue}{0.1838} & \textcolor{revisionblue}{1.1221} \\
-        \textcolor{revisionblue}{CatBoost + ES $k=20$} & \textcolor{revisionblue}{-0.0001} & \textcolor{revisionblue}{-0.0049} & \textcolor{revisionblue}{-0.0038} & \textcolor{revisionblue}{0.1267} & \textcolor{revisionblue}{-0.0301} \\
-        \textcolor{revisionblue}{CatBoost + ES $k=30$} & \textcolor{revisionblue}{-0.0013} & \textcolor{revisionblue}{-0.1034} & \textcolor{revisionblue}{-0.0801} & \textcolor{revisionblue}{0.0911} & \textcolor{revisionblue}{-0.8798} \\
-        \midrule
+        \textcolor{revisionblue}{CatBoost $k=1$} & \textcolor{revisionblue}{0.0044} & \textcolor{revisionblue}{0.3496} & \textcolor{revisionblue}{0.2709} & \textcolor{revisionblue}{0.6806} & \textcolor{revisionblue}{0.3980} \\
+        \textcolor{revisionblue}{CatBoost $k=2$} & \textcolor{revisionblue}{0.0093} & \textcolor{revisionblue}{0.7467} & \textcolor{revisionblue}{0.5787} & \textcolor{revisionblue}{0.4468} & \textcolor{revisionblue}{1.2951} \\
+        \textcolor{revisionblue}{CatBoost $k=5$} & \textcolor{revisionblue}{0.0077} & \textcolor{revisionblue}{0.6149} & \textcolor{revisionblue}{0.4766} & \textcolor{revisionblue}{0.2549} & \textcolor{revisionblue}{1.8693} \\
+        \textcolor{revisionblue}{CatBoost $k=10$} & \textcolor{revisionblue}{0.0014} & \textcolor{revisionblue}{0.1113} & \textcolor{revisionblue}{0.0863} & \textcolor{revisionblue}{0.2026} & \textcolor{revisionblue}{0.4259} \\
+        \textcolor{revisionblue}{CatBoost $k=20$} & \textcolor{revisionblue}{0.0001} & \textcolor{revisionblue}{0.0048} & \textcolor{revisionblue}{0.0037} & \textcolor{revisionblue}{0.1289} & \textcolor{revisionblue}{0.0291} \\
+        \textcolor{revisionblue}{CatBoost $k=30$} & \textcolor{revisionblue}{-0.0016} & \textcolor{revisionblue}{-0.1298} & \textcolor{revisionblue}{-0.1006} & \textcolor{revisionblue}{0.0904} & \textcolor{revisionblue}{-1.1131} \\
         \textcolor{revisionblue}{Random $k=1$} & \textcolor{revisionblue}{-0.0041} & \textcolor{revisionblue}{-0.3300} & \textcolor{revisionblue}{-0.2557} & \textcolor{revisionblue}{0.1394} & \textcolor{revisionblue}{-2.8156} \\
         \textcolor{revisionblue}{Random $k=2$} & \textcolor{revisionblue}{-0.0041} & \textcolor{revisionblue}{-0.3293} & \textcolor{revisionblue}{-0.2552} & \textcolor{revisionblue}{0.1174} & \textcolor{revisionblue}{-3.1083} \\
         \textcolor{revisionblue}{Random $k=5$} & \textcolor{revisionblue}{-0.0041} & \textcolor{revisionblue}{-0.3299} & \textcolor{revisionblue}{-0.2556} & \textcolor{revisionblue}{0.0932} & \textcolor{revisionblue}{-3.3821} \\
         \textcolor{revisionblue}{Random $k=10$} & \textcolor{revisionblue}{-0.0041} & \textcolor{revisionblue}{-0.3307} & \textcolor{revisionblue}{-0.2562} & \textcolor{revisionblue}{0.0792} & \textcolor{revisionblue}{-3.6087} \\
         \textcolor{revisionblue}{Random $k=20$} & \textcolor{revisionblue}{-0.0041} & \textcolor{revisionblue}{-0.3311} & \textcolor{revisionblue}{-0.2566} & \textcolor{revisionblue}{0.0687} & \textcolor{revisionblue}{-3.8887} \\
         \textcolor{revisionblue}{Random $k=30$} & \textcolor{revisionblue}{-0.0041} & \textcolor{revisionblue}{-0.3313} & \textcolor{revisionblue}{-0.2567} & \textcolor{revisionblue}{0.0641} & \textcolor{revisionblue}{-4.0733} \\
-        \midrule
         \textcolor{revisionblue}{BTCUSDT buy-and-hold} & \textcolor{revisionblue}{---} & \textcolor{revisionblue}{-0.5727} & \textcolor{revisionblue}{-0.4448} & \textcolor{revisionblue}{0.7340} & \textcolor{revisionblue}{-0.6060} \\
         \bottomrule
     \end{tabular}
-    \caption{\textcolor{revisionblue}{Portfolio performance with 1{,}000 USDT per selected asset, fitted price impact on both execution legs, and a 25 bp round-trip cost. Random rows are means of statistics computed separately for 10{,}000 draws; all returns are decimal fractions. The continuous BTC/USDT market reference is unchanged.}}
+    }
     \label{table:performance_by_k_impact}
 \end{table*}
-
 \begin{figure*}[!t]
     \centering
-    \includegraphics[scale=0.6]{images/portfolios_1000usdt_with_slippage.png}
-    \caption{\textcolor{revisionblue}{Cumulative return paths for the same portfolios and test events as Fig.~\ref{fig:portfolio_test}, with fitted entry/exit price impact enabled at 1{,}000 USDT per asset ($k\times1{,}000$ USDT intended portfolio capital) and a 25 bp round-trip cost. Returns are accumulated without reinvestment. The dashed gray line is the mean of the same 10{,}000 uniform random $k=5$ selections, now executed with price impact; shading is their pointwise 95\% selection range. The solid black line is the unchanged continuous BTC/USDT buy-and-hold reference.}}
+    \revisionfigure{\includegraphics[width=\textwidth]{images/portfolios_1000usdt_with_slippage.png}}
+    \caption{\textcolor{revisionblue}{The same portfolios and random selections as Fig.~\ref{fig:portfolio_test}, with fitted price impact on both legs at 1{,}000 USDT per asset. Shading is the pointwise 95\% random-selection range; the BTC/USDT benchmark is unchanged.}}
     \label{fig:portfolio_test_impact}
 \end{figure*}
-
-\FloatBarrier
-
 \subsubsection{PnL sensitivity to order size}
-
-
-We sweep intended order size from 100 to 10{,}000 USDT \textcolor{revisionblue}{for the retained $k=5$ CatBoost + ES portfolio, with a 15-minute pre-announcement decision} and a 1-minute post-announcement exit. Fig.~\ref{fig:pnl_vs_quantity} reports \textcolor{revisionblue}{no-reinvestment cumulative ROE over 80 events under} the candle-based impact model. \textcolor{revisionblue}{It} declines from \textcolor{revisionblue}{$0.963$} at 100 USDT to \textcolor{revisionblue}{$-0.073$} at 10{,}000 \textcolor{revisionblue}{USDT; ROE is $0.561$} at \textcolor{revisionblue}{2{,}000 USDT and $0.262$ at} 5{,}000 \textcolor{revisionblue}{USDT. These are conditional simulation outcomes, not estimates of executable capacity. Order-book reconstruction} and \textcolor{revisionblue}{latency-aware paper trading would be needed to assess feasibility even} at small \textcolor{revisionblue}{notionals.}
-
+\textcolor{revisionblue}{For $k=5$, we vary} intended size from 100 to 10{,}000 USDT \textcolor{revisionblue}{per asset. Cumulative ROE without reinvestment is $0.861$ at 100 USDT, $0.467$ at 2{,}000 USDT, $0.174$ at 5{,}000 USDT,} and \textcolor{revisionblue}{$-0.155$} at 10{,}000 \textcolor{revisionblue}{USDT. These conditional simulation outcomes depend on fill} and \textcolor{revisionblue}{impact assumptions} and \textcolor{revisionblue}{do not establish executable capacity.}
 \begin{figure}[!t]
     \centering
-    \includegraphics[width=\columnwidth]{images/pnl_vs_quantity_with_impact.png}
-    \caption{Cumulative return on invested capital (ROE) on the test sample as a function of intended per-trade order size, with the fitted candle-based square-root impact model enabled on both legs. Horizontal axis (log scale): intended order size in USDT, swept from $100$ to $10{,}000$. Vertical axis: cumulative ROE across the 80 test-set events for \textcolor{revisionblue}{the $k=5$ CatBoost + ES portfolio with} a 15-minute pre-announcement decision and full inventory liquidation at the 1-minute post-announcement exit. \textbf{Takeaway:} cumulative ROE \textcolor{revisionblue}{declines} from \textcolor{revisionblue}{$0.963$} at \textcolor{revisionblue}{100} USDT to \textcolor{revisionblue}{$-0.073$} at \textcolor{revisionblue}{10{,}000} USDT \textcolor{revisionblue}{under the stated execution assumptions.}}
+    \revisionfigure{\includegraphics[width=\columnwidth]{images/pnl_vs_quantity_with_impact.png}}
+    \caption{\textcolor{revisionblue}{CatBoost cumulative ROE over the 80 test events as intended per-asset notional changes. The $k=5$ strategy includes fitted entry and exit impact and 25 bp costs; returns are summed without reinvestment.}}
     \label{fig:pnl_vs_quantity}
 \end{figure}
-
-\FloatBarrier
 
 \section{Limitations and Future Work}
 \label{sec:limitations}
@@ -936,8 +849,7 @@ We sweep intended order size from 100 to 10{,}000 USDT \textcolor{revisionblue}{
 Our analysis is restricted to Binance BTC \textcolor{revisionblue}{pairs during 2018--2022. The evidence does not establish generalisation to USDT pairs, other exchanges, decentralised venues, later market regimes,} or \textcolor{revisionblue}{continuous surveillance when announcement times are unknown. Each extension} requires \textcolor{revisionblue}{new labels, point-in-time features, and out-of-period or external validation.}
 
 \textbf{Dataset size.}
-With 473 \textcolor{revisionblue}{analyzed} events (80 in \textcolor{revisionblue}{test), statistical power remains limited. The reported intervals condition on} the \textcolor{revisionblue}{fitted models and assume independent pump events; correlated campaigns and repeated} test \textcolor{revisionblue}{inspection may make them optimistic. No statistically significant difference between either tuned logistic variant and CatBoost + ES} is \textcolor{revisionblue}{established.} The \textcolor{revisionblue}{validation-selected model requires new holdout validation because the test period was inspected in earlier research.}
-
+With 473 \textcolor{revisionblue}{analyzed} events (80 in \textcolor{revisionblue}{test), statistical power remains limited. The reported intervals condition on} the \textcolor{revisionblue}{fitted models and assume independent pump events; correlated campaigns and test-set reuse may make them optimistic.} The \textcolor{revisionblue}{paired comparison in Section~}\ref{sec:significance} \textcolor{revisionblue}{does not establish a statistically significant AUC advantage for CatBoost + ES over tuned CatBoost.}
 \textbf{Execution assumptions.}
 \textcolor{revisionblue}{The} fitted \textcolor{revisionblue}{impact} and \textcolor{revisionblue}{25 bp cost assumptions do} not \textcolor{revisionblue}{establish real trading feasibility. Order-book depth, queue priority, partial fills, signal/API latency, front-running, and} exchange \textcolor{revisionblue}{access restrictions are incompletely observed. Historical transaction prices do not guarantee executable quotes} or \textcolor{revisionblue}{scalable capacity. Predictive hit rates and simulated PnL are therefore separate outcomes, and positive simulated returns are not evidence} of \textcolor{revisionblue}{attainable live profits.}
 
@@ -947,17 +859,17 @@ Manipulators may adapt their strategies over time. \textcolor{revisionblue}{The 
 \textbf{Alternative imbalance-handling approaches.}
 While we compared class weighting and SMOTE, other techniques such as focal loss~\cite{lin2017focal}, cost-sensitive learning~\cite{elkan2001cost}, and deep anomaly detection~\cite{liu2008isolation} remain unexplored in this setting and could potentially improve performance.
 
-\textbf{Temporal safeguards and reproducibility.}
-\textcolor{revisionblue}{The pipeline enforces explicit temporal information boundaries to prevent look-ahead: predictor windows are decision-anchored and half-open, ending at $T-15$ minutes; normaliser history is strictly pre-cutoff; and imputation priors are fitted on training events only. Automated regression tests inject extreme future trades, future-only listings and later pump announcements, then verify that} the \textcolor{revisionblue}{eligible asset universe and all predictors remain unchanged. Additional tests check exact timestamp boundaries, training-only imputation, exclusion} of \textcolor{revisionblue}{outcome columns from model inputs, isolation of automated fitting and tuning from test data, completed-bar currency conversion, and exclusion of post-execution trades from impact-model fits. These checks validate the absence of future-data influence} in the \textcolor{revisionblue}{tested computational paths.}
+\textcolor{revisionblue}{\textbf{Temporal safeguards and reproducibility.}}
+\textcolor{revisionblue}{The pipeline uses only data available before each decision. Feature windows and normalization data end strictly before $T-15$ minutes, and missing-value estimates are learned only from} the \textcolor{revisionblue}{training set. Automated tests add future trades, listings, and pump announcements to confirm that eligible assets and features do not change. They also check timestamp boundaries, exclude outcome variables from model inputs, keep test data out} of \textcolor{revisionblue}{training and tuning, and verify that currency conversion uses completed bars and price-impact estimates exclude trades after execution. These tests found no use of future data} in the \textcolor{revisionblue}{cases checked.}
 
-\textcolor{revisionblue}{The resampling analyses use frozen feature files and saved hyperparameters;} the \textcolor{revisionblue}{candidates are refitted and their predictions and resamples are retained. The additional L2 comparator uses} the \textcolor{revisionblue}{validation-only search specified above. The reproduction bundle includes} the \textcolor{revisionblue}{473-event cohort, its 498 source records and 25 data-availability exclusions, partition membership, frozen feature inputs, model parameters, package versions, executed notebooks, test results, metric tables, predictions, shared bootstrap draws, and} the \textcolor{revisionblue}{random-portfolio asset outcomes, exact selections and per-draw statistics. These records support computational auditability but cannot independently validate Telegram annotations whose messages and URLs are unavailable;} the \textcolor{revisionblue}{manifest} and \textcolor{revisionblue}{reviewed inclusion/exclusion records do not replace those primary sources.}
+\textcolor{revisionblue}{The repository provides} the \textcolor{revisionblue}{event cohort, split membership, software versions, seed settings, feature hashes, model parameters, test predictions, shared bootstrap draws, and random-portfolio selections and execution outcomes. The same saved predictions underlie} the \textcolor{revisionblue}{test comparison, resampling and portfolios. The event records cannot independently validate Telegram annotations because} the \textcolor{revisionblue}{underlying messages} and \textcolor{revisionblue}{URLs are unavailable.}
 
 
 \section{Conclusion}
 
-\textcolor{revisionblue}{This study provides an} empirical \textcolor{revisionblue}{comparison of established imbalance-aware methods for event-level} P\&D \textcolor{revisionblue}{target prediction} on \textcolor{revisionblue}{Binance BTC pairs.} CatBoost with Top@k\%AUC early stopping \textcolor{revisionblue}{is selected by} the highest \textcolor{revisionblue}{validation} Top@k\%AUC \textcolor{revisionblue}{and is used for portfolio analysis. L2 logistic regression has} the \textcolor{revisionblue}{highest test AUC point estimate in the expanded comparison,} but \textcolor{revisionblue}{its paired difference from CatBoost + ES is not significant; descriptive test rankings do not change} the \textcolor{revisionblue}{validation-based selection. The execution analysis illustrates sensitivity to assumptions and order size,} not \textcolor{revisionblue}{practical trading profitability.}
+This study \textcolor{revisionblue}{compares seven tuned} imbalance-aware \textcolor{revisionblue}{prediction} models \textcolor{revisionblue}{on the same} Binance \textcolor{revisionblue}{BTC-pair events.} Validation \textcolor{revisionblue}{selects CatBoost (Top@k}\%AUC \textcolor{revisionblue}{$0.653$), which achieves test AUC $0.689$ and Top@5 $0.450$. L2 logistic regression has the largest descriptive test AUC ($0.710$), but paired resampling does not establish its superiority over CatBoost. The same} selected \textcolor{revisionblue}{model supplies all portfolio analyses: its $k=5$ cumulative return is $97.46\%$ without size-dependent impact and $61.49\%$} with \textcolor{revisionblue}{fitted impact at 1{,}000 USDT per asset. These simulation outcomes are sensitive to execution assumptions} and order \textcolor{revisionblue}{size.}
 
-\textcolor{revisionblue}{The evaluated SMOTE and ranking variants are weaker than the leading classifiers in this sample. These results motivate further work} on market \textcolor{revisionblue}{surveillance, with independent label verification} and \textcolor{revisionblue}{external chronological validation needed before broader claims or operational use.}
+\textcolor{revisionblue}{The evaluated SMOTE and ranking variants are weaker than the leading classifiers in this sample. These results motivate further work on market surveillance, with independent label verification and external chronological validation needed} before broader \textcolor{revisionblue}{claims or operational use.}
 
 
 \begin{thebibliography}{00}
@@ -997,7 +909,7 @@ While we compared class weighting and SMOTE, other techniques such as focal loss
 \bibitem{chawla2002smote} N.~V.~Chawla, K.~W.~Bowyer, L.~O.~Hall, and W.~P.~Kegelmeyer, ``SMOTE: Synthetic minority over-sampling technique,'' \emph{J. Artif. Intell. Res.}, vol.~16, pp.~321--357, 2002.
 
 \bibitem{code_github}
-M.~Mironov, D.~Bogutsky, and P.~Lukianchenko, ``Pump-and-dump target prediction (code repository), GitHub, 2025. [Online]. Available: https://github.com/B0R0koko/pump-and-dump-prediction. Accessed on: \textcolor{revisionblue}{Nov.~2,~2026.}
+M.~Mironov, D.~Bogutsky, and P.~Lukianchenko, ``Pump-and-dump target prediction (code \textcolor{revisionblue}{repository),} GitHub, \textcolor{revisionblue}{2025.} [Online]. Available: https://github.com/B0R0koko/pump-and-dump-prediction. Accessed \textcolor{revisionblue}{on: Nov.~2,~2026.}
 
 
 \bibitem{almgren2001optimal} R.~Almgren and N.~Chriss, ``Optimal execution of portfolio transactions,'' \emph{J. Risk}, vol.~3, no.~2, pp.~5--39, 2001.
@@ -1021,13 +933,13 @@ M.~Mironov, D.~Bogutsky, and P.~Lukianchenko, ``Pump-and-dump target prediction 
 \bibitem{toth2011anomalous} B.~T\'{o}th, Y.~Lemperiere, C.~Deremble, J.~de~Lataillade, J.~Kockelkoren, and J.-P.~Bouchaud, ``Anomalous price impact and the critical nature of liquidity in financial markets,'' \emph{Phys. Rev. X}, vol.~1, art.~021006, 2011.
 
 
-\bibitem{kapoor2023leakage} S.~Kapoor and A.~Narayanan, ``Leakage and the reproducibility crisis in machine-learning-based science,'' \emph{Patterns}, vol.~4, no.~9, art.~100804, 2023, doi: 10.1016/j.patter.2023.100804.
+\bibitem{kapoor2023leakage} \textcolor{revisionblue}{S.~Kapoor and A.~Narayanan, ``Leakage and the reproducibility crisis in machine-learning-based science,'' \emph{Patterns}, vol.~4, no.~9, art.~100804, 2023, doi: 10.1016/j.patter.2023.100804.}
 
-\bibitem{cerqueira2020evaluation} V.~Cerqueira, L.~Torgo, and I.~Mozeti\v{c}, ``Evaluating time series forecasting models: An empirical study on performance estimation methods,'' \emph{Mach. Learn.}, vol.~109, pp.~1997--2028, 2020, doi: 10.1007/s10994-020-05910-7.
+\bibitem{cerqueira2020evaluation} \textcolor{revisionblue}{V.~Cerqueira, L.~Torgo, and I.~Mozeti\v{c}, ``Evaluating time series forecasting models: An empirical study on performance estimation methods,'' \emph{Mach. Learn.}, vol.~109, pp.~1997--2028, 2020, doi: 10.1007/s10994-020-05910-7.}
 
-\bibitem{chen2024imbalance} W.~Chen, K.~Yang, Z.~Yu, Y.~Shi, and C.~L.~P.~Chen, ``A survey on imbalanced learning: Latest research, applications and future directions,'' \emph{Artif. Intell. Rev.}, vol.~57, art.~137, 2024, doi: 10.1007/s10462-024-10759-6.
+\bibitem{chen2024imbalance} \textcolor{revisionblue}{W.~Chen, K.~Yang, Z.~Yu, Y.~Shi, and C.~L.~P.~Chen, ``A survey on imbalanced learning: Latest research, applications and future directions,'' \emph{Artif. Intell. Rev.}, vol.~57, art.~137, 2024, doi: 10.1007/s10462-024-10759-6.}
 
-\bibitem{galati2024fees} L.~Galati, ``Exchange market share, market makers, and murky behavior: The impact of no-fee trading on cryptocurrency market quality,'' \emph{J. Banking Finance}, art.~107222, 2024, doi: 10.1016/j.jbankfin.2024.107222.
+\bibitem{galati2024fees} \textcolor{revisionblue}{L.~Galati, ``Exchange market share, market makers, and murky behavior: The impact of no-fee trading on cryptocurrency market quality,'' \emph{J. Banking Finance}, art.~107222, 2024, doi: 10.1016/j.jbankfin.2024.107222.}
 
 \end{thebibliography}
 

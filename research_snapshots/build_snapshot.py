@@ -149,6 +149,37 @@ def main():
                 del lines[warning.lineno - 1 : warning.end_lineno]
                 content = "".join(lines).encode()
                 changes.append("Silence the expected small-sample impact fallback; preserve execution and error warnings")
+            if path.startswith("backtest/pipelines/") and path.endswith("/pipe.py"):
+                source = content.decode()
+                source = source.replace('"random_seed": 42', '"random_seed": RANDOM_SEED')
+                source = source.replace('"random_state": 42', '"random_state": RANDOM_SEED')
+                source = source.replace("SMOTE(random_state=42)", "SMOTE(random_state=RANDOM_SEED)")
+                source = source.replace("n_trials=n_trials)", "n_trials=n_trials, n_jobs=OPTUNA_N_JOBS)")
+                if "/RandomForest/" in path:
+                    source = source.replace('"n_jobs": -1', '"n_jobs": MODEL_THREADS')
+                if "/Catboost" in path:
+                    source = source.replace(
+                        '"random_seed": RANDOM_SEED,',
+                        '"random_seed": RANDOM_SEED,\n    "task_type": "CPU",\n'
+                        '    "thread_count": MODEL_THREADS,\n    "allow_writing_files": False,',
+                    )
+                source = (
+                    "from research_snapshots.reproducibility import RANDOM_SEED, MODEL_THREADS, OPTUNA_N_JOBS\n"
+                    + source
+                )
+                content = source.encode()
+                changes.append("Share seed 42 across fitting and SMOTE; run CPU fits with fixed threads and sequential trials")
+            elif path == "backtest/pipelines/study.py":
+                source = content.decode().replace("TPESampler(seed=42)", "TPESampler(seed=RANDOM_SEED)")
+                source = source.replace(
+                    "    return study\n",
+                    '    if not study.trials:\n'
+                    '        study.set_user_attr("reproducibility", reproducibility_settings())\n    return study\n',
+                )
+                content = (
+                    "from research_snapshots.reproducibility import RANDOM_SEED, reproducibility_settings\n" + source
+                ).encode()
+                changes.append("Use the shared TPE seed and record reproducibility settings for fresh studies")
             info = zipfile.ZipInfo(path, date_time=(2026, 8, 16, 13, 5, 6))
             info.compress_type = zipfile.ZIP_DEFLATED
             info.external_attr = 0o100644 << 16

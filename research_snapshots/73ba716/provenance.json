@@ -1,6 +1,6 @@
 {
   "commit": "73ba716dfe39be3f2da9b0ccd7d6663ff544b570",
-  "runtime_sha256": "36565f832e9463a00eef784b373be19ace5cb224bfdb472a30ab3df5c3dd1150",
+  "runtime_sha256": "f89ad906947ffcb356a5ca9a0fd7930b9f50db5e0990805919bc9e70854b6ab2",
   "pumps_sha256": "3f0cab25093a2c304d15b071b7b40344a7ce58c03ef79dd7b1e9b3a29b319467",
   "active_pumps_commit": "73ba716dfe39be3f2da9b0ccd7d6663ff544b570",
   "active_pumps_path": "research_snapshots/paper_0167ddd/pumps.json",
@@ -54,8 +54,10 @@
     {
       "path": "backtest/pipelines/CatboostClassifier/pipe.py",
       "original_sha256": "90d49c86423427c8b55b4081b71067a8a92cc9eaab35aaa75987e9a25a7ad038",
-      "runtime_sha256": "90d49c86423427c8b55b4081b71067a8a92cc9eaab35aaa75987e9a25a7ad038",
-      "adaptations": []
+      "runtime_sha256": "ef374da682bddd3f70827a26b431e4b5bdd7f54f4d48d438330734d415b742b8",
+      "adaptations": [
+        "Share seed 42 across fitting and SMOTE; run CPU fits with fixed threads and sequential trials"
+      ]
     },
     {
       "path": "backtest/pipelines/CatboostClassifierSMOTE/__init__.py",
@@ -66,8 +68,10 @@
     {
       "path": "backtest/pipelines/CatboostClassifierSMOTE/pipe.py",
       "original_sha256": "f93bf2b8867ad2503310bf09ba328d049d9c4cc3d2e0f7a1029abc1bff20c9dd",
-      "runtime_sha256": "f93bf2b8867ad2503310bf09ba328d049d9c4cc3d2e0f7a1029abc1bff20c9dd",
-      "adaptations": []
+      "runtime_sha256": "d8c8be03bbc4aa22d328a9beee2dadd6366f391555ab62b06359f6ff956c1f37",
+      "adaptations": [
+        "Share seed 42 across fitting and SMOTE; run CPU fits with fixed threads and sequential trials"
+      ]
     },
     {
       "path": "backtest/pipelines/CatboostClassifierTOPKAUC/__init__.py",
@@ -78,8 +82,10 @@
     {
       "path": "backtest/pipelines/CatboostClassifierTOPKAUC/pipe.py",
       "original_sha256": "e9cf25d2dede8bff0e5aa26b77cb993c68f7a941626bd689562c83d67d09b919",
-      "runtime_sha256": "e9cf25d2dede8bff0e5aa26b77cb993c68f7a941626bd689562c83d67d09b919",
-      "adaptations": []
+      "runtime_sha256": "196cccb1302d668c37ec9f47d7ae814712e2d264decf10e1a0680d7be630963d",
+      "adaptations": [
+        "Share seed 42 across fitting and SMOTE; run CPU fits with fixed threads and sequential trials"
+      ]
     },
     {
       "path": "backtest/pipelines/CatboostRanker/__init__.py",
@@ -96,8 +102,10 @@
     {
       "path": "backtest/pipelines/CatboostRanker/pipe.py",
       "original_sha256": "32d9a830e544e52f9772de0fcb703e2feb6c3c197f78bd77d0493778a7b0bd85",
-      "runtime_sha256": "32d9a830e544e52f9772de0fcb703e2feb6c3c197f78bd77d0493778a7b0bd85",
-      "adaptations": []
+      "runtime_sha256": "1eb5359521190079162d8f047e6c6587ec64b5fc0b58376534ed11cb373381a1",
+      "adaptations": [
+        "Share seed 42 across fitting and SMOTE; run CPU fits with fixed threads and sequential trials"
+      ]
     },
     {
       "path": "backtest/pipelines/LogisticRegression/__init__.py",
@@ -114,8 +122,10 @@
     {
       "path": "backtest/pipelines/LogisticRegression/pipe.py",
       "original_sha256": "953054da45f023bf084e041d4a6cc25b031f2d26ad2d2cd4012428d49d89056b",
-      "runtime_sha256": "953054da45f023bf084e041d4a6cc25b031f2d26ad2d2cd4012428d49d89056b",
-      "adaptations": []
+      "runtime_sha256": "d8e2a42392a9800ac9b103079d7bd532d1a1ee13b3eb728c1d421ca9954bf0ec",
+      "adaptations": [
+        "Share seed 42 across fitting and SMOTE; run CPU fits with fixed threads and sequential trials"
+      ]
     },
     {
       "path": "backtest/pipelines/RandomForest/__init__.py",
@@ -132,8 +142,10 @@
     {
       "path": "backtest/pipelines/RandomForest/pipe.py",
       "original_sha256": "852d0643b3f938553476cc47ae7f9c8265fd65568c2e846c6d97de5872375e06",
-      "runtime_sha256": "852d0643b3f938553476cc47ae7f9c8265fd65568c2e846c6d97de5872375e06",
-      "adaptations": []
+      "runtime_sha256": "28b520e4df5c6cdb2b66ab583dfcf09ce11d3ec7c762cc037c486eb438f73088",
+      "adaptations": [
+        "Share seed 42 across fitting and SMOTE; run CPU fits with fixed threads and sequential trials"
+      ]
     },
     {
       "path": "backtest/pipelines/__init__.py",
@@ -144,8 +156,10 @@
     {
       "path": "backtest/pipelines/study.py",
       "original_sha256": "304cfab1d09ba5a9dfe24b478b55325cbdb9bd6a0e3d10a3c7ae307fee5bc0cb",
-      "runtime_sha256": "304cfab1d09ba5a9dfe24b478b55325cbdb9bd6a0e3d10a3c7ae307fee5bc0cb",
-      "adaptations": []
+      "runtime_sha256": "02578b39dab3f3cacf2e90600671287d2b20a613c924cbbb4e03c9849e313e51",
+      "adaptations": [
+        "Use the shared TPE seed and record reproducibility settings for fresh studies"
+      ]
     },
     {
       "path": "backtest/portfolio/BasePortfolio.py",

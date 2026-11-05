@@ -17,6 +17,7 @@ class StatsmodelsLogitModel(BaseModel):
             "penalty": None,
             "class_weight": None,
             "solver": "newton",
+            "start_params": "zeros",
             "max_iter": 100,
             "scaling": "training mean and sample SD",
             "covariance": "pump-event clustered, small-sample correction",
@@ -39,6 +40,7 @@ class StatsmodelsLogitModel(BaseModel):
         if np.linalg.matrix_rank(design) != design.shape[1]:
             raise ValueError("Statsmodels baseline design is rank deficient")
         self.result = sm.Logit(training.get_label().astype(int), design).fit(
+            start_params=np.zeros(design.shape[1]),
             method=self.params["solver"],
             maxiter=self.params["max_iter"],
             disp=False,

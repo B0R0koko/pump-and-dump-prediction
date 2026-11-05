@@ -2,7 +2,7 @@
 
 Empirical comparison of pump-target prediction models on Binance BTC pairs, with event-level ranking metrics and an execution-sensitivity backtest.
 
-The active experiment restores the **473 pumps analyzed in the paper at `0167ddd`**: **290 train / 103 validation / 80 test**. The exact cohort is the original 498-event manifest minus its 25 recorded exclusions. It evaluates seven tuned predictive candidates with the existing regenerated features and estimates test Top@k%AUC uncertainty using 10,000 paired whole-event bootstrap samples. The notebook starts with a standalone statsmodels `summary2()` diagnostic, excluded from model comparisons. The primary model is selected automatically by the highest validation Top@k%AUC; the current winner is CatBoost + Top@k%AUC early stopping. The L2 logistic comparator uses the same preprocessing and class weights, selecting C from a fixed 25-value grid on validation data only. See [results](docs/results.md) and [cohort provenance](research_snapshots/paper_0167ddd/provenance.json).
+The active experiment restores the **473 pumps analyzed in the paper at `0167ddd`**: **290 train / 103 validation / 80 test**. The exact cohort is the original 498-event manifest minus its 25 recorded exclusions. It evaluates seven tuned predictive candidates with the existing regenerated features and estimates test Top@k%AUC uncertainty using 10,000 paired whole-event bootstrap samples. The notebook starts with a standalone statsmodels `summary2()` diagnostic, excluded from model comparisons. The primary model is selected automatically by the highest validation Top@k%AUC; the current winner is tuned CatBoost. The L2 logistic model uses the same preprocessing and class weights, selecting C from a fixed 25-value grid on validation data only. See [results](docs/results.md) and [cohort provenance](research_snapshots/paper_0167ddd/provenance.json).
 
 ## Setup and data
 
@@ -34,11 +34,14 @@ Run the model fits and bootstrap without portfolios, or run the full notebook:
 ```bash
 MPLBACKEND=Agg .venv/bin/python scripts/run_test_auc_bootstrap.py
 MPLBACKEND=Agg .venv/bin/python scripts/run_test_auc_bootstrap.py --full
+MPLBACKEND=Agg .venv/bin/python scripts/run_test_auc_bootstrap.py --portfolio
+.venv/bin/python scripts/audit_notebook_results.py
+.venv/bin/python paper/src/update_results.py
 ```
 
 Outputs and executed notebooks go under `notebooks/analysis_outputs/paper_cohort_473_l2/`. The paper source is [paper/src/access.tex](paper/src/access.tex); `just paper` builds it. [Build and reproduction details](docs/reproduction.md).
 
-The manuscript preserves the [submitted model-comparison results](research_snapshots/submitted_results/README.md) and adds the current notebook analyses. A brief reporting note identifies the estimates used by the bootstrap; new intervals use only the new saved predictions. The portfolio analysis uses the validation winner.
+The manuscript uses the completed fixed-seed run for every numerical result. Model comparisons, paired resampling and portfolios share the same saved predictions. The [submitted PDF](paper/baselines/ieee_final_submission/submitted.pdf) is used only as the baseline for highlighting changes.
 
 ## Code layout and checks
 

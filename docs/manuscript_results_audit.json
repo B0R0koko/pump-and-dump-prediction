@@ -1,0 +1,477 @@
+{
+  "status": "PASS",
+  "run_manifest_sha256": "fa52e87a0efe617499bec4ac9a8954f80bb9f1b42a9e246ff613c1a8e5080f0a",
+  "paper_source_sha256": "b6b0bc32f17aaa280698102894c59940fe9038f3a7b8696f620ec8fc664aea2a",
+  "reproducibility": {
+    "random_seed": 42,
+    "optuna_sampler": "TPESampler",
+    "optuna_n_jobs": 1,
+    "model_threads": 1,
+    "catboost_task_type": "CPU",
+    "python": "3.13.7",
+    "python_hash_seed": "42",
+    "versions": {
+      "numpy": "2.5.4",
+      "pandas": "3.0.6",
+      "polars": "2.0.0",
+      "scipy": "1.18.1",
+      "scikit-learn": "1.9.1",
+      "catboost": "1.2.10",
+      "imbalanced-learn": "0.14.2",
+      "optuna": "5.0.0",
+      "numba": "0.68.0",
+      "statsmodels": "0.14.6",
+      "threadpoolctl": "3.7.0"
+    },
+    "search_replay": "Start a fresh study with identical inputs, trial count, search space and software versions."
+  },
+  "tables": [
+    "table:validation_model_selection",
+    "table:results_topk",
+    "table:results_topkp",
+    "table:feature_importance_quantiles",
+    "table:significance_ci",
+    "table:robustness_summary",
+    "table:performance_by_k",
+    "table:performance_by_k_impact",
+    "table:train_val_test_stats"
+  ],
+  "table_rows": [
+    {
+      "table": "table:validation_model_selection",
+      "row": "Model & Top@k\\%AUC & Top@1 & Top@5 & Top@10 & Top@1\\% & Top@5\\% & Top@10\\% & PR-AUC & F1 & Balanced accuracy \\\\"
+    },
+    {
+      "table": "table:validation_model_selection",
+      "row": "CatBoost & \\bfseries 0.653 & \\bfseries 0.165 & \\bfseries 0.417 & 0.524 & \\bfseries 0.330 & 0.573 & 0.689 & \\bfseries 0.089 & \\bfseries 0.165 & \\bfseries 0.581 \\\\"
+    },
+    {
+      "table": "table:validation_model_selection",
+      "row": "CatBoost + ES & 0.646 & 0.126 & \\bfseries 0.417 & \\bfseries 0.553 & 0.252 & \\bfseries 0.612 & 0.699 & 0.081 & 0.126 & 0.561 \\\\"
+    },
+    {
+      "table": "table:validation_model_selection",
+      "row": "Logistic regression L2 & 0.611 & 0.097 & 0.311 & 0.456 & 0.243 & 0.505 & 0.670 & 0.057 & 0.097 & 0.547 \\\\"
+    },
+    {
+      "table": "table:validation_model_selection",
+      "row": "Logistic regression L1 & 0.610 & 0.107 & 0.282 & 0.456 & 0.214 & 0.505 & \\bfseries 0.709 & 0.057 & 0.107 & 0.552 \\\\"
+    },
+    {
+      "table": "table:validation_model_selection",
+      "row": "Random forest & 0.565 & 0.117 & 0.320 & 0.417 & 0.262 & 0.456 & 0.602 & 0.084 & 0.117 & 0.556 \\\\"
+    },
+    {
+      "table": "table:validation_model_selection",
+      "row": "CatBoost + SMOTE & 0.524 & 0.097 & 0.233 & 0.379 & 0.214 & 0.408 & 0.583 & 0.075 & 0.097 & 0.547 \\\\"
+    },
+    {
+      "table": "table:validation_model_selection",
+      "row": "CatBoost ranker & 0.501 & 0.078 & 0.330 & 0.398 & 0.204 & 0.427 & 0.534 & 0.038 & 0.078 & 0.537 \\\\"
+    },
+    {
+      "table": "table:results_topk",
+      "row": "Model & Top@1 & Top@2 & Top@5 & Top@10 & Top@20 & Top@30 \\\\"
+    },
+    {
+      "table": "table:results_topk",
+      "row": "CatBoost & 0.188 & 0.275 & 0.450 & 0.500 & 0.662 & 0.713 \\\\"
+    },
+    {
+      "table": "table:results_topk",
+      "row": "CatBoost + ES & 0.125 & 0.212 & 0.438 & 0.575 & 0.688 & 0.750 \\\\"
+    },
+    {
+      "table": "table:results_topk",
+      "row": "Logistic regression L2 & 0.113 & 0.200 & 0.400 & 0.588 & 0.713 & 0.787 \\\\"
+    },
+    {
+      "table": "table:results_topk",
+      "row": "Logistic regression L1 & 0.100 & 0.150 & 0.438 & 0.550 & 0.713 & 0.750 \\\\"
+    },
+    {
+      "table": "table:results_topk",
+      "row": "Random forest & 0.087 & 0.163 & 0.312 & 0.450 & 0.575 & 0.675 \\\\"
+    },
+    {
+      "table": "table:results_topk",
+      "row": "CatBoost + SMOTE & 0.050 & 0.163 & 0.250 & 0.325 & 0.438 & 0.537 \\\\"
+    },
+    {
+      "table": "table:results_topk",
+      "row": "CatBoost ranker & 0.050 & 0.125 & 0.212 & 0.400 & 0.537 & 0.588 \\\\"
+    },
+    {
+      "table": "table:results_topkp",
+      "row": "Model & Top@1\\% & Top@2\\% & Top@5\\% & Top@10\\% & Top@20\\% & Top@50\\% \\\\"
+    },
+    {
+      "table": "table:results_topkp",
+      "row": "CatBoost & 0.388 & 0.450 & 0.625 & 0.713 & 0.875 & 0.963 \\\\"
+    },
+    {
+      "table": "table:results_topkp",
+      "row": "CatBoost + ES & 0.312 & 0.500 & 0.662 & 0.750 & 0.863 & 0.963 \\\\"
+    },
+    {
+      "table": "table:results_topkp",
+      "row": "Logistic regression L2 & 0.312 & 0.500 & 0.637 & 0.787 & 0.875 & 0.950 \\\\"
+    },
+    {
+      "table": "table:results_topkp",
+      "row": "Logistic regression L1 & 0.287 & 0.500 & 0.625 & 0.725 & 0.887 & 0.963 \\\\"
+    },
+    {
+      "table": "table:results_topkp",
+      "row": "Random forest & 0.263 & 0.375 & 0.512 & 0.662 & 0.775 & 0.950 \\\\"
+    },
+    {
+      "table": "table:results_topkp",
+      "row": "CatBoost + SMOTE & 0.200 & 0.275 & 0.412 & 0.537 & 0.750 & 0.900 \\\\"
+    },
+    {
+      "table": "table:results_topkp",
+      "row": "CatBoost ranker & 0.163 & 0.263 & 0.500 & 0.588 & 0.688 & 0.912 \\\\"
+    },
+    {
+      "table": "table:feature_importance_quantiles",
+      "row": "Feature & 10\\% & 25\\% & Median & 75\\% & 90\\% \\\\"
+    },
+    {
+      "table": "table:feature_importance_quantiles",
+      "row": "num\\_prev\\_pump & 9.70 & 11.35 & 12.89 & 16.86 & 20.92 \\\\"
+    },
+    {
+      "table": "table:feature_importance_quantiles",
+      "row": "num\\_trades@7D & 3.17 & 5.06 & 8.73 & 13.11 & 16.11 \\\\"
+    },
+    {
+      "table": "table:feature_importance_quantiles",
+      "row": "num\\_trades@2D & 5.03 & 5.23 & 7.19 & 9.75 & 12.79 \\\\"
+    },
+    {
+      "table": "table:feature_importance_quantiles",
+      "row": "num\\_trades@14D & 1.48 & 3.32 & 4.97 & 8.84 & 11.37 \\\\"
+    },
+    {
+      "table": "table:feature_importance_quantiles",
+      "row": "slippage\\_imbalance@12H & 0.92 & 2.15 & 3.38 & 5.22 & 7.00 \\\\"
+    },
+    {
+      "table": "table:feature_importance_quantiles",
+      "row": "asset\\_return@12H & 1.26 & 1.65 & 2.56 & 3.23 & 3.95 \\\\"
+    },
+    {
+      "table": "table:feature_importance_quantiles",
+      "row": "asset\\_return@1D & 1.05 & 1.37 & 2.43 & 3.19 & 4.35 \\\\"
+    },
+    {
+      "table": "table:feature_importance_quantiles",
+      "row": "quote\\_abs\\_zscore@1H & 0.30 & 0.92 & 2.38 & 2.83 & 3.55 \\\\"
+    },
+    {
+      "table": "table:feature_importance_quantiles",
+      "row": "slippage\\_imbalance@2D & 0.71 & 1.39 & 2.24 & 3.40 & 4.73 \\\\"
+    },
+    {
+      "table": "table:feature_importance_quantiles",
+      "row": "asset\\_return@4H & 0.73 & 1.71 & 2.22 & 3.09 & 3.84 \\\\"
+    },
+    {
+      "table": "table:feature_importance_quantiles",
+      "row": "asset\\_return\\_zscore@2H & 0.57 & 1.31 & 2.14 & 3.10 & 4.52 \\\\"
+    },
+    {
+      "table": "table:feature_importance_quantiles",
+      "row": "slippage\\_imbalance@4H & 0.00 & 0.36 & 1.69 & 1.95 & 2.49 \\\\"
+    },
+    {
+      "table": "table:feature_importance_quantiles",
+      "row": "asset\\_return@2H & 0.08 & 0.69 & 1.54 & 2.25 & 2.34 \\\\"
+    },
+    {
+      "table": "table:feature_importance_quantiles",
+      "row": "asset\\_return\\_zscore@1H & 0.42 & 1.12 & 1.51 & 2.47 & 4.13 \\\\"
+    },
+    {
+      "table": "table:feature_importance_quantiles",
+      "row": "slippage\\_imbalance@1D & 0.07 & 0.46 & 1.49 & 2.61 & 4.27 \\\\"
+    },
+    {
+      "table": "table:significance_ci",
+      "row": "Model & Top@k\\%AUC & 95\\% CI \\\\"
+    },
+    {
+      "table": "table:significance_ci",
+      "row": "Logistic regression L2 & 0.710 & $[0.633,\\,0.784]$ \\\\"
+    },
+    {
+      "table": "table:significance_ci",
+      "row": "Logistic regression L1 & 0.702 & $[0.625,\\,0.776]$ \\\\"
+    },
+    {
+      "table": "table:significance_ci",
+      "row": "CatBoost + ES & 0.694 & $[0.614,\\,0.771]$ \\\\"
+    },
+    {
+      "table": "table:significance_ci",
+      "row": "CatBoost & 0.689 & $[0.612,\\,0.764]$ \\\\"
+    },
+    {
+      "table": "table:significance_ci",
+      "row": "Random forest & 0.598 & $[0.513,\\,0.682]$ \\\\"
+    },
+    {
+      "table": "table:significance_ci",
+      "row": "CatBoost ranker & 0.532 & $[0.442,\\,0.621]$ \\\\"
+    },
+    {
+      "table": "table:significance_ci",
+      "row": "CatBoost + SMOTE & 0.517 & $[0.433,\\,0.601]$ \\\\"
+    },
+    {
+      "table": "table:robustness_summary",
+      "row": "Metric & Mean & Std & [10\\%, 90\\%] \\\\"
+    },
+    {
+      "table": "table:robustness_summary",
+      "row": "Top@k\\%AUC & 0.688 & 0.014 & [0.668, 0.702] \\\\"
+    },
+    {
+      "table": "table:robustness_summary",
+      "row": "Top@1\\% & 0.326 & 0.047 & [0.260, 0.375] \\\\"
+    },
+    {
+      "table": "table:robustness_summary",
+      "row": "Top@2\\% & 0.469 & 0.038 & [0.427, 0.512] \\\\"
+    },
+    {
+      "table": "table:robustness_summary",
+      "row": "Top@5\\% & 0.629 & 0.028 & [0.593, 0.650] \\\\"
+    },
+    {
+      "table": "table:robustness_summary",
+      "row": "Top@10\\% & 0.747 & 0.021 & [0.725, 0.775] \\\\"
+    },
+    {
+      "table": "table:robustness_summary",
+      "row": "Top@20\\% & 0.846 & 0.025 & [0.825, 0.863] \\\\"
+    },
+    {
+      "table": "table:performance_by_k",
+      "row": "Portfolio & Avg. event return & Cumulative return & Annualized return & Annualized volatility & Sharpe \\\\"
+    },
+    {
+      "table": "table:performance_by_k",
+      "row": "CatBoost $k=1$ & 0.0091 & 0.7281 & 0.5642 & 0.6839 & 0.8250 \\\\"
+    },
+    {
+      "table": "table:performance_by_k",
+      "row": "CatBoost $k=2$ & 0.0141 & 1.1268 & 0.8732 & 0.4534 & 1.9258 \\\\"
+    },
+    {
+      "table": "table:performance_by_k",
+      "row": "CatBoost $k=5$ & 0.0122 & 0.9746 & 0.7553 & 0.2643 & 2.8581 \\\\"
+    },
+    {
+      "table": "table:performance_by_k",
+      "row": "CatBoost $k=10$ & 0.0058 & 0.4654 & 0.3607 & 0.2010 & 1.7943 \\\\"
+    },
+    {
+      "table": "table:performance_by_k",
+      "row": "CatBoost $k=20$ & 0.0043 & 0.3469 & 0.2688 & 0.1293 & 2.0796 \\\\"
+    },
+    {
+      "table": "table:performance_by_k",
+      "row": "CatBoost $k=30$ & 0.0025 & 0.1998 & 0.1548 & 0.0877 & 1.7648 \\\\"
+    },
+    {
+      "table": "table:performance_by_k",
+      "row": "Random $k=1$ & -0.0013 & -0.1023 & -0.0793 & 0.1313 & -1.2805 \\\\"
+    },
+    {
+      "table": "table:performance_by_k",
+      "row": "Random $k=2$ & -0.0013 & -0.1015 & -0.0787 & 0.1089 & -1.3999 \\\\"
+    },
+    {
+      "table": "table:performance_by_k",
+      "row": "Random $k=5$ & -0.0013 & -0.1022 & -0.0792 & 0.0843 & -1.4597 \\\\"
+    },
+    {
+      "table": "table:performance_by_k",
+      "row": "Random $k=10$ & -0.0013 & -0.1029 & -0.0798 & 0.0699 & -1.4881 \\\\"
+    },
+    {
+      "table": "table:performance_by_k",
+      "row": "Random $k=20$ & -0.0013 & -0.1033 & -0.0801 & 0.0587 & -1.5473 \\\\"
+    },
+    {
+      "table": "table:performance_by_k",
+      "row": "Random $k=30$ & -0.0013 & -0.1035 & -0.0802 & 0.0536 & -1.6031 \\\\"
+    },
+    {
+      "table": "table:performance_by_k",
+      "row": "BTCUSDT buy-and-hold & --- & -0.5727 & -0.4448 & 0.7340 & -0.6060 \\\\"
+    },
+    {
+      "table": "table:performance_by_k_impact",
+      "row": "Portfolio & Avg. event return & Cumulative return & Annualized return & Annualized volatility & Sharpe \\\\"
+    },
+    {
+      "table": "table:performance_by_k_impact",
+      "row": "CatBoost $k=1$ & 0.0044 & 0.3496 & 0.2709 & 0.6806 & 0.3980 \\\\"
+    },
+    {
+      "table": "table:performance_by_k_impact",
+      "row": "CatBoost $k=2$ & 0.0093 & 0.7467 & 0.5787 & 0.4468 & 1.2951 \\\\"
+    },
+    {
+      "table": "table:performance_by_k_impact",
+      "row": "CatBoost $k=5$ & 0.0077 & 0.6149 & 0.4766 & 0.2549 & 1.8693 \\\\"
+    },
+    {
+      "table": "table:performance_by_k_impact",
+      "row": "CatBoost $k=10$ & 0.0014 & 0.1113 & 0.0863 & 0.2026 & 0.4259 \\\\"
+    },
+    {
+      "table": "table:performance_by_k_impact",
+      "row": "CatBoost $k=20$ & 0.0001 & 0.0048 & 0.0037 & 0.1289 & 0.0291 \\\\"
+    },
+    {
+      "table": "table:performance_by_k_impact",
+      "row": "CatBoost $k=30$ & -0.0016 & -0.1298 & -0.1006 & 0.0904 & -1.1131 \\\\"
+    },
+    {
+      "table": "table:performance_by_k_impact",
+      "row": "Random $k=1$ & -0.0041 & -0.3300 & -0.2557 & 0.1394 & -2.8156 \\\\"
+    },
+    {
+      "table": "table:performance_by_k_impact",
+      "row": "Random $k=2$ & -0.0041 & -0.3293 & -0.2552 & 0.1174 & -3.1083 \\\\"
+    },
+    {
+      "table": "table:performance_by_k_impact",
+      "row": "Random $k=5$ & -0.0041 & -0.3299 & -0.2556 & 0.0932 & -3.3821 \\\\"
+    },
+    {
+      "table": "table:performance_by_k_impact",
+      "row": "Random $k=10$ & -0.0041 & -0.3307 & -0.2562 & 0.0792 & -3.6087 \\\\"
+    },
+    {
+      "table": "table:performance_by_k_impact",
+      "row": "Random $k=20$ & -0.0041 & -0.3311 & -0.2566 & 0.0687 & -3.8887 \\\\"
+    },
+    {
+      "table": "table:performance_by_k_impact",
+      "row": "Random $k=30$ & -0.0041 & -0.3313 & -0.2567 & 0.0641 & -4.0733 \\\\"
+    },
+    {
+      "table": "table:performance_by_k_impact",
+      "row": "BTCUSDT buy-and-hold & --- & -0.5727 & -0.4448 & 0.7340 & -0.6060 \\\\"
+    },
+    {
+      "table": "table:train_val_test_stats",
+      "row": "& Train & Validation & Test \\\\"
+    },
+    {
+      "table": "table:train_val_test_stats",
+      "row": "Positive & 290 & 103 & 80 \\\\"
+    },
+    {
+      "table": "table:train_val_test_stats",
+      "row": "Negative & 44578 & 24274 & 22935 \\\\"
+    },
+    {
+      "table": "table:train_val_test_stats",
+      "row": "Total & 44868 & 24377 & 23015 \\\\"
+    },
+    {
+      "table": "table:train_val_test_stats",
+      "row": "Avg. Cross-section Size & 154.72 & 236.67 & 287.69 \\\\"
+    }
+  ],
+  "key_results": {
+    "selected": "CatBoost",
+    "validation_auc": "0.653",
+    "cb_auc": "0.689",
+    "es_auc": "0.694",
+    "l1_auc": "0.702",
+    "l2_auc": "0.710",
+    "rf_auc": "0.598",
+    "cat_auc": "0.689",
+    "smote_auc": "0.517",
+    "ranker_auc": "0.532",
+    "top1": "0.188",
+    "top5": "0.450",
+    "top10": "0.500",
+    "hits": 36,
+    "hit_percent": "45.00",
+    "smote_top1": "5.00",
+    "ranker_top1": "5.00",
+    "robust_mean": "0.688",
+    "robust_std": "0.014",
+    "robust_low": "0.668",
+    "robust_high": "0.702",
+    "lr_mean": "0.707",
+    "lr_std": "0.007",
+    "lr_low": "0.698",
+    "lr_high": "0.715",
+    "early_auc": "0.695",
+    "early_events": 76,
+    "l2_c": "4.642\\times10^{-5}",
+    "cb_l1": "$-0.0133$, paired 95\\% CI $[-0.0678,\\,0.0380]$, two-sided $p=0.6137$ and Holm-adjusted $p=1.000$",
+    "cb_l2": "$-0.0212$, paired 95\\% CI $[-0.0794,\\,0.0345]$, two-sided $p=0.4570$ and Holm-adjusted $p=1.000$",
+    "reference": "CatBoost + ES",
+    "cb_cat": "$-0.0055$, paired 95\\% CI $[-0.0362,\\,0.0259]$, two-sided $p=0.7363$ and Holm-adjusted $p=1.000$",
+    "selected_rf": "$0.0903$, paired 95\\% CI $[0.0286,\\,0.1542]$, two-sided $p=0.0045$ and Holm-adjusted $p=0.049$",
+    "selected_smote": "$0.1713$, paired 95\\% CI $[0.1094,\\,0.2331]$, two-sided $p=0.0001$ and Holm-adjusted $p=0.002$",
+    "selected_ranker": "$0.1564$, paired 95\\% CI $[0.0747,\\,0.2389]$, two-sided $p=0.0003$ and Holm-adjusted $p=0.004$",
+    "l1_l2": "$-0.0080$, paired 95\\% CI $[-0.0264,\\,0.0112]$, two-sided $p=0.4100$ and Holm-adjusted $p=1.000$",
+    "model_return": "97.46",
+    "model_sharpe": "2.86",
+    "impact_return": "61.49",
+    "impact_sharpe": "1.87",
+    "random_return": "-10.22",
+    "random_low": "-23.29",
+    "random_high": "20.90",
+    "random_hits": "1.74",
+    "impact_random": "-32.99",
+    "impact_random_low": "-46.11",
+    "impact_random_high": "-2.22"
+  },
+  "input_sha256": {
+    "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/tables/validation_metrics.csv": "cf80fbaa07f8c30daddb1114f267b8115cc950445171d72097ec27773aa731db",
+    "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/tables/test_topk.csv": "dc2e67e6ece02bd6ebcda89609df48866124b6342d7c923bb8a7cf2c57f701df",
+    "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/tables/test_topkp.csv": "7a2a62f4641b13ce3172fb3a5ea818e56ec3aebd2b7d0832447ef85d70a4a307",
+    "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/tables/test_classification.csv": "71fb3764f20b6a8321d6faf031a78918147f5ad4f79b5fc3bab14a1318a2e63c",
+    "notebooks/analysis_outputs/paper_cohort_473_l2/test_auc_bootstrap/auc_summary.csv": "8ce4942e782e2d40723b9725826140c11f87b29227a74eeff694565ec984566d",
+    "notebooks/analysis_outputs/paper_cohort_473_l2/test_auc_bootstrap/auc_pairwise.csv": "d3e9c02c51bb204afa128d46cf33d1fb23bc93e2b940dc3aba0624dce066ca5c",
+    "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/tables/robustness_summary.csv": "08dc9113fdf5c565d2eba607e84202c20df85d2c330f3d009cc90570ae10d686",
+    "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/tables/logistic_robustness_summary.csv": "50a689daac3454350a165dfe0d5c657b4b95a4888baf35da8a5282cc2941ab12",
+    "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/tables/feature_importance_quantiles.csv": "ef8dbeb6b4214d1d1568623441c24fd6769144c75ed267697b5b1ee82459a0f0",
+    "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/tables/subperiod_metrics.csv": "a45b4d5f002ea5780d97da7f3e66d6844ac9ea4cec293ebd9d4ba05ef03e732e",
+    "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/tables/portfolio_statistics.csv": "88c9f971c1cd385870352c72a1506b6a74b4ff349370bf5d4e1c1e1ee0aa4abb",
+    "notebooks/analysis_outputs/paper_cohort_473_l2/portfolio_1000usdt_slippage/model_statistics.csv": "c81a9875289c354717f53f4493908f159c28182b45e13f6a4275efbf33691bb5",
+    "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/tables/impact_sensitivity.csv": "7693f3bafb1065a389ca911954370eed07252003d0f2810b51a9471299ad2a16"
+  },
+  "figure_sources": {
+    "paper/src/images/topk_accuracy_validation.png": "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/images/topk_accuracy_validation.png",
+    "paper/src/images/topkp_auc_validation.png": "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/images/topkp_auc_validation.png",
+    "paper/src/images/classification_metrics_validation.png": "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/images/classification_metrics_validation.png",
+    "paper/src/images/topk_accuracy_test.png": "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/images/topk_accuracy_test.png",
+    "paper/src/images/topkp_auc_test.png": "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/images/topkp_auc_test.png",
+    "paper/src/images/classification_metrics_test.png": "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/images/classification_metrics_test.png",
+    "paper/src/images/feature_importances.png": "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/images/feature_importances.png",
+    "paper/src/images/auc_distributions.png": "notebooks/analysis_outputs/paper_cohort_473_l2/test_auc_bootstrap/auc_distributions.png",
+    "paper/src/images/significance_bootstrap_ci.png": "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/images/significance_bootstrap_ci.png",
+    "paper/src/images/robustness_metrics_distribution.png": "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/images/robustness_metrics_distribution.png",
+    "paper/src/images/portfolios_vs_btc_test.png": "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/images/portfolios_vs_btc_test.png",
+    "paper/src/images/portfolios_1000usdt_with_slippage.png": "notebooks/analysis_outputs/paper_cohort_473_l2/portfolio_1000usdt_slippage/portfolios_1000usdt_with_slippage.png",
+    "paper/src/images/pnl_vs_quantity_with_impact.png": "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/images/pnl_vs_quantity_with_impact.png",
+    "paper/src/images/cs_size.jpeg": "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/images/cs_size.jpeg",
+    "paper/src/images/cs_standardization_impact.png": "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/images/cs_standardization_impact.png",
+    "paper/src/images/impact_regression_example.png": "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/images/impact_regression_example.png",
+    "paper/src/images/exit_impact_regression_example.png": "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/images/exit_impact_regression_example.png"
+  },
+  "previous_submission_used_only_as_highlight_baseline": true
+}

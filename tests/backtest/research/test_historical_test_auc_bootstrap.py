@@ -17,6 +17,7 @@ from pumps_and_dumps.backtest.robustness.significance import compare_models_boot
 
 from tests.notebook_helpers import analysis
 from research_snapshots import input_provenance
+from research_snapshots.reproducibility import reproducibility_settings
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -157,6 +158,7 @@ def test_notebook_bootstrap_cell_exports_replayable_draws_and_keeps_selected_mod
         "input_provenance": input_provenance,
         "pump_manifest_sha256": "manifest",
         "l2_selection": {"test_used_for_tuning": False},
+        "REPRODUCIBILITY": reproducibility_settings(),
         "snapshot_provenance": {"commit": "73ba716", "active_pumps_commit": "73ba716", "runtime_sha256": "runtime"},
         "split_counts": {"TEST": 3},
         "TRAIN_END": pd.Timestamp("2020-09-01"),
@@ -190,6 +192,8 @@ def test_notebook_bootstrap_cell_exports_replayable_draws_and_keeps_selected_mod
     metadata = json.loads((output / "metadata.json").read_text())
     assert metadata["provenance"]["selected_on_validation"] == candidates[0].experiment_name
     assert metadata["provenance"]["primary_model"] == selected.experiment_name
+    assert metadata["provenance"]["reproducibility"]["random_seed"] == 42
+    assert metadata["provenance"]["reproducibility"]["optuna_n_jobs"] == 1
     assert all(candidate.model.calls == 1 for candidate in candidates)
     for name in ("auc_distributions.png", "auc_distributions.svg", "auc_comparisons.png"):
         assert (output / name).stat().st_size > 1000

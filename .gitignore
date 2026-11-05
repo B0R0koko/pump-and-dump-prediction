@@ -33,6 +33,11 @@ paper/*
 paper/src/*
 !paper/src/*.tex
 !paper/src/build_highlighted.py
+!paper/src/update_results.py
+!paper/baselines/
+paper/baselines/*
+!paper/baselines/ieee_final_submission/
+!paper/baselines/ieee_final_submission/**
 
 # Files required to build the manuscript from a clean checkout.
 !paper/styles/
@@ -63,6 +68,12 @@ paper/src/images/*
 !paper/src/images/submitted_topk_accuracy_validation.png
 !paper/src/images/submitted_topkp_auc_test.png
 !paper/src/images/submitted_topkp_auc_validation.png
+!paper/src/images/submitted_cs_size.jpeg
+!paper/src/images/submitted_cs_standardization_impact.png
+!paper/src/images/submitted_portfolios_vs_btc_test.png
+!paper/src/images/submitted_impact_regression_example.png
+!paper/src/images/submitted_exit_impact_regression_example.png
+!paper/src/images/submitted_pnl_vs_quantity_with_impact.png
 
 # Resources — keep event labels and the historical download universe
 resources/*
@@ -77,3 +88,14 @@ presentation
 
 .claude
 CLAUDE.md
+
+# Current notebook figures used by the manuscript.
+!paper/src/images/classification_metrics_test.png
+!paper/src/images/classification_metrics_validation.png
+!paper/src/images/feature_importances.png
+!paper/src/images/robustness_metrics_distribution.png
+!paper/src/images/significance_bootstrap_ci.png
+!paper/src/images/topk_accuracy_test.png
+!paper/src/images/topk_accuracy_validation.png
+!paper/src/images/topkp_auc_test.png
+!paper/src/images/topkp_auc_validation.png

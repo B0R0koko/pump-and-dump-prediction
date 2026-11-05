@@ -1,0 +1,56 @@
+{
+  "status": "PASS",
+  "pages": [
+    21,
+    21
+  ],
+  "clean_and_highlighted_text_identical": true,
+  "all_cross_references_resolved": true,
+  "current_result_values_present": [
+    "0.653",
+    "0.689",
+    "0.702",
+    "0.710",
+    "0.598",
+    "0.517",
+    "0.532",
+    "97.46",
+    "61.49"
+  ],
+  "baseline_pdf_sha256": "0c3b40e93a729f8840ed8f62e714e827981703acf29cee6082f59fb1451ad361",
+  "changed_tables_highlighted": [
+    "table:train_val_test_stats",
+    "table:validation_model_selection",
+    "table:results_topk",
+    "table:results_topkp",
+    "table:feature_importance_quantiles",
+    "table:significance_ci",
+    "table:robustness_summary",
+    "table:performance_by_k",
+    "table:performance_by_k_impact"
+  ],
+  "changed_figures_highlighted": [
+    "fig:cross-section_size_over_time",
+    "fig:data_with_crossnorm",
+    "fig:validation_topk",
+    "fig:validation_topkp",
+    "fig:validation_classification",
+    "fig:results_topk",
+    "fig:results_topkp",
+    "fig:classification_metrics",
+    "fig:catboost_fi",
+    "fig:auc_bootstrap",
+    "fig:bootstrap_ci",
+    "fig:robustness_distribution",
+    "fig:portfolio_test",
+    "fig:impact_regression",
+    "fig:exit_impact_regression",
+    "fig:portfolio_test_impact",
+    "fig:pnl_vs_quantity"
+  ],
+  "source_sha256": "b6b0bc32f17aaa280698102894c59940fe9038f3a7b8696f620ec8fc664aea2a",
+  "pdf_sha256": {
+    "paper/access.pdf": "17d3e7a130730c8e5fcca805e4ac36e107dea56a61e987d2d5d91f441088ff70",
+    "paper/access_highlighted.pdf": "e7525053c00f3ed8fa7d8189d78bf9a0f7262e51a00cbc941b6014936d5d99df"
+  }
+}
