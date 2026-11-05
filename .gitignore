@@ -18,6 +18,9 @@ catboost_info/
 # Local datasets and downloaded archives
 /data/
 /.pumps-and-dumps.json
+/studies.db-journal
+/studies.db-wal
+/studies.db-shm
 
 # Notebook runtime outputs (keep the runnable notebooks themselves)
 notebooks/analysis_outputs/

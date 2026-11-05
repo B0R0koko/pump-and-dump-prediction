@@ -16,6 +16,8 @@ The default [event manifest](resources/pumps.json) contains exactly **498 announ
 
 Existing regenerated features can be reused. Data paths, Docker options, and commands are in the [reproduction guide](docs/reproduction.md).
 
+The committed [studies.db](studies.db) contains the latest saved searches used by the notebook: six Optuna studies with 100 completed trials each. Unused model experiments are excluded. The [search snapshot](research_snapshots/latest_search/README.md) records provenance and the latest L2 validation grid. Copy the database into the configured data directory before fitting on a fresh installation; see the reproduction guide.
+
 ## Research
 
 ```bash

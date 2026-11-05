@@ -1,0 +1,147 @@
+{
+  "exported_at": "2026-11-05T22:16:40.965152+00:00",
+  "database_path": "studies.db",
+  "database_sha256": "1d6e5597e792dd51aab91b16185e7a20f09c8d6c64d3a3a92e8919df6313a0f6",
+  "source_database_sha256": "b425d8fd1b823c3d3ebd6dfad73239c01d1823110aec6dd2d1c57252c46f85c2",
+  "source_database_unchanged": true,
+  "scope": "The latest saved search for each of the six Optuna-tuned candidates used by the current research notebook. All trials are retained; unrelated model experiments are excluded.",
+  "search_execution_note": "These searches ran on 2026-10-11. The 2026-11-05 notebook execution reused their best parameters; no new Optuna search was performed.",
+  "run_manifest_sha256": "fa52e87a0efe617499bec4ac9a8954f80bb9f1b42a9e246ff613c1a8e5080f0a",
+  "paper_run_created_at": "2026-11-05T21:53:08.609348+00:00",
+  "removed_unused_studies": [
+    "CatboostMultiTopKPipelineStudy",
+    "CatboostQuerySoftmaxPipelineStudy",
+    "CatboostTop5PipelineStudy"
+  ],
+  "retained_studies": [
+    {
+      "study_name": "RandomForestPipelineStudy",
+      "model": "Random forest + Tuned",
+      "trials": 100,
+      "completed_trials": 100,
+      "best_trial_number": 67,
+      "best_search_validation_value": 0.6234223300970874,
+      "best_parameters": {
+        "class_weight": 27.883062500116996,
+        "max_features": 0.5576677232653807,
+        "max_samples": 0.5899367558705189,
+        "max_depth": 9,
+        "n_estimators": 525
+      },
+      "selected_parameters_match_notebook": true,
+      "first_trial_started_at": "2026-10-11T16:33:42.344473",
+      "last_trial_completed_at": "2026-10-11T16:59:32.776681"
+    },
+    {
+      "study_name": "LogisticRegressionPipelineStudy",
+      "model": "Logistic regression + Tuned",
+      "trials": 100,
+      "completed_trials": 100,
+      "best_trial_number": 15,
+      "best_search_validation_value": 0.6293689320388349,
+      "best_parameters": {
+        "class_weight": 72.54963897894919,
+        "lambda": 531.9674085274564
+      },
+      "selected_parameters_match_notebook": true,
+      "first_trial_started_at": "2026-10-11T17:37:18.667708",
+      "last_trial_completed_at": "2026-10-11T17:55:04.438085"
+    },
+    {
+      "study_name": "CatboostClassifierTOPKAUCPipeline",
+      "model": "CatBoost classifier + Top@k%AUC early stopping",
+      "trials": 100,
+      "completed_trials": 100,
+      "best_trial_number": 94,
+      "best_search_validation_value": 0.6652912621359223,
+      "best_parameters": {
+        "learning_rate": 0.0370302026372269,
+        "colsample_bylevel": 0.719758921184882,
+        "subsample": 0.9078292487870507,
+        "max_depth": 3
+      },
+      "selected_parameters_match_notebook": true,
+      "first_trial_started_at": "2026-10-11T17:56:57.992785",
+      "last_trial_completed_at": "2026-10-11T17:58:51.049964"
+    },
+    {
+      "study_name": "CatboostClassifierSMOTEPipelineStudy",
+      "model": "CatBoost classifier + SMOTE + Tuned",
+      "trials": 100,
+      "completed_trials": 100,
+      "best_trial_number": 63,
+      "best_search_validation_value": 0.6474514563106795,
+      "best_parameters": {
+        "learning_rate": 0.04568873406442133,
+        "colsample_bylevel": 0.7399943776216362,
+        "subsample": 0.8143797828781625,
+        "max_depth": 10
+      },
+      "selected_parameters_match_notebook": true,
+      "first_trial_started_at": "2026-10-11T17:59:13.515074",
+      "last_trial_completed_at": "2026-10-11T18:34:32.952411"
+    },
+    {
+      "study_name": "CatboostRankerPipelineStudy",
+      "model": "CatBoost ranker + Tuned",
+      "trials": 100,
+      "completed_trials": 100,
+      "best_trial_number": 96,
+      "best_search_validation_value": 0.5802184466019418,
+      "best_parameters": {
+        "iterations": 375,
+        "learning_rate": 0.15668594053798632,
+        "max_depth": 2,
+        "colsample_bylevel": 0.7224859006085761
+      },
+      "selected_parameters_match_notebook": true,
+      "first_trial_started_at": "2026-10-11T18:39:55.248257",
+      "last_trial_completed_at": "2026-10-11T18:43:24.296388"
+    },
+    {
+      "study_name": "CatboostClassifierPipelineStudy",
+      "model": "CatBoost classifier + Tuned",
+      "trials": 100,
+      "completed_trials": 100,
+      "best_trial_number": 11,
+      "best_search_validation_value": 0.6736650485436894,
+      "best_parameters": {
+        "learning_rate": 0.1227614894253908,
+        "colsample_bylevel": 0.8001085310552237,
+        "subsample": 0.8403460432017088,
+        "max_depth": 3
+      },
+      "selected_parameters_match_notebook": true,
+      "first_trial_started_at": "2026-10-11T18:43:38.182843",
+      "last_trial_completed_at": "2026-10-11T18:44:54.119404"
+    }
+  ],
+  "retained_trials": 600,
+  "checked_sql_tables": [
+    "studies",
+    "study_directions",
+    "study_user_attributes",
+    "study_system_attributes",
+    "trials",
+    "trial_user_attributes",
+    "trial_system_attributes",
+    "trial_params",
+    "trial_values",
+    "trial_intermediate_values",
+    "trial_heartbeats"
+  ],
+  "checks": {
+    "sqlite_integrity": "ok",
+    "foreign_key_violations": 0,
+    "retained_records_equal_source": true,
+    "selected_parameters_match_notebook": true
+  },
+  "l2_grid": {
+    "trials": 25,
+    "storage": "Companion CSV/JSON because L2 uses a deterministic validation grid rather than an Optuna study.",
+    "validation_path": "research_snapshots/latest_search/logistic_l2_validation_path.csv",
+    "validation_path_sha256": "f186c09ddc9b7e7baa025c0a3f0d1b15501c7a89319538bc228cf44ccfadf352",
+    "selection": "research_snapshots/latest_search/logistic_l2_selection.json",
+    "selection_sha256": "c52c298b983a5c81a2f1efdaa12552f964c622c9313a301c40970c77bd8457a2"
+  }
+}

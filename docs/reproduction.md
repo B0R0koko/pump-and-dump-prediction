@@ -143,6 +143,24 @@ The bootstrap scores each fitted model once, then resamples 80 whole test events
 
 ### Repeating tuning and training
 
+The repository's [studies.db](../studies.db) contains only the latest saved search for each of the six Optuna-tuned models used by the current notebook: **600 completed trials in six studies**. Three unused experimental model studies are excluded. The selected parameters match the completed notebook run exactly. The searches ran on October 11, 2026; the November 5 rerun reused their best parameters. The latest 25-point L2 validation grid is saved separately because that search does not use Optuna. [Snapshot contents and checksums](../research_snapshots/latest_search/README.md).
+
+On a fresh installation, copy the committed database to the configured data directory before running the notebook:
+
+```bash
+.venv/bin/python - <<'PY'
+from pathlib import Path
+import shutil
+from pumps_and_dumps.core.paths import DATA_DIR
+
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+with Path("studies.db").open("rb") as source, (DATA_DIR / "studies.db").open("xb") as target:
+    shutil.copyfileobj(source, target)
+PY
+```
+
+The command refuses to overwrite an existing database. Keep the existing working database or back it up before installing the snapshot. The export is filtered, so its file hash differs from the full source database recorded by the notebook; [provenance](../research_snapshots/latest_search/provenance.json) records both hashes and verifies that every retained trial record is unchanged.
+
 The primary notebook initializes Python and NumPy with seed **42** and uses the same explicit seed for Optuna TPE, L1/L2 logistic regression, random forests, all four CatBoost pipelines, SMOTE, and resampling. The policy is defined in [research_snapshots/reproducibility.py](../research_snapshots/reproducibility.py) and imported by the historical runtime. Optuna trials run sequentially (`n_jobs=1`). CPU models and native numerical libraries use one thread by default. The batch launcher sets `PYTHONHASHSEED=42` before starting the kernel; feature columns also have an explicit stable order. In an interactive session, restart the kernel and run from the beginning.
 
 The notebook fits with saved study parameters. To reproduce a *hyperparameter search*, start a fresh study with identical data, search space, trial count, package versions, and thread settings; a seeded sampler does not replay a partially completed study automatically. Preserve `studies.db` before invoking the historical pipelines' `optimize_parameters()`: their existing `start_new=True` behavior replaces the named study. L2 uses the fixed validation grid with smaller C breaking ties, while the unpenalized statsmodels diagnostic starts Newton optimization from zero coefficients.

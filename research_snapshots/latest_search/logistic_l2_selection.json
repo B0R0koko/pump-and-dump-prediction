@@ -1,0 +1,50 @@
+{
+  "model": "Logistic regression L2 + Tuned",
+  "selected_parameters": {
+    "penalty": "l2",
+    "max_iter": 2000,
+    "verbose": false,
+    "solver": "liblinear",
+    "random_state": 42,
+    "class_weight": {
+      "0": 1,
+      "1": 72.54963897894919
+    },
+    "C": 4.641588833612772e-05,
+    "tol": 1e-08
+  },
+  "selection_metric": "Validation Top@k%AUC, normalized over 0\u201320% in 0.5% increments",
+  "c_grid": [
+    1e-06,
+    2.1544346900318822e-06,
+    4.641588833612782e-06,
+    9.999999999999999e-06,
+    2.1544346900318823e-05,
+    4.641588833612772e-05,
+    0.0001,
+    0.00021544346900318823,
+    0.00046415888336127773,
+    0.001,
+    0.002154434690031882,
+    0.004641588833612777,
+    0.01,
+    0.021544346900318822,
+    0.046415888336127725,
+    0.1,
+    0.21544346900318823,
+    0.46415888336127725,
+    1.0,
+    2.154434690031882,
+    4.641588833612772,
+    10.0,
+    21.54434690031882,
+    46.41588833612773,
+    100.0
+  ],
+  "selection_partition": "VALIDATION",
+  "fit_partition": "TRAIN",
+  "tie_break": "Smaller C",
+  "test_used_for_tuning": false,
+  "class_weights": "Fixed to the historical tuned L1 weights; not searched",
+  "exploratory": "Added after earlier test inspection; independent holdout confirmation needed"
+}
