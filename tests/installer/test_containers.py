@@ -56,7 +56,7 @@ def stages_for(arguments, tmp_path, progress=False):
     return cli._build_stages(args, list(cli.STAGE_KEYS), tmp_path, progress=progress)
 
 
-def test_pipeline_uses_public_images_and_image_manifests(tmp_path):
+def test_pipeline_uses_public_images_and_checkout_event_manifest(tmp_path):
     """The four pipeline stages map to exactly three requested DockerHub images.
 
     Both downloads must use pds-dataloader, while conversion and features use
@@ -79,6 +79,25 @@ def test_pipeline_uses_public_images_and_image_manifests(tmp_path):
     assert "/app/resources/btc_currencies.json" in stages[0].command
     assert "--start-date" not in stages[3].command
     assert len({stage.container_name for stage in stages}) == 4
+
+
+@pytest.mark.parametrize("configured", [False, True])
+def test_features_mount_checkout_manifest_without_overriding_custom_selection(tmp_path, configured):
+    """An older image must see this checkout's events while custom configs still win."""
+    config = tmp_path / "features.conf"
+    config.write_text('pumps-file="custom-pumps.json"')
+    arguments = ["--features-config", str(config)] if configured else []
+    stages = stages_for(arguments, tmp_path)
+    command = stages[-1].command
+    mounts = [next(csv.reader([command[i + 1]])) for i, value in enumerate(command) if value == "--mount"]
+    assert [
+        "type=bind", f"src={ROOT / 'resources/pumps.json'}",
+        "dst=/app/resources/pumps.json", "readonly",
+    ] in mounts
+    # Mounting the fallback must not force a CLI file over inline/custom config events.
+    assert "--pumps-file" not in command
+    if configured:
+        assert command[command.index(IMAGES["features"]) + 1:] == ["--config", "/config/features.conf"]
 
 
 @pytest.mark.parametrize("key", ["trades", "candles", "parquet", "features"])

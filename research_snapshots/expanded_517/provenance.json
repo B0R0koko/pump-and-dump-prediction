@@ -1,0 +1,10 @@
+{
+  "purpose": "Archived expanded event manifest; the default repository manifest is restored to 73ba716.",
+  "source_commit": "b036618f5ff54f9126cd83df384fc1bfd06ff47e",
+  "source_path": "resources/pumps.json",
+  "manifest_path": "research_snapshots/expanded_517/pumps.json",
+  "manifest_sha256": "2d16bdb8e780643b721c7ecb57ee5978459a9d8f247cf4c2f4ed6eace71b3ff4",
+  "events": 517,
+  "review_evidence_path": "resources/pump_event_evidence.json",
+  "review_exclusions_path": "resources/pump_event_exclusions.json"
+}

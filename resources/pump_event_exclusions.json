@@ -2083,5 +2083,7 @@
         "identity_evidence": "Three contemporaneous archived channels explicitly announce BQX (ETHOS) in the same target message; canonical and alias labels differ only one second."
       }
     }
-  ]
+  ],
+  "archived_manifest_path": "research_snapshots/expanded_517/pumps.json",
+  "archived_manifest_sha256": "2d16bdb8e780643b721c7ecb57ee5978459a9d8f247cf4c2f4ed6eace71b3ff4"
 }

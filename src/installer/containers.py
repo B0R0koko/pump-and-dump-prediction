@@ -2,8 +2,8 @@
 
 The host installer uses only the standard library. Scientific dependencies and
 the data commands themselves come from the published images, pulled on every
-stage invocation. Image resources are read inside /app, while all output is
-kept in the caller's mounted data directory.
+stage invocation. The feature stage mounts the checkout's event manifest over
+the image copy. All output is kept in the caller's mounted data directory.
 """
 
 import csv
@@ -40,6 +40,7 @@ def container_stage(
     data_dir: Path,
     config: Path | None = None,
     progress: bool = False,
+    pumps_manifest: Path | None = None,
 ) -> Stage:
     """Run a freshly pulled image as the caller with persistent host output."""
     name = f"pds-{key}-{os.getpid()}-{uuid4().hex[:12]}"
@@ -47,6 +48,11 @@ def container_stage(
     if hasattr(os, "getuid"):
         command.extend(["--user", f"{os.getuid()}:{os.getgid()}"])
     command.extend(["--mount", bind_mount(data_dir, "/data")])
+    if pumps_manifest is not None:
+        command.extend([
+            "--mount",
+            bind_mount(pumps_manifest, "/app/resources/pumps.json", readonly=True),
+        ])
     if config is not None:
         command.extend(["--mount", bind_mount(config.parent, "/config", readonly=True)])
         options = ["--config", f"/config/{config.name}", *options]

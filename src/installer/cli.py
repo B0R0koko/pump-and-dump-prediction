@@ -212,7 +212,11 @@ def _build_stages(
                 if args.skip_existing_features:
                     options.append("--skip-existing")
         stages.append(
-            container_stage(option.key, option.description, options, data_dir, config=config, progress=progress)
+            container_stage(
+                option.key, option.description, options, data_dir,
+                config=config, progress=progress,
+                pumps_manifest=get_root_dir() / "resources/pumps.json" if option.key == "features" else None,
+            )
         )
     return stages
 

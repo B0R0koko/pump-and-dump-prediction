@@ -12,6 +12,8 @@ Requires Python 3.13+ and Git. The installer TUI handles environment setup, down
 ./scripts/install.sh
 ```
 
+The default [event manifest](resources/pumps.json) contains exactly **498 announcements**, byte-for-byte identical to commit `73ba716dfe39be3f2da9b0ccd7d6663ff544b570`. Its [25 recorded exclusions](resources/dropped_pumps.json) leave the **473-event paper cohort**. The installer mounts this checkout's manifest into the feature container.
+
 Existing regenerated features can be reused. Data paths, Docker options, and commands are in the [reproduction guide](docs/reproduction.md).
 
 ## Research
