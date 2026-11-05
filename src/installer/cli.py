@@ -290,7 +290,9 @@ def _install(parser: argparse.ArgumentParser, args: argparse.Namespace, use_tui:
     if args.python is not None or args.no_update:
         parser.error("--python and --no-update apply only to Set up research environment or --setup-environment")
     _validate_selection(parser, args, selection)
-    stages = _build_stages(args, selection.stages, selection.data_dir, progress=use_tui)
+    # Both displays consume structured progress. In console mode, tqdm's
+    # carriage-return output otherwise stays buffered until the stage ends.
+    stages = _build_stages(args, selection.stages, selection.data_dir, progress=True)
     print(f"Data directory: {selection.data_dir}", flush=True)
     print(f"Archive dates: {dates}", flush=True)
     print(f"Selected stages: {', '.join(selection.stages)}", flush=True)

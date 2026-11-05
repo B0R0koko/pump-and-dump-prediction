@@ -24,6 +24,32 @@ from installer.runner import _StageOutput, monitor_stage
 ROOT = Path(__file__).resolve().parents[2]
 
 
+def test_console_install_requests_live_progress_from_every_container(tmp_path, monkeypatch):
+    """Console installs must request the same progress transport as the TUI.
+
+    Exercise the real CLI and stage construction, replacing only prerequisite
+    checks, configuration writes, and execution. Without the container env flag,
+    downloads emit carriage-return progress that the host buffers until exit.
+    """
+    captured = []
+    monkeypatch.setattr(cli, "get_root_dir", lambda: tmp_path)
+    monkeypatch.setattr(cli, "_validate_selection", lambda *args: None)
+    monkeypatch.setattr(cli, "_prepare_data_dir", lambda path: None)
+
+    def capture_stages(stages, root, environment, dry_run):
+        assert not dry_run
+        captured.extend(stages)
+        return 0
+
+    monkeypatch.setattr(cli, "_run_console", capture_stages)
+    assert cli.main(["--all", "--no-tui", "--data-dir", str(tmp_path)]) == 0
+    assert [stage.key for stage in captured] == list(cli.STAGE_KEYS)
+    for stage in captured:
+        assert stage.progress_stdout
+        index = stage.command.index("PUMPS_AND_DUMPS_PROGRESS_FD=1")
+        assert stage.command[index - 1] == "--env"
+
+
 def stages_for(arguments, tmp_path, progress=False):
     """Parse real host CLI arguments and return the four generated container stages."""
     args = cli._build_parser().parse_args(arguments)
