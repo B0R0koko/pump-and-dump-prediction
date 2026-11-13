@@ -48,9 +48,9 @@
     "fig:portfolio_test_impact",
     "fig:pnl_vs_quantity"
   ],
-  "source_sha256": "b6b0bc32f17aaa280698102894c59940fe9038f3a7b8696f620ec8fc664aea2a",
+  "source_sha256": "7a92d95376b4396c1ca134b4548409f35092ee7e4db603c3ea8bc0e276e12170",
   "pdf_sha256": {
-    "paper/access.pdf": "17d3e7a130730c8e5fcca805e4ac36e107dea56a61e987d2d5d91f441088ff70",
-    "paper/access_highlighted.pdf": "e7525053c00f3ed8fa7d8189d78bf9a0f7262e51a00cbc941b6014936d5d99df"
+    "paper/access.pdf": "309a20e988e6c2a5e2f3d33f5eb4b4cd07449ea5e24c528c98f3b8664d3c71f4",
+    "paper/access_highlighted.pdf": "c6e0abbc1b2a5bf98cad636d915802c8d432f13c7e66d8c4a9f419ceb9ef304f"
   }
 }

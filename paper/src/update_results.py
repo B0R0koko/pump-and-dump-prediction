@@ -201,9 +201,11 @@ Tables~\ref{table:results_topk} and~\ref{table:results_topkp} report target incl
 Fig.~\ref{fig:classification_metrics} reports PR-AUC, F1 and balanced accuracy. F1 and balanced accuracy use the Top@1-per-event rule, so these scores measure the identification of one target within each event rather than an arbitrary probability threshold.
 """, v))
     leader = classification["PR-AUC"].idxmax()
-    pieces.append(f"{NAMES[leader]} has the highest test PR-AUC (${classification.loc[leader, 'PR-AUC']:.4f}$). "
-                  f"{selected_name} has PR-AUC ${classification.loc[selected, 'PR-AUC']:.4f}$, "
-                  f"F1 ${classification.loc[selected, 'F1 (Top@1 per cross-section)']:.4f}$ and balanced accuracy "
+    if leader != selected:
+        pieces.append(f"{NAMES[leader]} has the highest test PR-AUC (${classification.loc[leader, 'PR-AUC']:.4f}$). ")
+    pr_auc_label = "the highest test PR-AUC" if leader == selected else "PR-AUC"
+    pieces.append(f"{selected_name} has {pr_auc_label} (${classification.loc[selected, 'PR-AUC']:.4f}$). "
+                  f"Its F1 is ${classification.loc[selected, 'F1 (Top@1 per cross-section)']:.4f}$ and balanced accuracy is "
                   f"${classification.loc[selected, 'Balanced Accuracy (Top@1 per cross-section)']:.4f}$.\n")
     pieces.append(figure("classification_metrics_test.png", "fig:classification_metrics", "Test classification metrics for the seven tuned candidates."))
     pieces.append(fill(r"""\subsection{SMOTE and Ranking Models}

@@ -75,6 +75,10 @@ def highlight_words(before, after):
     old_tokens, new_tokens = tex_tokens(before), tex_tokens(after)
     output = []
     matcher = SequenceMatcher(lambda token: token.isspace(), old_tokens, new_tokens, autojunk=False)
+    # Mark extensively rewritten passages as a whole. Fragmented color spans
+    # can disturb TeX hyphenation at their boundaries.
+    if matcher.ratio() < 0.25:
+        return blue(after)
     for tag, _, _, start, end in matcher.get_opcodes():
         fragment = "".join(new_tokens[start:end])
         output.append(blue(fragment) if tag in {"insert", "replace"} else fragment)
