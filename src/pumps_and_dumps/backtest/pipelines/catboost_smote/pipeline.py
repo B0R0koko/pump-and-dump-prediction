@@ -16,6 +16,9 @@ from pumps_and_dumps.backtest.pipelines.base_pipeline import (
 from pumps_and_dumps.backtest.pipelines.catboost_classifier.model import (
     CatboostClassifierModel,
 )
+from pumps_and_dumps.backtest.pipelines.catboost_classifier.pipeline import (
+    evaluate_classifier_trial,
+)
 from pumps_and_dumps.backtest.pipelines.study import create_study
 from pumps_and_dumps.backtest.pipelines.catboost_samples import add_catboost_pools
 from pumps_and_dumps.backtest.datasets.columns import (
@@ -23,8 +26,7 @@ from pumps_and_dumps.backtest.datasets.columns import (
     COL_IS_PUMPED,
     COL_PUMPED_CURRENCY_PAIR,
 )
-from pumps_and_dumps.backtest.metrics import calculate_topk_percent_auc
-from pumps_and_dumps.backtest.datasets.sample import DatasetType, Sample, Dataset
+from pumps_and_dumps.backtest.datasets.sample import DatasetType, Sample
 from pumps_and_dumps.core.utils import configure_logging
 
 _BASE_PARAMS: Dict[str, Any] = {
@@ -37,21 +39,7 @@ _BASE_PARAMS: Dict[str, Any] = {
 
 
 def _objective(trial: Trial, sample: Sample) -> float:
-    tuned_params: Dict[str, Any] = {
-        "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.2, log=True),
-        "colsample_bylevel": trial.suggest_float("colsample_bylevel", 0.7, 1),
-        "subsample": trial.suggest_float("subsample", 0.7, 1),
-        "max_depth": trial.suggest_int("max_depth", 2, 10),
-    }
-
-    model: CatboostClassifierModel = CatboostClassifierModel(
-        params=_BASE_PARAMS | tuned_params
-    )
-    model.train(sample=sample)
-
-    tuning: Dataset = sample.get_dataset(ds_type=DatasetType.TUNING)
-    topkpauc: float = calculate_topk_percent_auc(model=model, dataset=tuning)
-    return topkpauc
+    return evaluate_classifier_trial(trial, sample, _BASE_PARAMS)
 
 
 class CatboostClassifierSMOTEPipeline(BasePipeline):
@@ -63,10 +51,9 @@ class CatboostClassifierSMOTEPipeline(BasePipeline):
             df[COL_CURRENCY_PAIR] == df[COL_PUMPED_CURRENCY_PAIR]
         )  # attach binary target
         df_scaled: pd.DataFrame = cross_section_standardisation(df=df)
-        df_scaled = impute_training_features(
+        return impute_training_features(
             df=df_scaled, feature_set=self.feature_set
         )
-        return df_scaled
 
     def apply_smote(self, df: pd.DataFrame) -> pd.DataFrame:
         """

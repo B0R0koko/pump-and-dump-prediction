@@ -28,8 +28,7 @@ def aggregate_into_trades(df_ticks: pl.DataFrame) -> pl.DataFrame:
     )
     # A zero-net-side timestamp is neutral, not a buy. Counting it as long
     # biases the share-of-long-trades feature upward in mixed-fill groups.
-    df_trades = df_trades.with_columns(is_long=pl.col("quantity_sign") > 0)
-    return df_trades
+    return df_trades.with_columns(is_long=pl.col("quantity_sign") > 0)
 
 
 def parse_utc_time(value: str) -> datetime:
@@ -81,9 +80,10 @@ def parse_pumps(events: object) -> List[PumpEvent]:
                 f"{prefix}.time must use whole seconds; pump identifiers do not preserve fractional seconds"
             )
         pump = PumpEvent(CurrencyPair.from_string(symbol.upper()), pump_time, exchange)
-        if pump.as_pump_hash() in identities:
+        identity = pump.as_pump_hash()
+        if identity in identities:
             raise ValueError(f"{prefix} duplicates an event's output filename: {pump}")
-        identities.add(pump.as_pump_hash())
+        identities.add(identity)
         pump_events.append(pump)
     return pump_events
 

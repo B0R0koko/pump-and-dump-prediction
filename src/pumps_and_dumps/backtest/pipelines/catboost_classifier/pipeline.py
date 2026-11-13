@@ -25,22 +25,27 @@ _BASE_PARAMS: Dict[str, Any] = {
 }
 
 
-def _objective(trial: Trial, sample: Sample) -> float:
-    tuned_params: Dict[str, Any] = {
+def suggest_classifier_params(trial: Trial) -> Dict[str, Any]:
+    """Use the same search space for the classifier, SMOTE and early-stopping variants."""
+    return {
         "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.2, log=True),
         "colsample_bylevel": trial.suggest_float("colsample_bylevel", 0.7, 1),
         "subsample": trial.suggest_float("subsample", 0.7, 1),
         "max_depth": trial.suggest_int("max_depth", 2, 10),
     }
 
-    model: CatboostClassifierModel = CatboostClassifierModel(
-        params=_BASE_PARAMS | tuned_params
-    )
+
+def evaluate_classifier_trial(trial: Trial, sample: Sample, base_params: Dict[str, Any]) -> float:
+    """Fit and score a classifier trial using the calling pipeline's current defaults."""
+    model = CatboostClassifierModel(params=base_params | suggest_classifier_params(trial))
     model.train(sample=sample)
 
     tuning: Dataset = sample.get_dataset(ds_type=DatasetType.TUNING)
-    topkpauc: float = calculate_topk_percent_auc(model=model, dataset=tuning)
-    return topkpauc
+    return calculate_topk_percent_auc(model=model, dataset=tuning)
+
+
+def _objective(trial: Trial, sample: Sample) -> float:
+    return evaluate_classifier_trial(trial, sample, _BASE_PARAMS)
 
 
 class CatboostClassifierPipeline(BasePipeline):

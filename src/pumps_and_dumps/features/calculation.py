@@ -182,7 +182,7 @@ def compute_window_features(
     past_trades = trades.with_columns(pl.col(TRADE_TIME).cast(pl.Datetime("ns"))).filter(pl.col(TRADE_TIME) < cutoff)
     hourly_bars = anchored_hourly_bars(past_trades, cutoff, include_provenance=audit is not None)
     statistics = HourlyStatistics.from_bars(hourly_bars)
-    normalizer = _bar_dependency("hourly_normalizer", hourly_bars) if audit is not None else None
+    normalizer = _bar_dependency("hourly_normalizer", hourly_bars) if audit is not None else {}
     features = {}
     for window in windows:
         window_trades = past_trades.filter(pl.col(TRADE_TIME) >= cutoff - window.get_td())
@@ -208,20 +208,25 @@ def compute_window_features(
             if feature.lower() in values
         }
         features.update(window_features)
-        if audit is not None:
-            trade_input = _trade_dependency(window_trades)
-            return_inputs = _return_dependencies(window_trades, trade_input)
-            bar_input = _bar_dependency("hourly_window", window_bars)
-            for feature in window_features:
-                kind = feature.split("@", 1)[0]
-                inputs = return_inputs if kind == "asset_return" else [trade_input]
-                if kind in ("asset_return_zscore", "quote_abs_zscore"):
-                    if window.get_td() >= timedelta(hours=1):
-                        inputs = [bar_input, normalizer]
-                    else:
-                        numerator = return_inputs if kind == "asset_return_zscore" else [trade_input]
-                        inputs = [*numerator, normalizer]
-                audit(feature_provenance(feature, "predictor", cutoff - window.get_td(), cutoff, inputs))
+        if audit is None:
+            continue
+        trade_input = _trade_dependency(window_trades)
+        return_inputs = _return_dependencies(window_trades, trade_input)
+        if window.get_td() >= timedelta(hours=1):
+            return_zscore_inputs = quote_zscore_inputs = [
+                _bar_dependency("hourly_window", window_bars), normalizer
+            ]
+        else:
+            return_zscore_inputs = [*return_inputs, normalizer]
+            quote_zscore_inputs = [trade_input, normalizer]
+        dependencies = {
+            "asset_return": return_inputs,
+            "asset_return_zscore": return_zscore_inputs,
+            "quote_abs_zscore": quote_zscore_inputs,
+        }
+        for feature in window_features:
+            inputs = dependencies.get(feature.split("@", 1)[0], [trade_input])
+            audit(feature_provenance(feature, "predictor", cutoff - window.get_td(), cutoff, inputs))
     return features
 
 

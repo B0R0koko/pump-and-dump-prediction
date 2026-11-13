@@ -17,7 +17,7 @@ import polars as pl
 from tqdm import tqdm
 
 from pumps_and_dumps.core.cli_config import parse_config_args
-from pumps_and_dumps.core.columns import IS_BUYER_MAKER, TRADE_TIME
+from pumps_and_dumps.core.columns import IS_BUYER_MAKER
 from pumps_and_dumps.core.currency_pair import CurrencyPair
 from pumps_and_dumps.core.exchange import Exchange
 from pumps_and_dumps.core.feature_type import FeatureType
@@ -148,11 +148,9 @@ class PumpsFeatureWriter:
         return self._audit_log.path
 
     def _start_audit(self, event_count: int | None = None) -> None:
-        # Compatibility with lightweight test doubles that bypass __init__.
-        audit = getattr(self, "_audit_log", None)
-        if audit is None or self._audit_started:
+        if self._audit_started:
             return
-        audit.append(
+        self._audit_log.append(
             [
                 {
                     "record_type": "run_start",
@@ -167,13 +165,11 @@ class PumpsFeatureWriter:
             ]
         )
         self._audit_started = True
-        logging.getLogger(__name__).info("Feature timestamp audit log: %s", audit.path)
+        logging.getLogger(__name__).info("Feature timestamp audit log: %s", self._audit_log.path)
 
     def _append_audit(self, records: list[dict[str, Any]]) -> None:
-        audit = getattr(self, "_audit_log", None)
-        if audit is not None:
-            self._start_audit()
-            audit.append(records)
+        self._start_audit()
+        self._audit_log.append(records)
 
     @staticmethod
     def _event_context(pump_event: PumpEvent) -> dict[str, Any]:
@@ -208,42 +204,36 @@ class PumpsFeatureWriter:
         """Calculate separate predictor/target inputs and log their bounds once per asset."""
         cutoff = pump_event.time - DECISION_LAG
         self._start_audit()
-        audit = AssetInputAudit() if getattr(self, "_audit_log", None) is not None else None
-        callback = audit.observe if audit is not None else None
-        # The shared load contains both history and outcome rows. Only the
-        # past-only slice reaches predictor calculations and their normalizers.
-        predictor_trades = df.with_columns(pl.col(TRADE_TIME).cast(pl.Datetime("ns"))).filter(
-            pl.col(TRADE_TIME) < cutoff
-        )
-        features = compute_window_features(predictor_trades, cutoff, REGRESSOR_OFFSETS, audit=callback)
+        audit = AssetInputAudit()
+        # The calculation applies the past-only cutoff before computing predictors
+        # and normalizers; targets use their separate post-announcement windows.
+        features = compute_window_features(df, cutoff, REGRESSOR_OFFSETS, audit=audit.observe)
         count = self._num_prev_pumps(currency_pair, pump_event)
         features[FeatureType.NUM_PREV_PUMP.lower()] = count
-        if callback is not None:
-            known_pumps = self._pump_times_by_currency.get(currency_pair.name, [])[:count]
-            start = timestamp_ns(known_pumps[0]) if count else None
-            end = timestamp_ns(known_pumps[-1]) if count else None
-            callback(
-                feature_provenance(
-                    FeatureType.NUM_PREV_PUMP.lower(),
-                    "predictor",
-                    None,
-                    cutoff,
-                    [dependency("previous_pump_announcements", start, end, count)],
-                )
+        known_pumps = self._pump_times_by_currency.get(currency_pair.name, [])[:count]
+        start = timestamp_ns(known_pumps[0]) if count else None
+        end = timestamp_ns(known_pumps[-1]) if count else None
+        audit.observe(
+            feature_provenance(
+                FeatureType.NUM_PREV_PUMP.lower(),
+                "predictor",
+                None,
+                cutoff,
+                [dependency("previous_pump_announcements", start, end, count)],
             )
-        features.update(compute_targets(df, pump_event.time, DECAY_OFFSETS, audit=callback))
-        if audit is not None:
-            self._append_audit(
-                [
-                    {
-                        "record_type": "asset_inputs",
-                        **self._event_context(pump_event),
-                        "asset": currency_pair.name,
-                        "decision_cutoff": utc_timestamp(cutoff),
-                        **audit.summary(cutoff),
-                    }
-                ]
-            )
+        )
+        features.update(compute_targets(df, pump_event.time, DECAY_OFFSETS, audit=audit.observe))
+        self._append_audit(
+            [
+                {
+                    "record_type": "asset_inputs",
+                    **self._event_context(pump_event),
+                    "asset": currency_pair.name,
+                    "decision_cutoff": utc_timestamp(cutoff),
+                    **audit.summary(cutoff),
+                }
+            ]
+        )
         return features
 
     def _features_for_pair(
@@ -306,8 +296,7 @@ class PumpsFeatureWriter:
         return rows
 
     def _feature_path(self, pump_event: PumpEvent) -> Path:
-        root = getattr(self, "_feature_dir", FEATURE_DIR)
-        return root / "pumps" / f"{pump_event}.parquet"
+        return self._feature_dir / "pumps" / f"{pump_event}.parquet"
 
     def _write_cross_section(self, pump_event: PumpEvent, position: int = 0, skip_existing: bool = False) -> str:
         path = self._feature_path(pump_event)

@@ -176,6 +176,23 @@ def _validate_selection(
         raise ValueError("Docker is required. Install Docker and start its daemon before running the installer.")
 
 
+def _configured_options(args: argparse.Namespace, key: str) -> list[str]:
+    """Pass only explicit host overrides when the container reads a config file."""
+    options = []
+    if key == "features":
+        if args.feature_workers is not None:
+            options.extend(["--cpu-count", str(args.feature_workers)])
+        if args.skip_existing_features:
+            options.append("--skip-existing")
+        return options
+    for flag, value in (("--start", args.start_date), ("--end", args.end_date)):
+        if value is not None:
+            options.extend([flag, str(value)])
+    if key == "parquet" and args.hive_workers is not None:
+        options.extend(["--processes", str(args.hive_workers)])
+    return options
+
+
 def _build_stages(
     args: argparse.Namespace, selected: list[str], data_dir: Path, progress: bool = False
 ) -> list[Stage]:
@@ -198,19 +215,7 @@ def _build_stages(
             # The image's CLI reads config values. Only explicit host CLI flags
             # override them; installer defaults must not silently mask a config.
             config = config.expanduser().resolve()
-            options = []
-            if option.key != "features":
-                if args.start_date is not None:
-                    options.extend(["--start", str(args.start_date)])
-                if args.end_date is not None:
-                    options.extend(["--end", str(args.end_date)])
-            if option.key == "parquet" and args.hive_workers is not None:
-                options.extend(["--processes", str(args.hive_workers)])
-            if option.key == "features":
-                if args.feature_workers is not None:
-                    options.extend(["--cpu-count", str(args.feature_workers)])
-                if args.skip_existing_features:
-                    options.append("--skip-existing")
+            options = _configured_options(args, option.key)
         stages.append(
             container_stage(
                 option.key, option.description, options, data_dir,

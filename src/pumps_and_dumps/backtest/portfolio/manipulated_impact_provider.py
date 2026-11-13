@@ -1,4 +1,3 @@
-import logging
 from datetime import datetime, timedelta
 from typing import Callable, Dict, Optional, Tuple
 
@@ -10,6 +9,7 @@ from pumps_and_dumps.backtest.portfolio.price_impact import (
     trades_to_klines,
 )
 from pumps_and_dumps.backtest.portfolio.interfaces import QuoteToUSDTProvider
+from pumps_and_dumps.backtest.portfolio.impact_provider import quote_to_usdt_or_default
 from pumps_and_dumps.core.currency_pair import CurrencyPair
 from pumps_and_dumps.core.pump_event import PumpEvent
 from pumps_and_dumps.core.time_utils import Bounds
@@ -45,22 +45,6 @@ class ManipulatedImpactModelProvider:
         )
         self._cache: Dict[Tuple[str, datetime, datetime], PriceImpactModel] = {}
 
-    def _get_quote_to_usdt(self, currency_pair: CurrencyPair, ts: datetime) -> float:
-        if self._indicative_price_provider is None:
-            return 1.0
-        try:
-            return self._indicative_price_provider.get_quote_to_usdt_indicative_price(
-                quote_asset=currency_pair.term,
-                ts=ts,
-            )
-        except Exception:
-            logging.warning(
-                "Falling back to 1.0 quote-to-USDT rate for %s at %s (indicative price lookup failed)",
-                currency_pair.name,
-                ts,
-            )
-            return 1.0
-
     def get_impact_model(
         self,
         pump: PumpEvent,
@@ -94,8 +78,8 @@ class ManipulatedImpactModelProvider:
 
         trades = self._load_trades(bounds, currency_pair)
         klines = trades_to_klines(trades, freq="5s")
-        quote_to_usdt = self._get_quote_to_usdt(
-            currency_pair=currency_pair, ts=pump.time
+        quote_to_usdt = quote_to_usdt_or_default(
+            self._indicative_price_provider, currency_pair=currency_pair, ts=pump.time
         )
         model = fit_price_impact_model_from_klines(
             klines=klines,

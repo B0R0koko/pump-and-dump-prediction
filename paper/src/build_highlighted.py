@@ -87,11 +87,9 @@ def highlight_words(before, after):
 
 def normalized_lines(text):
     """Join multiline captions so they are compared as complete TeX groups."""
-    lines = text.splitlines()
+    lines = iter(text.splitlines())
     output = []
-    index = 0
-    while index < len(lines):
-        line = lines[index]
+    for line in lines:
         if line.lstrip().startswith(r"\caption{"):
             caption = re.sub(r"(?<!\\)%.*$", "", line).rstrip()
             start = caption.index("{")
@@ -100,14 +98,12 @@ def normalized_lines(text):
                     group_end(caption, start)
                     break
                 except ValueError:
-                    index += 1
-                    if index >= len(lines):
+                    addition = next(lines, None)
+                    if addition is None:
                         raise ValueError("Unclosed caption") from None
-                    addition = re.sub(r"(?<!\\)%.*$", "", lines[index]).strip()
-                    caption += " " + addition
+                    caption += " " + re.sub(r"(?<!\\)%.*$", "", addition).strip()
             line = caption
         output.append(line)
-        index += 1
     return output
 
 
@@ -202,43 +198,43 @@ def build_highlighted(before, after, *, audit=None, figure_hashes=None):
         if tag in {"insert", "replace"}:
             for index in range(c, d):
                 previous[index] = matching_line(after[index], before[a:b])
-        elif tag == "delete":
+        elif tag == "delete" and any(line.strip() and not line.lstrip().startswith("%") for line in before[a:b]):
             # Mark the next surviving visible text; table captions are handled below.
-            if any(line.strip() and not line.lstrip().startswith("%") for line in before[a:b]):
-                for index in range(c, len(after)):
-                    stripped = after[index].strip()
-                    if stripped and (not stripped.startswith("\\") or re.match(
-                            r"\\(?:section|subsection|subsubsection|caption|textbf|item)\b", stripped)):
-                        forced.add(index)
-                        break
+            for index in range(c, len(after)):
+                stripped = after[index].strip()
+                if stripped and (not stripped.startswith("\\") or re.match(
+                        r"\\(?:section|subsection|subsubsection|caption|textbf|item)\b", stripped)):
+                    forced.add(index)
+                    break
 
     old_tables = {block["label"]: block for block in floats(before) if block["kind"].startswith("table")}
     changed_tables = []
     changed_figures = []
     figure_lines = set()
     for block in floats(after):
+        indices = range(block["start"], block["end"] + 1)
         if block["kind"].startswith("table"):
             label = block["label"]
             old = old_tables.get(label)
-            if old is None or table_body(old) != table_body(block):
-                changed_tables.append(label)
-                for index in range(block["start"], block["end"] + 1):
-                    if after[index].lstrip().startswith(r"\caption{"):
-                        forced.add(index)
-                    if old is None and (" & " in after[index] or after[index].lstrip().startswith(r"\makecell")):
-                        previous[index] = ""
+            if old is not None and table_body(old) == table_body(block):
+                continue
+            changed_tables.append(label)
+            if old is None:
+                previous.update({index: "" for index in indices
+                                 if " & " in after[index] or after[index].lstrip().startswith(r"\makecell")})
         elif figure_hashes is not None:
-            changed = False
-            for index in range(block["start"], block["end"] + 1):
+            changed_images = set()
+            for index in indices:
                 match = re.match(r"\s*\\includegraphics(?:\[[^]]*\])?\{([^}]+)\}", after[index])
                 if match and image_digest(HERE / match.group(1)) not in figure_hashes:
-                    figure_lines.add(index)
-                    changed = True
-            if changed:
-                changed_figures.append(block["label"])
-                for index in range(block["start"], block["end"] + 1):
-                    if after[index].lstrip().startswith(r"\caption{"):
-                        forced.add(index)
+                    changed_images.add(index)
+            if not changed_images:
+                continue
+            figure_lines.update(changed_images)
+            changed_figures.append(block["label"])
+        else:
+            continue
+        forced.update(index for index in indices if after[index].lstrip().startswith(r"\caption{"))
     output = []
     in_document = in_equation = False
     marked_lines = []
@@ -286,7 +282,7 @@ if __name__ == "__main__":
     before = normalized_lines(BASELINE.read_text())
     after = normalized_lines((HERE / "access.tex").read_text())
     figure_hashes = set(provenance["image_sha256"].values())
-    audit = {}
+    audit: dict = {}
     (HERE / "access_highlighted.tex").write_text(build_highlighted(before, after, audit=audit, figure_hashes=figure_hashes))
     (HERE / "access_highlighted_changes.json").write_text(json.dumps(audit, indent=2) + "\n")
     print(f"Highlighted {len(audit['marked_lines'])} source lines, "

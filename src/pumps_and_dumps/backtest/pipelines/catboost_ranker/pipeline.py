@@ -46,8 +46,7 @@ def _objective(trial: Trial, sample: Sample) -> float:
     model.train(sample=sample)
 
     tuning: Dataset = sample.get_dataset(ds_type=DatasetType.TUNING)
-    topkpauc: float = calculate_topk_percent_auc(model=model, dataset=tuning)
-    return topkpauc
+    return calculate_topk_percent_auc(model=model, dataset=tuning)
 
 
 class CatboostRankerPipeline(BasePipeline):

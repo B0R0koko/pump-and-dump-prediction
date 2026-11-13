@@ -20,7 +20,7 @@ def summarize_quantity(
     pnls = [item.pnl for item in stats]
     roes = [pnl / quantity_usdt for pnl in pnls] if quantity_usdt > 0 else []
     overall_pnl = float(np.sum(pnls))
-    result = {
+    return {
         "quantity_usdt": quantity_usdt,
         "num_pumps": float(len(stats)),
         "overall_pnl": overall_pnl,
@@ -41,4 +41,3 @@ def summarize_quantity(
             [item.executed_notional_usdt for item in stats]
         ),
     }
-    return result

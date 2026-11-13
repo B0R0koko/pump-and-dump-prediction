@@ -87,9 +87,7 @@ def calculate_topk_percent(
 
         for pct_bin in bins_list:
             k: int = int(np.ceil(n_rows * pct_bin))
-            contains_pump: bool = (
-                bool(df_cross_section.iloc[:k][COL_IS_PUMPED].any()) if k > 0 else False
-            )
+            contains_pump: bool = bool(df_cross_section.iloc[:k][COL_IS_PUMPED].any())
             count_by_bins[pct_bin] += int(contains_pump)
 
     counts = np.array(list(count_by_bins.values()))

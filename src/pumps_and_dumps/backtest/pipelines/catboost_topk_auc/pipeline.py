@@ -11,6 +11,9 @@ from pumps_and_dumps.backtest.pipelines.base_pipeline import BasePipeline
 from pumps_and_dumps.backtest.pipelines.catboost_classifier.model import (
     CatboostClassifierModel,
 )
+from pumps_and_dumps.backtest.pipelines.catboost_classifier.pipeline import (
+    suggest_classifier_params,
+)
 from pumps_and_dumps.backtest.pipelines.study import create_study
 from pumps_and_dumps.backtest.pipelines.catboost_samples import add_catboost_pools
 from pumps_and_dumps.backtest.datasets.columns import COL_PUMP_HASH, COL_IS_PUMPED
@@ -126,7 +129,7 @@ def _precompute_groups(
     for g in range(n_groups):
         start = int(group_starts[g])
         end = int(group_starts[g + 1])
-        if end > start and bool(is_pumped_sorted[start:end].any()):
+        if is_pumped_sorted[start:end].any():
             num_cross_sections_with_pump += 1
     return sort_idx, is_pumped_sorted, group_starts, num_cross_sections_with_pump
 
@@ -158,7 +161,6 @@ class TOPKAUCMetric:
         self._train_labels: np.ndarray = df_train[COL_IS_PUMPED].to_numpy(
             dtype=np.bool_
         )
-        self._val_labels: np.ndarray = df_val[COL_IS_PUMPED].to_numpy(dtype=np.bool_)
 
     def is_max_optimal(self) -> bool:
         return True
@@ -177,9 +179,7 @@ class TOPKAUCMetric:
         if target is None:
             return self._val_ctx
         target_arr: np.ndarray = np.asarray(target, dtype=np.float64).astype(np.bool_)
-        if target_arr.shape[0] == self._train_labels.shape[0] and np.array_equal(
-            target_arr, self._train_labels
-        ):
+        if np.array_equal(target_arr, self._train_labels):
             return self._train_ctx
         return self._val_ctx
 
@@ -210,12 +210,7 @@ class TOPKAUCMetric:
 
 
 def _objective(trial: Trial, sample: Sample) -> float:
-    tuned_params: Dict[str, Any] = {
-        "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.2, log=True),
-        "colsample_bylevel": trial.suggest_float("colsample_bylevel", 0.7, 1),
-        "subsample": trial.suggest_float("subsample", 0.7, 1),
-        "max_depth": trial.suggest_int("max_depth", 2, 10),
-    }
+    tuned_params = suggest_classifier_params(trial)
     df_train: pd.DataFrame = sample.get_dataset(ds_type=DatasetType.TRAIN).all_data()
     df_tuning: pd.DataFrame = sample.get_dataset(ds_type=DatasetType.TUNING).all_data()
     # Add custom evaluation metric that maximizes Top@k%AUC
@@ -229,8 +224,7 @@ def _objective(trial: Trial, sample: Sample) -> float:
     model.train(sample=sample)
 
     tuning: Dataset = sample.get_dataset(ds_type=DatasetType.TUNING)
-    topkpauc: float = calculate_topk_percent_auc(model=model, dataset=tuning)
-    return topkpauc
+    return calculate_topk_percent_auc(model=model, dataset=tuning)
 
 
 class CatboostClassifierTOPKAUCPipeline(BasePipeline):

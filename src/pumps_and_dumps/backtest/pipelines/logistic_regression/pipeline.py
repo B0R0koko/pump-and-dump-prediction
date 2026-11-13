@@ -41,8 +41,7 @@ def _objective(trial: Trial, sample: Sample) -> float:
     model.train(sample=sample)
 
     tuning: Dataset = sample.get_dataset(ds_type=DatasetType.TUNING)
-    topkpauc: float = calculate_topk_percent_auc(model=model, dataset=tuning)
-    return topkpauc
+    return calculate_topk_percent_auc(model=model, dataset=tuning)
 
 
 class LogisticRegressionPipeline(BasePipeline):
@@ -51,8 +50,7 @@ class LogisticRegressionPipeline(BasePipeline):
         """Apply only transformations available without post-pump outcomes."""
         df = prepare_cross_section_features(df)
         df = impute_training_features(df=df, feature_set=self.feature_set)
-        df_scaled: pd.DataFrame = cross_section_standardisation(df=df)
-        return df_scaled
+        return cross_section_standardisation(df=df)
 
     @overrides
     def get_model_params(

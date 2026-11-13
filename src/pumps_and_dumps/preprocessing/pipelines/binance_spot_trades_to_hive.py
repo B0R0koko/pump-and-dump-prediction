@@ -67,9 +67,6 @@ class BinanceSpotTrades2Hive:
     def _partition_dir(self, currency_pair: CurrencyPair, day: date) -> Path:
         return HiveTradeStore(self.output_dir).partition_dir(currency_pair, day)
 
-    def _reset_partition(self, currency_pair: CurrencyPair, day: date) -> None:
-        self._batch_store.reset(currency_pair, day)
-
     def unzip_and_save_to_hive(self, currency_pair: CurrencyPair, day: date) -> None:
         with worker_progress(unit="rows", detail=f"{currency_pair.name} {day}") as progress:
             self._batch_store.replace_partition(

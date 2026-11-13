@@ -1,4 +1,7 @@
 from datetime import datetime, timedelta
+from functools import partial
+
+import pytest
 
 import numpy as np
 import polars as pl
@@ -13,19 +16,14 @@ from pumps_and_dumps.core.time_utils import NamedTimeDelta
 from pumps_and_dumps.features.writer import DECISION_LAG, PumpsFeatureWriter
 
 
-def _build_writer(pump_events: list[PumpEvent]) -> PumpsFeatureWriter:
-    writer = object.__new__(PumpsFeatureWriter)
-    writer._pump_events = pump_events
-    writer._pump_times_by_currency = {}
-    for pump_event in sorted(pump_events, key=lambda event: event.time):
-        writer.pump_times_by_currency.setdefault(
-            pump_event.currency_pair.name, []
-        ).append(pump_event.time)
-    return writer
+@pytest.fixture(name="build_writer")
+def fixture_build_writer(tmp_path):
+    """Create fully initialized writers with isolated audit logs."""
+    return partial(PumpsFeatureWriter, feature_dir=tmp_path)
 
 
-def test_preprocess_data_for_currency_aggregates_ticks_into_trades() -> None:
-    writer: PumpsFeatureWriter = _build_writer(pump_events=[])
+def test_preprocess_data_for_currency_aggregates_ticks_into_trades(build_writer) -> None:
+    writer: PumpsFeatureWriter = build_writer(pump_events=[])
     t1: datetime = datetime(2021, 1, 1, 8, 0, 0)
     t2: datetime = datetime(2021, 1, 1, 8, 1, 0)
 
@@ -65,7 +63,7 @@ def test_preprocess_data_for_currency_aggregates_ticks_into_trades() -> None:
     assert row1["trade_time_prev"] == t1
 
 
-def test_compute_features_matches_feature_definitions(monkeypatch) -> None:
+def test_compute_features_matches_feature_definitions(build_writer, monkeypatch) -> None:
     monkeypatch.setattr(
         feature_writer_module, "REGRESSOR_OFFSETS", [NamedTimeDelta.ONE_HOUR]
     )
@@ -84,7 +82,7 @@ def test_compute_features_matches_feature_definitions(monkeypatch) -> None:
         time=datetime(2021, 1, 1, 10, 15, 0),
         exchange=Exchange.BINANCE_SPOT,
     )
-    writer: PumpsFeatureWriter = _build_writer(
+    writer: PumpsFeatureWriter = build_writer(
         pump_events=[
             PumpEvent(
                 currency_pair=currency_pair,
@@ -228,20 +226,6 @@ def test_compute_features_matches_feature_definitions(monkeypatch) -> None:
     assert np.isclose(features["target_return@1MIN"], expected_target_return)
 
 
-def _calm_trade(ts: datetime) -> dict:
-    return {
-        TRADE_TIME: ts,
-        "price_first": 100.0,
-        "price_last": 100.0,
-        "price_last_prev": 100.0,
-        "quote_abs": 1000.0,
-        "quote_sign": 500.0,
-        "quote_slippage_abs": 1.0,
-        "quote_slippage_sign": 1.0,
-        "is_long": True,
-    }
-
-
 def _explosive_trade(
     ts: datetime, price: float, prev_price: float, quote_abs: float
 ) -> dict:
@@ -256,47 +240,6 @@ def _explosive_trade(
         "quote_slippage_sign": quote_abs / 100.0,
         "is_long": True,
     }
-
-
-def _build_pre_pump_calm_trades(pump_time: datetime) -> pl.DataFrame:
-    """Three calm pre-``rb`` hours of trades at price 100 and volume 1000.
-
-    Each hour bucket contains four evenly spaced trades. Trades are anchored on
-    natural hour boundaries relative to the pump minute so the resulting hourly
-    aggregates cover the full pre-``rb`` window regardless of the exact minute
-    of the pump.
-    """
-    rows: list[dict] = []
-    hour_floor: datetime = pump_time.replace(minute=0, second=0, microsecond=0)
-    for offset_hours in (-3, -2, -1):
-        base: datetime = hour_floor + timedelta(hours=offset_hours)
-        for minute in (0, 15, 30, 45):
-            rows.append(_calm_trade(base + timedelta(minutes=minute)))
-    return pl.DataFrame(rows)
-
-
-def _build_extreme_post_pump_trades(pump_time: datetime) -> pl.DataFrame:
-    """Massive-price, massive-volume trades placed strictly after the pump.
-
-    Any leak of these bars into the z-score normalisers would blow up
-    ``asset_return_std`` and ``quote_abs_std`` by several orders of magnitude.
-    """
-    return pl.DataFrame(
-        [
-            _explosive_trade(
-                pump_time + timedelta(minutes=5),
-                price=500.0,
-                prev_price=100.0,
-                quote_abs=1e7,
-            ),
-            _explosive_trade(
-                pump_time + timedelta(minutes=30),
-                price=800.0,
-                prev_price=500.0,
-                quote_abs=5e7,
-            ),
-        ]
-    )
 
 
 def _assert_features_equal(a: dict, b: dict, keys: list[str], where: str) -> None:
@@ -504,7 +447,7 @@ def test_newest_rb_anchored_bar_ends_exactly_at_rb() -> None:
         )
 
 
-def test_no_feature_can_see_post_rb_trades(monkeypatch) -> None:
+def test_no_feature_can_see_post_rb_trades(build_writer, monkeypatch) -> None:
     """No feature — z-score OR in-window — must react to trades placed in
     ``[rb, T]`` or after ``T``. Under the rb-anchored geometry the newest bar
     ends exactly at ``rb``, so this must hold across arbitrary pump minutes.
@@ -527,7 +470,7 @@ def test_no_feature_can_see_post_rb_trades(monkeypatch) -> None:
         pump_event: PumpEvent = PumpEvent(
             currency_pair=currency_pair, time=pump_time, exchange=Exchange.BINANCE_SPOT
         )
-        writer: PumpsFeatureWriter = _build_writer(pump_events=[pump_event])
+        writer: PumpsFeatureWriter = build_writer(pump_events=[pump_event])
 
         df_pre: pl.DataFrame = _build_rich_pre_rb_trades(pump_time=pump_time)
         df_post: pl.DataFrame = _build_post_rb_extreme_trades(pump_time=pump_time)
@@ -562,7 +505,7 @@ def test_no_feature_can_see_post_rb_trades(monkeypatch) -> None:
         )
 
 
-def test_leak_test_fails_against_calendar_anchored_reference(monkeypatch) -> None:
+def test_leak_test_fails_against_calendar_anchored_reference(build_writer, monkeypatch) -> None:
     """Verify the fixture is strong enough that a deliberately mis-anchored
     implementation (calendar hour bars + naive ``label < rb``) produces
     different values on the same synthetic data. If this ever stops failing,
@@ -587,7 +530,7 @@ def test_leak_test_fails_against_calendar_anchored_reference(monkeypatch) -> Non
     pump_event: PumpEvent = PumpEvent(
         currency_pair=currency_pair, time=pump_time, exchange=Exchange.BINANCE_SPOT
     )
-    writer: PumpsFeatureWriter = _build_writer(pump_events=[pump_event])
+    writer: PumpsFeatureWriter = build_writer(pump_events=[pump_event])
 
     df_pre: pl.DataFrame = _build_rich_pre_rb_trades(pump_time=pump_time)
     df_post: pl.DataFrame = _build_post_rb_extreme_trades(pump_time=pump_time)
@@ -626,7 +569,7 @@ def test_leak_test_fails_against_calendar_anchored_reference(monkeypatch) -> Non
     )
 
 
-def test_short_offset_zscores_non_nan_on_synthetic_data(monkeypatch) -> None:
+def test_short_offset_zscores_non_nan_on_synthetic_data(build_writer, monkeypatch) -> None:
     """Short-offset z-scores must be finite and retain window-specific values.
 
     A previous implementation silently reused the same hourly numerator for
@@ -651,7 +594,7 @@ def test_short_offset_zscores_non_nan_on_synthetic_data(monkeypatch) -> None:
         time=datetime(2021, 6, 1, 12, 20, 0),  # awkward mid-hour rb
         exchange=Exchange.BINANCE_SPOT,
     )
-    writer: PumpsFeatureWriter = _build_writer(pump_events=[pump_event])
+    writer: PumpsFeatureWriter = build_writer(pump_events=[pump_event])
 
     df: pl.DataFrame = _build_rich_pre_rb_trades(pump_time=pump_event.time)
     features = writer.compute_features(
@@ -687,9 +630,9 @@ def test_short_offset_zscores_non_nan_on_synthetic_data(monkeypatch) -> None:
         )
 
 
-def test_universe_eligibility_is_exactly_past_only() -> None:
+def test_universe_eligibility_is_exactly_past_only(build_writer) -> None:
     rb = datetime(2021, 6, 1, 12, 0)
-    writer: PumpsFeatureWriter = _build_writer(pump_events=[])
+    writer: PumpsFeatureWriter = build_writer(pump_events=[])
 
     future_only = pl.DataFrame({TRADE_TIME: [rb, rb + timedelta(seconds=1)]})
     stale_only = pl.DataFrame({TRADE_TIME: [rb - timedelta(days=1)]})
@@ -700,7 +643,7 @@ def test_universe_eligibility_is_exactly_past_only() -> None:
     assert writer.has_pre_decision_activity(df_ticks=eligible, rb=rb)
 
 
-def test_in_window_features_do_not_see_decision_lag_gap(monkeypatch) -> None:
+def test_in_window_features_do_not_see_decision_lag_gap(build_writer, monkeypatch) -> None:
     """The forbidden interval ``[T - DECISION_LAG, T]`` must never leak into any
     in-window feature (return, flow imbalance, slippage, powerlaw alpha, share
     of long trades, num_trades). Placing extreme trades inside that gap must
@@ -722,7 +665,7 @@ def test_in_window_features_do_not_see_decision_lag_gap(monkeypatch) -> None:
         time=datetime(2021, 6, 1, 12, 15, 0),
         exchange=Exchange.BINANCE_SPOT,
     )
-    writer: PumpsFeatureWriter = _build_writer(pump_events=[pump_event])
+    writer: PumpsFeatureWriter = build_writer(pump_events=[pump_event])
 
     df_pre: pl.DataFrame = _build_rich_pre_rb_trades(pump_time=pump_event.time)
     gap_trades: pl.DataFrame = pl.DataFrame(

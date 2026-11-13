@@ -20,6 +20,23 @@ from pumps_and_dumps.core.time_utils import Bounds
 LoadTradesFn = Callable[[Bounds, CurrencyPair], pd.DataFrame]
 
 
+def quote_to_usdt_or_default(
+    provider: QuoteToUSDTProvider | None, currency_pair: CurrencyPair, ts: datetime
+) -> float:
+    """Share the impact providers' logged fallback when conversion is unavailable."""
+    if provider is None:
+        return 1.0
+    try:
+        return provider.get_quote_to_usdt_indicative_price(quote_asset=currency_pair.term, ts=ts)
+    except Exception:
+        logging.warning(
+            "Falling back to 1.0 quote-to-USDT rate for %s at %s (indicative price lookup failed)",
+            currency_pair.name,
+            ts,
+        )
+        return 1.0
+
+
 class LookbackImpactModelProvider(ImpactModelProvider):
     """
     Cache and provide impact models fit on a fixed lookback per asset/pump.
@@ -41,22 +58,6 @@ class LookbackImpactModelProvider(ImpactModelProvider):
             indicative_price_provider
         )
         self._cache: Dict[Tuple[str, datetime], PriceImpactModel] = {}
-
-    def _get_quote_to_usdt(self, currency_pair: CurrencyPair, ts: datetime) -> float:
-        if self._indicative_price_provider is None:
-            return 1.0
-        try:
-            return self._indicative_price_provider.get_quote_to_usdt_indicative_price(
-                quote_asset=currency_pair.term,
-                ts=ts,
-            )
-        except Exception:
-            logging.warning(
-                "Falling back to 1.0 quote-to-USDT rate for %s at %s (indicative price lookup failed)",
-                currency_pair.name,
-                ts,
-            )
-            return 1.0
 
     def get_impact_model(
         self,
@@ -91,8 +92,8 @@ class LookbackImpactModelProvider(ImpactModelProvider):
 
         trades = self._load_trades(bounds, currency_pair)
         klines = trades_to_klines(trades, freq="5min")
-        quote_to_usdt = self._get_quote_to_usdt(
-            currency_pair=currency_pair, ts=effective_end
+        quote_to_usdt = quote_to_usdt_or_default(
+            self._indicative_price_provider, currency_pair=currency_pair, ts=effective_end
         )
         model = fit_price_impact_model_from_klines(
             klines=klines,

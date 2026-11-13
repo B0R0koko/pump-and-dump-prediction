@@ -95,13 +95,12 @@ def test_all_null_regressor_stays_numeric_after_storage(tmp_path):
 
 
 def test_resume_regenerates_old_schema_and_skips_only_current_files(tmp_path, monkeypatch):
-    monkeypatch.setattr(writer_module, "FEATURE_DIR", tmp_path)
     path = tmp_path / "pumps" / f"{_event()}.parquet"
     path.parent.mkdir()
     old_table = _frame().to_arrow().replace_schema_metadata({FEATURE_SCHEMA_METADATA_KEY: b"2"})
     pq.write_table(old_table, path)
     assert not is_current_feature_file(path)
-    writer = object.__new__(writer_module.PumpsFeatureWriter)
+    writer = writer_module.PumpsFeatureWriter([_event()], feature_dir=tmp_path)
     calls = []
 
     def create(**kwargs):
@@ -116,10 +115,9 @@ def test_resume_regenerates_old_schema_and_skips_only_current_files(tmp_path, mo
 
 
 def test_regeneration_removes_cached_events_that_are_no_longer_eligible(tmp_path, monkeypatch):
-    monkeypatch.setattr(writer_module, "FEATURE_DIR", tmp_path)
     path = tmp_path / "pumps" / f"{_event()}.parquet"
     write_feature_file(_frame(), path)
-    writer = object.__new__(writer_module.PumpsFeatureWriter)
+    writer = writer_module.PumpsFeatureWriter([_event()], feature_dir=tmp_path)
     monkeypatch.setattr(writer, "create_cross_section", lambda **kwargs: None)
     writer._write_cross_section(_event())
     assert not path.exists()
