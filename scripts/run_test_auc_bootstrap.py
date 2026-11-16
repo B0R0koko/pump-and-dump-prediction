@@ -16,6 +16,7 @@ def main():
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--full", action="store_true", help="Run the full notebook, including portfolios and robustness")
     mode.add_argument("--portfolio", action="store_true", help="Run the 1,000 USDT slippage notebook after --full")
+    mode.add_argument("--selected-analysis", action="store_true", help="Refresh selected-model importance and training-subset analyses from the saved full fit")
     args = parser.parse_args()
     if args.threads < 1:
         parser.error("--threads must be positive")
@@ -45,6 +46,49 @@ def main():
         print(f"Completed: {output}")
         return
     source = nbformat.read(root / "notebooks/research_notebook.ipynb", as_version=4)
+    if args.selected_analysis:
+        output = root / "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run"
+        target = output / "selected_model_analysis.executed.ipynb"
+        ids = {"6a169404-1d80-470a-bf19-4c5e13b55c02", "6c7a6c584c738169",
+               "c04bbf2c", "cd1b2c08", "fi-boot-summary", "fi-boot-hist", "fi-boot-latex"}
+        restore = nbformat.v4.new_code_cell('''
+import hashlib
+import pickle
+from backtest.utils.experiment import Experiment
+from backtest.pipelines.CatboostClassifier.pipe import CatboostClassifierPipeline
+
+validation = pd.read_csv(TABLES / "validation_metrics.csv", index_col=0)
+winner = validation["Top@k%AUC"].idxmax()
+assert winner == "CatBoost classifier + Tuned", winner
+manifest = json.loads((OUTPUT_DIR / "models/manifest.json").read_text())
+record = manifest[winner]
+checkpoint = OUTPUT_DIR / "models" / record["file"]
+assert hashlib.sha256(checkpoint.read_bytes()).hexdigest() == record["sha256"]
+with checkpoint.open("rb") as handle:
+    saved_model = pickle.load(handle)
+selected_experiment = Experiment(winner, saved_model, CatboostClassifierPipeline().create_sample())
+print(f"Using saved validation winner: {winner}")
+''')
+        notebook = nbformat.v4.new_notebook(
+            cells=[source.cells[0], restore] + [c for c in source.cells if c.id in ids],
+            metadata=source.metadata,
+        )
+
+        def selected_progress(cell, cell_index, **kwargs):
+            nbformat.write(notebook, target)
+            print(f"Executing selected-model cell {cell_index + 1}/{len(notebook.cells)}: {cell.id}", flush=True)
+
+        try:
+            NotebookClient(notebook, timeout=3600, kernel_name="python3",
+                           resources={"metadata": {"path": str(root)}},
+                           on_cell_start=selected_progress).execute()
+        finally:
+            nbformat.write(notebook, target)
+        executed = {cell.id: cell for cell in notebook.cells if cell.id in ids}
+        source.cells = [executed.get(cell.id, cell) for cell in source.cells]
+        nbformat.write(source, root / "notebooks/research_notebook.ipynb")
+        print(f"Completed and refreshed source notebook outputs: {target}")
+        return
     output = root / "notebooks/analysis_outputs/paper_cohort_473_l2/test_auc_bootstrap"
     output.mkdir(parents=True, exist_ok=True)
     cells = [c for c in source.cells if "test-auc-setup" in c.metadata.get("tags", [])]

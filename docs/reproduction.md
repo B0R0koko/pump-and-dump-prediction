@@ -141,6 +141,15 @@ Launch `jupyter lab notebooks/research_notebook.ipynb` from the repository root 
 
 The bootstrap scores each fitted model once, then resamples 80 whole test events with replacement 10,000 times (seed 42), using identical draws for every model. It integrates Top@k% from 0 to 20% in 0.5% increments and normalises by 0.2. Repeated events retain their multiplicity. Outputs include `auc_distributions.csv`, `auc_summary.csv`, `auc_pairwise.csv`, `event_aucs.csv`, `resampled_events.npz` (indices into the saved event-ID array), `test_predictions.parquet`, `validation_auc.csv`, `metadata.json`, and PNG/SVG plots. Pointwise percentile intervals describe fixed-model sampling uncertainty; two-sided centred bootstrap tests use an add-one correction and Holm adjustment across all 21 pairs. Events are assumed independent. The test has been inspected previously, so this comparison remains exploratory. Metadata records the validation winner and the primary model; these are the same fitted candidate. The `--full` option additionally runs all notebook analyses and exports tables, figures, feature-file hashes, partition manifests and package versions under `analysis_outputs/paper_cohort_473_l2/paper_run/`. It uses the existing regenerated features without recomputing them. The L2 logistic model shares the L1 preprocessing and historical tuned class weights. Its C is selected from 25 logarithmically spaced values from 1e-6 to 1e2 using validation Top@k%AUC only, with smaller C breaking ties. The search uses liblinear, tol=1e-8 and max_iter=2000; a convergence warning fails the search. For training-subset robustness, the selected L2 C and class weights stay fixed while the logistic preprocessing and model are refitted on each subset; the historical L1 study is not reloaded. The validation path, selected parameters, and coefficients are exported as `logistic_l2_*` under `paper_run/tables/`. The original 12-model run remains in `analysis_outputs/paper_0167ddd_473/`; the current seven-model comparison uses `paper_cohort_473_l2/`. Restoring event membership does not claim that feature values or results are bit-for-bit identical to the historical run; the hashes identify the inputs used now.
 
+In the retained fixed-seed notebook, **tuned CatBoost** (validation Top@k%AUC 0.6529) supplies full-training feature importance, PnL curves and 25 training-subset fits. These archived outputs are separate from the 100-seed manuscript results described below. To refresh importance and subset results from the saved full-training checkpoint, run:
+
+```bash
+.venv/bin/python scripts/run_test_auc_bootstrap.py --selected-analysis
+.venv/bin/python scripts/audit_notebook_results.py
+```
+
+The first command updates the relevant executed outputs in the primary notebook and saves `paper_run/selected_model_analysis.executed.ipynb`. Full-training importances and model provenance are in `paper_run/tables/selected_model_*`; subset metrics, importances and provenance are in `paper_run/robustness/selected_model_*`. The audit verifies that importance and portfolio predictions use the same validation winner and replays every portfolio size with and without the 1,000 USDT price-impact assumption.
+
 ### Repeating tuning and training
 
 The repository's [studies.db](../studies.db) contains only the latest saved search for each of the six Optuna-tuned models used by the current notebook: **600 completed trials in six studies**. Three unused experimental model studies are excluded. The selected parameters match the completed notebook run exactly. The searches ran on October 11, 2026; the November 5 rerun reused their best parameters. The latest 25-point L2 validation grid is saved separately because that search does not use Optuna. [Snapshot contents and checksums](../research_snapshots/latest_search/README.md).
@@ -191,7 +200,55 @@ Outputs go under `notebooks/analysis_outputs/split_60_10_20_10_v1/deterministic_
 
 Bootstrap inference uses the same event draws across fixed models, with 10,000 replicates and seed 42. Holm correction covers 21 validation AUC comparisons and all 84 test pair/metric hypotheses. Precision, recall and F1 coincide under Top@1 but remain in that family. [Results and inference limits](results_refactored_19063b5.md#statistical-significance) describe the findings.
 
-The alternative refactored notebook's portfolios use its validation-selected model. The primary historical notebook selects its portfolio model automatically using validation Top@k%AUC. The current winner is CatBoost + Top@k%AUC early stopping. It first fits a standalone untuned statsmodels Logit diagnostic and prints `summary2()` with pump-event clustered standard errors before any plots or other models. This diagnostic fit is excluded from all validation/test comparisons and the 21-pair bootstrap; the validation-selected CatBoost model is the primary predictor. Additional centering/scaling uses training rows only. The model implementation lives in `src/pumps_and_dumps/backtest/pipelines/logistic_regression/statsmodels.py`; summary formatting and exports stay in the notebook. Both portfolio workflows use equal weights. Missing fills retain their cash allocation. Entry is the first trade in `[T−15min, T)`; other assets exit at or after T, and the manipulated asset at or after T+1min. Returns use fixed event notional, USDT conversion and 25 bp round-trip costs. Impact fits use only data strictly before the transaction being priced; the separate size sweep uses `I_vwap(Q) = (2/3) × β × sqrt(Q)`.
+The alternative refactored notebook's portfolios use its validation-selected model. The primary historical notebook selects its portfolio model automatically using validation Top@k%AUC. That retained fixed-seed run selects tuned CatBoost. It first fits a standalone untuned statsmodels Logit diagnostic and prints `summary2()` with pump-event clustered standard errors before any plots or other models. This diagnostic fit is excluded from all validation/test comparisons and the 21-pair bootstrap; the validation-selected CatBoost model is the primary predictor. Additional centering/scaling uses training rows only. The model implementation lives in `src/pumps_and_dumps/backtest/pipelines/logistic_regression/statsmodels.py`; summary formatting and exports stay in the notebook. Both portfolio workflows use equal weights. Missing fills retain their cash allocation. Entry is the first trade in `[T−15min, T)`; other assets exit at or after T, and the manipulated asset at or after T+1min. Returns use fixed event notional, USDT conversion and 25 bp round-trip costs. Impact fits use only data strictly before the transaction being priced; the separate size sweep uses `I_vwap(Q) = (2/3) × β × sqrt(Q)`.
+
+## Validation model selection across 100 seeds
+
+The [seed-sweep notebook](../notebooks/validation_seed_sweep.ipynb) compares the six paper models across seeds **1–100**, with **25 fresh Optuna TPE trials per model and seed**. This means 600 studies, 15,000 search trials and 600 final fits. Logistic regression remains one L1 model. The study databases are isolated from the root `studies.db`. The default worker count uses every available logical CPU (32 on the current 16-core machine), while each model and study uses one thread to avoid nested oversubscription.
+
+The historical 290/103/80 event split remains fixed. Within the 290 training events, a chronological cut at March 18, 2020, 19:00 UTC gives **232 inner-training and 58 inner-tuning events**, keeping simultaneous events together. Hyperparameter search and early stopping use only these two partitions. Imputation priors use the corresponding training partition. After each search, the selected parameters are fitted on all 290 training events. CatBoost's tree count is fixed at the best inner trial's fitted count; the final fit has no validation `eval_set`. Its score is then measured on the 103 outer-validation events. Test feature files are never loaded.
+
+```bash
+# Complete experiment, with one independent worker per available logical CPU:
+MPLBACKEND=Agg .venv/bin/python -m research_snapshots.seed_sweep run --workers all --start-seed 1
+
+# Inspect progress without starting new fits:
+.venv/bin/python -m research_snapshots.seed_sweep summarize --workers all
+
+# Optional timing pilot: one full 25-trial study per model.
+MPLBACKEND=Agg .venv/bin/python -m research_snapshots.seed_sweep run \
+  --seeds 1 --start-seed 42 --trials 25 --workers 6 \
+  --output notebooks/analysis_outputs/seed_sweep_timing_pilot
+.venv/bin/python -m research_snapshots.seed_sweep estimate --workers all \
+  --output notebooks/analysis_outputs/seed_sweep_timing_pilot
+```
+
+Outputs are in `notebooks/analysis_outputs/validation_seed_sweep_100x25/`. Each `studies/<model>/seed_<seed>/` stores its database, trials, fitted model, validation predictions, parameters and timings. `config.json`, `events.csv` and `data.json` identify the protocol, software versions and inputs. `runner_snapshot.py` preserves the runner. Completed studies are reused after checksum verification. Interrupted studies are archived and restarted from their original seed; the sampler is not resumed from a partially completed search with a fresh random state.
+
+Completed-result markers are written atomically and synced to disk after the model, predictions, trial export and database. The seed-range change from 0–99 to 1–100 retains compatible completed studies, including the timing pilot, only after input, software, fitting-code and artifact checks. Each imported study keeps its original result and configuration under `origin/`; `imports/` records the migration. Seed 0 and interrupted studies remain in the archived experiment and do not enter the current comparison.
+
+After all 600 studies complete, `model_distributions.csv` reports means, standard deviations, medians, quantiles and win fractions. The winner has the highest **mean validation Top@k%AUC**, with lower standard deviation and then model key breaking exact ties. `selection.json` records that choice; `selected_model.pickle` is the winning family's **preselected seed 42** fit, rather than its luckiest seed. The paired-seed difference intervals describe tuning/training randomness on this fixed event sample, not uncertainty over future events. The experiment does not update the paper or replace its completed results while studies are still running.
+
+## Test evaluation of the 100 saved seed configurations
+
+The [test seed-sweep notebook](../notebooks/test_seed_sweep.ipynb) evaluates the same six models and seeds **1–100** on the **80 test events**. It repeats each final fit on the same **290 training events**, using that seed's saved parameters and fixed CatBoost tree count. It runs no new search and does not add validation events to training. Each fit must reproduce every saved prediction on the 103 validation events exactly before test evaluation. Test preprocessing uses training-only fallback imputation; test data never control training, early stopping or selection.
+
+```bash
+# Refit and evaluate all 600 configurations using every available logical CPU:
+MPLBACKEND=Agg .venv/bin/python -m research_snapshots.test_seed_sweep run --workers all
+
+# Inspect progress and regenerate completed summary tables:
+.venv/bin/python -m research_snapshots.test_seed_sweep summarize
+
+# After completion, independently replay predictions and reported metrics:
+OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+  POLARS_MAX_THREADS=1 PUMPS_AND_DUMPS_MODEL_THREADS=1 \
+  .venv/bin/python scripts/audit_test_seed_sweep.py
+```
+
+Outputs are saved under `notebooks/analysis_outputs/test_seed_sweep_100x25/`. The `100x25` name identifies the source searches; this evaluation performs zero new trials. Every `fits/<model>/seed_<seed>/` contains the fitted model, validation and test predictions, parameters, scores, timings and checksums. Completed fits are verified and reused; interrupted fits are archived before retrying. The configuration pins all source results, the validation selection, test inputs, code and software versions. The source studies and root `studies.db` are preserved.
+
+`test_auc_by_seed.csv`, `model_distributions.csv`, `paired_seed_differences.csv` and `test_seed_distributions.png` report the test distributions using the same normalized Top@k%AUC definition (0–20%, 0.5 percentage-point steps). `validation_test_comparison.csv` puts the two samples' means and standard deviations side by side. The model family remains the validation-selected **CatBoost**, with the preselected **seed 42**; test rankings do not change that choice. Quantiles and paired-seed intervals describe tuning/training randomness on these fixed test events, not event-bootstrap uncertainty. The audit reloads both the source checkpoints and the new fits, compares every test prediction, independently reconstructs all 600 AUC scores and all 15 paired-seed intervals, and saves its report to `docs/test_seed_sweep_results.json`.
 
 ## Build the paper
 
@@ -200,6 +257,7 @@ With `just` and a LaTeX installation available:
 ```bash
 just paper
 just paper-highlighted
+just paper-check-layout
 ```
 
 Builds write to `paper/src/`. To refresh the shareable copies after checking the build:
@@ -207,25 +265,33 @@ Builds write to `paper/src/`. To refresh the shareable copies after checking the
 ```bash
 cp paper/src/access.pdf paper/access.pdf
 cp paper/src/access_highlighted.pdf paper/access_highlighted.pdf
+.venv/bin/python scripts/verify_manuscript_pdfs.py
 ```
 
-Sources are in `paper/src/`, figures in `paper/src/images/`, and the IEEE Access class/fonts in `paper/styles/`. All manuscript model results, resampling and portfolios come from the current full notebook execution. The previous submitted PDF is used only for highlighting. The exact baseline is `paper/baselines/ieee_final_submission/submitted.pdf` (SHA-256 `0c3b40e93a729f8840ed8f62e714e827981703acf29cee6082f59fb1451ad361`), matching `IEEE_Final_submission (2).pdf`. `paper/src/build_highlighted.py` uses its reconstructed source and extracted images to mark changed text, tables and figures. Historical submissions remain archived for provenance.
+The manuscript updater applies `paper/src/layout.py` to keep figures near their discussion. `paper/src/compact_figures.py` redraws the result plots from the audited numeric exports at their printed column width, with readable labels and compact legends; it records input/output hashes in `notebooks/analysis_outputs/seed_sweep_paper_compact/provenance.json`. Multi-panel and portfolio figures retain the full text width. After both PDFs are built, `just paper-check-layout` checks the compiled page labels: each figure must appear on its first-reference page or the following page. It records the page pairs and document hashes in `docs/manuscript_layout_audit.json`. `scripts/verify_manuscript_pdfs.py` also enforces the 20-page limit for both PDFs.
 
-Run the analysis and refresh manuscript results in this order:
+Sources are in `paper/src/`, figures in `paper/src/images/`, and the IEEE Access class/fonts in `paper/styles/`. The manuscript uses the completed 100-seed validation and test sweeps. Family selection uses mean validation AUC; seed 42 is fixed in advance for point metrics, event resampling and portfolios. The exact highlighting baseline is `paper/baselines/ieee_final_submission/submitted.pdf` (SHA-256 `0c3b40e93a729f8840ed8f62e714e827981703acf29cee6082f59fb1451ad361`), matching `IEEE_Final_submission (2).pdf`.
+
+After both seed sweeps have completed, regenerate and audit the paper with:
 
 ```bash
-MPLBACKEND=Agg .venv/bin/python scripts/run_test_auc_bootstrap.py --full
-MPLBACKEND=Agg .venv/bin/python scripts/run_test_auc_bootstrap.py --portfolio
-.venv/bin/python scripts/audit_notebook_results.py
-.venv/bin/python paper/src/update_results.py
+OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+  POLARS_MAX_THREADS=1 PUMPS_AND_DUMPS_MODEL_THREADS=1 \
+  .venv/bin/python paper/src/update_results.py
+.venv/bin/python scripts/audit_seed_sweep_manuscript.py
 .venv/bin/python paper/src/update_results.py --check
 python3 paper/src/build_highlighted.py
 just paper
 just paper-highlighted
+just paper-check-layout
+cp paper/src/access.pdf paper/access.pdf
+cp paper/src/access_highlighted.pdf paper/access_highlighted.pdf
 ```
 
-The replay audit independently reconstructs test point estimates and classification scores, every bootstrap draw and paired comparison, selected-asset portfolio returns and hit rates, and random-selection returns. The manuscript updater reads the exported tables and copies current figures. It stops if a changed winner requires revised interpretation. The numerical audit is `docs/notebook_rerun_audit.json`; table and figure provenance is `docs/manuscript_results_audit.json`. The full run saves all seven fitted models in `paper_run/models/`, as well as parameters, feature hashes, split membership, seed policy and software versions. Pickle artifacts require the recorded Python/packages and the historical runtime; load only trusted local artifacts. The rerun's model files have been reloaded and checked against every saved test prediction.
+`paper/src/prepare_seed_results.py` reads the audited seed-sweep predictions and checkpoints and writes manuscript artifacts under `notebooks/analysis_outputs/seed_sweep_paper/`. It produces the validation/test seed tables and figures, fixed seed-42 ranking and classification metrics, 10,000 paired event resamples for six models, and Holm correction across 15 pairs. Feature-importance quantiles use the 100 CatBoost models; the single-model importance plot uses seed 42.
 
-Executed notebooks are written beneath the output directory. The checked-in research notebooks contain the completed run outputs. `source_snapshot/` under the local run preserves the input notebooks and runtime used for that execution. A rerun fits the six saved study configurations and repeats the L2 validation grid; it does not perform six fresh Optuna searches. Archive the current output directory before a new run if its exact artifacts must be retained.
+All portfolios use that same CatBoost seed-42 ranking. The model-independent execution outcomes cover all 23,015 eligible event/asset pairs and are reused only after exact universe checks. Their source hashes and random-selection artifacts are recorded in provenance. The no-impact and 1,000 USDT impact portfolios are reconstructed for every k. The quantity sweep applies the existing square-root impact model to both legs, adjusts exit notional for acquired inventory, and verifies the calculation against all saved 1,000 USDT outcomes and the archived full quantity sweep before applying the new selections. Existing random portfolios and the BTC benchmark remain valid because their asset universe, calendar and execution rules are unchanged.
 
-Older local reproduction ZIPs may describe earlier experiments. They are not the source of the current manuscript results. To share this execution, bundle the current output directory, source snapshot, feature files matching `feature_hashes.csv`, unchanged `studies.db`, and the recorded software environment. Raw/Hive market data are needed to repeat execution and impact fitting; saved execution outcomes and selections suffice for the independent portfolio replay audit.
+`docs/seed_sweep_manuscript_audit.json` independently verifies the point metrics, all event-bootstrap draws and comparisons, 100 importance models, portfolio returns and target counts, and random selections. `docs/manuscript_results_audit.json` checks every generated table and figure against these exports. `docs/manuscript_layout_audit.json` checks first-reference/figure page gaps in both PDFs. `docs/test_seed_sweep_results.json` verifies all 600 seed-specific test results and exact prediction agreement with the original saved checkpoints.
+
+The original fixed-seed notebook outputs and root `studies.db` remain available as archives. They do not supply the manuscript's predictive model results. To reproduce the current manuscript, preserve the two seed-sweep directories, their 600 study databases and checkpoints, matching feature inputs/software environment, the derived `seed_sweep_paper/` artifacts, and the model-independent execution/random-selection files named in its provenance.

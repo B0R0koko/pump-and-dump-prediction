@@ -1,0 +1,299 @@
+{
+  "status": "PASS",
+  "experiment_status": "complete",
+  "seeds": [
+    1,
+    100
+  ],
+  "models": 6,
+  "completed_studies": 600,
+  "completed_trials": 15000,
+  "validation_predictions_replayed": 600,
+  "model_and_prediction_checksums_verified": 600,
+  "split_event_counts": {
+    "inner_training": 232,
+    "inner_tuning": 58,
+    "validation": 103
+  },
+  "paired_seed_comparisons_replayed": 15,
+  "selected_model": "catboost",
+  "selected_seed": 42,
+  "selection": {
+    "model": "catboost",
+    "label": "CatBoost",
+    "rule": "Highest mean validation Top@k%AUC across all seeds; ties: lower SD, then model key",
+    "mean_validation_auc": 0.6150449029126214,
+    "final_seed": 42,
+    "final_seed_result": {
+      "model": "catboost",
+      "label": "CatBoost",
+      "seed": 42,
+      "completed_trials": 25,
+      "best_trial": 3,
+      "inner_tuning_auc": 0.4939655172413793,
+      "validation_auc": 0.6285194174757281,
+      "parameters": {
+        "objective": "Logloss",
+        "sampling_frequency": "PerTree",
+        "auto_class_weights": "Balanced",
+        "verbose": false,
+        "random_seed": 42,
+        "task_type": "CPU",
+        "thread_count": 1,
+        "allow_writing_files": false,
+        "learning_rate": 0.12106896936002161,
+        "colsample_bylevel": 0.7637017332034828,
+        "subsample": 0.7545474901621302,
+        "max_depth": 3,
+        "iterations": 36,
+        "use_best_model": false
+      },
+      "tree_count": 36,
+      "search_seconds": 96.89714260300025,
+      "elapsed_seconds": 97.70651787499992,
+      "trial_seconds": [
+        2.474375,
+        6.333464,
+        5.259913,
+        0.907858,
+        1.602089,
+        1.234832,
+        1.735148,
+        1.12013,
+        7.448786,
+        1.454287,
+        1.901074,
+        4.056046,
+        8.135755,
+        1.91961,
+        5.286255,
+        1.024024,
+        8.165009,
+        2.167317,
+        4.906535,
+        3.207805,
+        7.680104,
+        2.756998,
+        4.061099,
+        3.654213,
+        6.762317
+      ],
+      "validation_events": 103,
+      "config_sha256": "8eeb84f480f8eee216cd2816da0656a56a6963c0ca0f6202d36b2e740353b7f2",
+      "model_sha256": "6e5b08f07c4cdb6e35d15b120a0cdf5d5ad31e4a5f229a1b23422c791a90aa54",
+      "prediction_sha256": "ee2046eac95f17228a429ead9da06f87af015daf8e5e685a0a43f4dd98d2c1a9",
+      "origin_config_sha256": "26a229753258096060dcdaedffd5333765c72c22555e5d4ef0ee0ccd3e4a334d",
+      "imported_from": "/home/borokoko/dev/pumps_and_dumps/notebooks/analysis_outputs/seed_sweep_timing_pilot/studies/catboost/seed_042",
+      "fit_source_sha256": "e4d48da4011fcd89fe428d1a0f64c67680c56ca5f95f0f8536235b83c748828d"
+    }
+  },
+  "summary": {
+    "catboost": {
+      "count": 100.0,
+      "mean": 0.6150449029126214,
+      "std": 0.0251482008155891,
+      "min": 0.5036407766990292,
+      "2.5%": 0.5599211165048544,
+      "25%": 0.6015776699029126,
+      "50%": 0.6197815533980583,
+      "75%": 0.6314623786407767,
+      "97.5%": 0.6481917475728155,
+      "max": 0.6495145631067961,
+      "win_fraction": 0.52
+    },
+    "logistic": {
+      "count": 100.0,
+      "mean": 0.6101541262135922,
+      "std": 0.0036397572614143,
+      "min": 0.5929611650485437,
+      "2.5%": 0.5995631067961166,
+      "25%": 0.6093446601941747,
+      "50%": 0.6110436893203883,
+      "75%": 0.6122572815533981,
+      "97.5%": 0.6134708737864077,
+      "max": 0.6146844660194175,
+      "win_fraction": 0.25
+    },
+    "catboost_es": {
+      "count": 100.0,
+      "mean": 0.5902742718446602,
+      "std": 0.0418449714197395,
+      "min": 0.3314320388349515,
+      "2.5%": 0.4991140776699029,
+      "25%": 0.5731492718446601,
+      "50%": 0.5936893203883495,
+      "75%": 0.6206007281553398,
+      "97.5%": 0.6393962378640777,
+      "max": 0.6433252427184466,
+      "win_fraction": 0.23
+    },
+    "forest": {
+      "count": 100.0,
+      "mean": 0.5635109223300971,
+      "std": 0.0154400729086218,
+      "min": 0.5262135922330097,
+      "2.5%": 0.5351122572815534,
+      "25%": 0.5520631067961166,
+      "50%": 0.5651092233009709,
+      "75%": 0.5741808252427184,
+      "97.5%": 0.5921389563106796,
+      "max": 0.5976941747572815,
+      "win_fraction": 0.0
+    },
+    "ranker": {
+      "count": 100.0,
+      "mean": 0.5188834951456311,
+      "std": 0.0182953310913789,
+      "min": 0.4701456310679611,
+      "2.5%": 0.4774787621359223,
+      "25%": 0.5087985436893204,
+      "50%": 0.5198422330097088,
+      "75%": 0.5297936893203883,
+      "97.5%": 0.5515958737864077,
+      "max": 0.5657766990291263,
+      "win_fraction": 0.0
+    },
+    "smote": {
+      "count": 100.0,
+      "mean": 0.4849126213592232,
+      "std": 0.0182299254737345,
+      "min": 0.3802184466019417,
+      "2.5%": 0.4538804611650485,
+      "25%": 0.4753033980582524,
+      "50%": 0.4867111650485436,
+      "75%": 0.4955400485436894,
+      "97.5%": 0.5133616504854369,
+      "max": 0.5201456310679612,
+      "win_fraction": 0.0
+    }
+  },
+  "paired_comparisons": [
+    {
+      "model_a": "logistic",
+      "model_b": "forest",
+      "mean_difference": 0.0466432038834951,
+      "ci_lower": 0.0434126213592232,
+      "ci_upper": 0.0497997876213592,
+      "scope": "Paired seed variation conditional on these fixed events; not event-sampling uncertainty"
+    },
+    {
+      "model_a": "logistic",
+      "model_b": "catboost",
+      "mean_difference": -0.0048907766990291,
+      "ci_lower": -0.0096092839805825,
+      "ci_upper": 0.0002841019417475,
+      "scope": "Paired seed variation conditional on these fixed events; not event-sampling uncertainty"
+    },
+    {
+      "model_a": "logistic",
+      "model_b": "smote",
+      "mean_difference": 0.1252415048543689,
+      "ci_lower": 0.1217439320388349,
+      "ci_upper": 0.1290837985436892,
+      "scope": "Paired seed variation conditional on these fixed events; not event-sampling uncertainty"
+    },
+    {
+      "model_a": "logistic",
+      "model_b": "ranker",
+      "mean_difference": 0.0912706310679611,
+      "ci_lower": 0.0876953883495145,
+      "ci_upper": 0.0948167475728155,
+      "scope": "Paired seed variation conditional on these fixed events; not event-sampling uncertainty"
+    },
+    {
+      "model_a": "logistic",
+      "model_b": "catboost_es",
+      "mean_difference": 0.019879854368932,
+      "ci_lower": 0.0125057949029125,
+      "ci_upper": 0.0283423240291261,
+      "scope": "Paired seed variation conditional on these fixed events; not event-sampling uncertainty"
+    },
+    {
+      "model_a": "forest",
+      "model_b": "catboost",
+      "mean_difference": -0.0515339805825242,
+      "ci_lower": -0.0571735740291262,
+      "ci_upper": -0.0455958434466019,
+      "scope": "Paired seed variation conditional on these fixed events; not event-sampling uncertainty"
+    },
+    {
+      "model_a": "forest",
+      "model_b": "smote",
+      "mean_difference": 0.0785983009708737,
+      "ci_lower": 0.0735824332524271,
+      "ci_upper": 0.0838021844660193,
+      "scope": "Paired seed variation conditional on these fixed events; not event-sampling uncertainty"
+    },
+    {
+      "model_a": "forest",
+      "model_b": "ranker",
+      "mean_difference": 0.044627427184466,
+      "ci_lower": 0.0400266990291262,
+      "ci_upper": 0.0492815837378641,
+      "scope": "Paired seed variation conditional on these fixed events; not event-sampling uncertainty"
+    },
+    {
+      "model_a": "forest",
+      "model_b": "catboost_es",
+      "mean_difference": -0.0267633495145631,
+      "ci_lower": -0.0349239987864077,
+      "ci_upper": -0.0173131067961165,
+      "scope": "Paired seed variation conditional on these fixed events; not event-sampling uncertainty"
+    },
+    {
+      "model_a": "catboost",
+      "model_b": "smote",
+      "mean_difference": 0.130132281553398,
+      "ci_lower": 0.1239696298543689,
+      "ci_upper": 0.1360558555825242,
+      "scope": "Paired seed variation conditional on these fixed events; not event-sampling uncertainty"
+    },
+    {
+      "model_a": "catboost",
+      "model_b": "ranker",
+      "mean_difference": 0.0961614077669903,
+      "ci_lower": 0.0901854672330097,
+      "ci_upper": 0.1016759708737864,
+      "scope": "Paired seed variation conditional on these fixed events; not event-sampling uncertainty"
+    },
+    {
+      "model_a": "catboost",
+      "model_b": "catboost_es",
+      "mean_difference": 0.0247706310679611,
+      "ci_lower": 0.0157450849514563,
+      "ci_upper": 0.0347212075242718,
+      "scope": "Paired seed variation conditional on these fixed events; not event-sampling uncertainty"
+    },
+    {
+      "model_a": "smote",
+      "model_b": "ranker",
+      "mean_difference": -0.0339708737864077,
+      "ci_lower": -0.0394333737864077,
+      "ci_upper": -0.0287402002427184,
+      "scope": "Paired seed variation conditional on these fixed events; not event-sampling uncertainty"
+    },
+    {
+      "model_a": "smote",
+      "model_b": "catboost_es",
+      "mean_difference": -0.1053616504854368,
+      "ci_lower": -0.1142148665048543,
+      "ci_upper": -0.0956334648058252,
+      "scope": "Paired seed variation conditional on these fixed events; not event-sampling uncertainty"
+    },
+    {
+      "model_a": "ranker",
+      "model_b": "catboost_es",
+      "mean_difference": -0.0713907766990291,
+      "ci_lower": -0.0794551274271845,
+      "ci_upper": -0.0625169296116504,
+      "scope": "Paired seed variation conditional on these fixed events; not event-sampling uncertainty"
+    }
+  ],
+  "workers": 32,
+  "started_at": "2026-11-09T20:52:34.305960+00:00",
+  "last_result_saved_at": "2026-11-10T05:46:22.852741+00:00",
+  "elapsed_hours_after_relaunch": 8.896818550277779,
+  "config_sha256": "8eeb84f480f8eee216cd2816da0656a56a6963c0ca0f6202d36b2e740353b7f2",
+  "test_evaluated": false,
+  "uncertainty_scope": "Tuning/training seed variation conditional on the fixed validation events"
+}

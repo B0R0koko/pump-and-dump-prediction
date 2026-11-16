@@ -6,6 +6,28 @@
 \usepackage{booktabs}
 \usepackage{float}
 \usepackage{placeins}
+% BEGIN FLOAT LAYOUT
+\usepackage{stfloats}
+\usepackage{needspace}
+\usepackage[nospread]{flushend}
+\makeatletter
+\def\@IEEEBIOskipN{10pt}
+\makeatother
+\setcounter{topnumber}{3}
+\setcounter{bottomnumber}{2}
+\setcounter{totalnumber}{5}
+\setcounter{dbltopnumber}{3}
+\renewcommand{\topfraction}{0.95}
+\renewcommand{\bottomfraction}{0.85}
+\renewcommand{\dbltopfraction}{0.95}
+\renewcommand{\textfraction}{0.05}
+\renewcommand{\floatpagefraction}{0.7}
+\renewcommand{\dblfloatpagefraction}{0.7}
+\setlength{\floatsep}{8pt plus 2pt minus 2pt}
+\setlength{\textfloatsep}{10pt plus 2pt minus 2pt}
+\setlength{\dblfloatsep}{8pt plus 2pt minus 2pt}
+\setlength{\dbltextfloatsep}{10pt plus 2pt minus 2pt}
+% END FLOAT LAYOUT
 \usepackage{algorithm}
 \usepackage{algpseudocode}
 \usepackage{makecell}
@@ -56,7 +78,7 @@ This work was supported by the grant for research centers in the field of AI pro
 \begin{abstract}
 The cryptocurrency market has been subject to various forms of exploitation, with pump-and-dump schemes being a persistent problem that can lead to significant price volatility and financial losses. Previous studies have focused on predicting attack targets using machine learning approaches; however, these methods are often compromised by class imbalance and biases inherent in historical data. To address this limitation, we present an empirical framework for comparing manipulation-target prediction methods.
 We employ two-step bias-minimizing data normalization techniques to mitigate the effects of class imbalance and temporal heterogeneity. We compare established class-weighted, oversampling, and ranking approaches using a common event-level protocol.
-Validation Top@k\%AUC selects CatBoost ($0.653$). It attains test Top@1 $0.188$, Top@10 $0.500$, and Top@k\%AUC $0.689$ on 80 events. L2 logistic regression has the highest descriptive test AUC ($0.710$); paired resampling does not establish a significant AUC difference between these two models.
+Across 100 seeds per model, each with 25 hyperparameter trials within training, CatBoost has the highest mean validation Top@k\%AUC ($0.6150$). On 80 test events, mean AUC is $0.6786$ for CatBoost and $0.7030$ for logistic regression. The selected seed-42 CatBoost model attains test AUC $0.695$ and Top@5 $0.425$; paired event resampling does not establish a significant AUC difference from the seed-42 logistic model.
 We validate the results using resampling and evaluate the validation-selected model in portfolio backtests incorporating transaction costs and price impact.
 \end{abstract}
 
@@ -76,9 +98,9 @@ Classification, Imbalanced Datasets, Learning to rank, Machine Learning, Market 
 
 These schemes typically involve experienced traders and market manipulators who orchestrate the operation through various channels, including online forums and social media platforms such as Telegram channels. The manipulation is designed to create a false sense of urgency and scarcity, which attracts inexperienced investors who may be unaware of the true nature of the event.
 
-A typical pump-and-dump scenario can be observed in Fig.~\ref{fig:pump_and_dump_example}, which shows a clear example of this phenomenon. The figure illustrates price movements associated with a specific token VIB traded against BTC on Binance exchange, highlighting the abrupt spike in trading activity following the announcement of the token's release. This sudden increase in volume is often followed by a rapid decline in price as insiders sell their positions to new buyers.
+A typical pump-and-dump scenario can be observed in Fig.~\ref{fig:pump_and_dump_example}\label{firstref:fig:pump_and_dump_example}, which shows a clear example of this phenomenon. The figure illustrates price movements associated with a specific token VIB traded against BTC on Binance exchange, highlighting the abrupt spike in trading activity following the announcement of the token's release. This sudden increase in volume is often followed by a rapid decline in price as insiders sell their positions to new buyers.
 
-\begin{figure}[h!]
+\begin{figure}[!tbp]
     \centering
     \includegraphics[scale=0.5]{images/pump_and_dump_example.png}
     \caption{VIBBTC pump and dump manipulation carried out on Binance}
@@ -115,7 +137,7 @@ The contribution is empirical integration and comparison, rather than a new lear
 
 Table~\ref{table:comparison_prior_work} summarizes the key methodological differences between our framework and the most closely related prior studies.
 
-\begin{table*}[!t]
+\begin{table*}[!tbp]
     \centering
     \small
     \renewcommand{\arraystretch}{1.3}
@@ -167,9 +189,9 @@ We performed the following preprocessing steps:
     \item materialize features and split complete event cross-sections chronologically.
 \end{enumerate}
 
-The resulting dataset contains 473 unique market manipulation events. Restricting the analysis to Binance BTC pairs is a deliberate design choice with known trade-offs: (i)~we lose events that targeted USDT-quoted pairs, tokens listed only on smaller venues (e.g., KuCoin, Gate, LBank, Cryptopia before its 2019 shutdown), and decentralized-exchange pumps; (ii)~in exchange, we obtain full trade-level history for every pair in the cross-section, which is the minimum requirement for computing slippage, flow-imbalance and power-law features consistently across the whole sample; (iii)~the restriction is aligned with the most comparable prior work on Binance P\&D target prediction~\cite{econometrics11030022} and on microstructure-based detection~\cite{la_morgia_pump_2020}, so our results remain directly comparable. We further discuss the limits of external validity in Section~\ref{sec:limitations}. Our data presents a substantial challenge, with P\&D events occurring relatively infrequently compared to normal trading activity. During our study period, the average eligible cross-section contains 195.05 instruments quoted in BTC. The historical dynamics of the number of listings is shown in Fig.~\ref{fig:cross-section_size_over_time}.
+The resulting dataset contains 473 unique market manipulation events. Restricting the analysis to Binance BTC pairs is a deliberate design choice with known trade-offs: (i)~we lose events that targeted USDT-quoted pairs, tokens listed only on smaller venues (e.g., KuCoin, Gate, LBank, Cryptopia before its 2019 shutdown), and decentralized-exchange pumps; (ii)~in exchange, we obtain full trade-level history for every pair in the cross-section, which is the minimum requirement for computing slippage, flow-imbalance and power-law features consistently across the whole sample; (iii)~the restriction is aligned with the most comparable prior work on Binance P\&D target prediction~\cite{econometrics11030022} and on microstructure-based detection~\cite{la_morgia_pump_2020}, so our results remain directly comparable. We further discuss the limits of external validity in Section~\ref{sec:limitations}. Our data presents a substantial challenge, with P\&D events occurring relatively infrequently compared to normal trading activity. During our study period, the average eligible cross-section contains 195.05 instruments quoted in BTC. The historical dynamics of the number of listings is shown in Fig.~\ref{fig:cross-section_size_over_time}\label{firstref:fig:cross-section_size_over_time}.
 
-\begin{figure}[!t]
+\begin{figure}[!tbp]
     \centering
     \includegraphics[scale=0.5]{images/cs_size.jpeg}
     \caption{Number of eligible Binance BTC-quoted pairs in the event cross-sections over time.}
@@ -178,7 +200,7 @@ The resulting dataset contains 473 unique market manipulation events. Restrictin
 
 We split the data into training, validation and testing samples by 2020-09-01 and 2021-05-01 respectively. Table~\ref{table:train_val_test_stats} describes the resulting datasets after the split: 
 
-\begin{table}[!t]
+\begin{table}[!tbp]
     \centering
     \small
     \setlength{\tabcolsep}{5pt}
@@ -203,7 +225,7 @@ To enable comparison with existing research, we selected Binance as the sole exc
 
 A representative example of our collected data is presented in Table~\ref{table:collected_tick_data}.
 
-\begin{table*}[!t]
+\begin{table*}[!tbp]
     \centering
     \begin{tabular}{lrrrrr}
         \toprule
@@ -282,7 +304,7 @@ Smaller $\hat{\alpha}$ indicates a heavier notional tail. Before cross-sectional
 \\ \\
 All of the features discussed are further explained below (see Table~\ref{table:feature_descriptions}):
 
-\begin{table*}[!t]
+\begin{table*}[!tbp]
     \centering
     \small
     \renewcommand{\arraystretch}{1.25}
@@ -326,9 +348,9 @@ We apply cross-sectional standardization to the unbounded return, return-z-score
     \label{eq:cs_standardization}
 \end{equation}
 
-If a selected feature is constant within an event, it contains no relative ranking information and is mapped to zero; all-missing event columns remain missing for native handling or train-only imputation. We do not apply this second-stage transform to bounded imbalance/share features or to count features (trade counts and lifetime prior-pump count), whose nonnegative levels retain their direct interpretation. Fig.~\ref{fig:data_with_crossnorm} demonstrates the transform on a sample of five cross-sections for three selected numerical features:
+If a selected feature is constant within an event, it contains no relative ranking information and is mapped to zero; all-missing event columns remain missing for native handling or train-only imputation. We do not apply this second-stage transform to bounded imbalance/share features or to count features (trade counts and lifetime prior-pump count), whose nonnegative levels retain their direct interpretation. Fig.~\ref{fig:data_with_crossnorm}\label{firstref:fig:data_with_crossnorm} demonstrates the transform on a sample of five cross-sections for three selected numerical features:
 
-\begin{figure*}[!t]
+\begin{figure*}[!tbp]
     \centering
     \includegraphics[scale=0.4]{images/cs_standardization_impact.png}
     \caption{Features with and without cross-sectional standardization: histograms and kernel-density estimates for five P\&D events. Applying standardization helps to align distributions more closely with one another across pumps.}
@@ -366,12 +388,14 @@ We additionally report three standard metrics on both the validation and test se
 We use logistic regression as a simple baseline and compare it with a random-ranking model that selects candidate targets uniformly within each event cross-section. Class weights account for the imbalance between pump targets and other assets. Models are fitted on the training set and selected using validation Top@k\%AUC. Our primary metrics are Top@k and Top@k\%AUC, discussed in Section~\ref{section:results}.
 
 \subsection{Training}
-We used the training set to train the models. To reduce overfitting, tree depth was limited through the \textit{max\_depth} hyperparameter for both random forest and CatBoost models. We also applied early stopping for both CatBoost classifier and CatBoost ranker and used validation set to compute evaluation metrics. We created a custom evaluation metric Top@k\%AUC, this metric was used by the trainer to find the optimal number of boosted trees. We also set the number of early stopping rounds to 50 which implies that there is no improvement in Top@k\%AUC for more than 50 rounds, the training process will stop and the model will rollback to the best state. This was used in the training process of the model CatBoost classifier + Top@k\%AUC early stopping (early stopping model with custom evaluation metric).
+We run 25 Optuna TPE trials for each of six model families and each seed from 1 to 100: 600 studies and 15{,}000 trials. Within the 290 training events, a chronological split at March 18, 2020, 19:00 UTC gives 232 inner-training events and 58 inner-tuning events. Simultaneous events remain together. Hyperparameters maximize inner-tuning Top@k\%AUC; preprocessing priors use only the corresponding training partition.
 
-The released notebook fixes the random seed to 42 for Optuna's TPE sampler, stochastic model training, SMOTE, and resampling. Tuning trials run sequentially, and CPU fitting uses one thread per model by default. L2 grid-search ties favor smaller $C$; the unpenalized logistic diagnostic uses deterministic Newton optimization. Run records include these settings, model parameters, feature order, input hashes, and software versions. Reproduction requires the same inputs and environment, with a fresh study when repeating hyperparameter tuning.
+Tree depth is tuned for random forest and CatBoost. During the inner search, CatBoost variants use early stopping with 50 rounds of patience; CatBoost + ES uses Top@k\%AUC as its stopping metric. For each seed, we retain the best trial's parameters and fitted tree count, then train on all 290 training events with no validation-controlled stopping. These models are evaluated on the 103 outer-validation events and the 80 test events. Neither evaluation sample is used for hyperparameter tuning or final training.
+
+The same seed controls TPE, stochastic model training and SMOTE within each configuration. Trials run sequentially and each model uses one CPU thread; independent configurations run in parallel. We select the family with the highest mean validation AUC across the 100 seeds, breaking exact ties by lower standard deviation and then model key. Seed 42 is chosen in advance for the fixed-model analyses, independently of performance. Event and seed resampling also use a fixed random seed. Run records preserve parameters, fitted models, feature order, input hashes and software versions.
 
 % BEGIN MODEL CONFIGURATION
-We compare tuned L1 and L2 logistic regression, random forest, CatBoost, CatBoost with SMOTE, CatBoost ranker, and CatBoost + ES. L2 uses the L1 predictors and class weights and selects $C$ on validation Top@k\%AUC from 25 logarithmically spaced values between $10^{-6}$ and $10^2$, breaking ties toward smaller $C$. The selected value is $C=4.642\times10^{-5}$. The standalone unweighted, unpenalized statsmodels diagnostic is excluded from predictive comparisons.
+We compare tuned logistic regression, random forest, CatBoost, CatBoost with SMOTE, CatBoost ranker, and CatBoost + ES. Logistic regression uses L1 regularization and class weights. The standalone unweighted, unpenalized statsmodels diagnostic is excluded from predictive comparisons.
 % END MODEL CONFIGURATION
 
 We validated the results using event-level resampling (Section~\ref{sec:significance}).
@@ -379,30 +403,30 @@ We validated the results using event-level resampling (Section~\ref{sec:signific
 We also used SMOTE proposed by \cite{chawla2002smote} to tackle the problem of class imbalance. It allows to create new observations for the minority class to balance the dataset. Instead of copying existing minority points, it generates new, slightly different ones by interpolating between neighbors.
 
 
+\FloatBarrier % local figure placement
 \section{Model Comparison}
 \label{section:results}
 
 \subsection{Validation Performance and Model Selection}
-Table~\ref{table:validation_model_selection} compares seven tuned candidates using the same chronological split. CatBoost has the largest validation Top@k\%AUC ($0.653$). Validation guides model selection and early stopping; it is not an independent performance estimate. The selected model supplies all portfolio and price-impact results.
+Table~\ref{table:validation_model_selection} compares six model families across seeds 1--100 on the same 103 validation events. CatBoost has the largest mean validation Top@k\%AUC ($0.6150$, SD $0.0251$), followed by logistic regression ($0.6102$). Hyperparameters and early stopping are determined within the training sample; the outer validation sample is used only to compare model families. We select the family with the highest mean validation AUC and use its preselected seed-42 model for feature interpretation, event resampling and all portfolio analyses. Seed 42 is fixed independently of its validation or test score.
 
-\begin{table*}[!t]
+\begin{table*}[!tbp]
     \centering
     \small
     \setlength{\tabcolsep}{5pt}
     \renewcommand{\arraystretch}{1.15}
-    \caption{Validation metrics for the seven tuned candidates. Top@k\%AUC selects the portfolio model; maxima are bold. F1 and balanced accuracy use one predicted target per event.}
+    \caption{Validation Top@k\%AUC across 100 seeds per model. Quantiles and standard deviations describe seed variation on the same 103 events. Model selection uses the highest mean AUC.}
     \resizebox{\ifdim\width>\textwidth\textwidth\else\width\fi}{!}{%
-    \begin{tabular}{lrrrrrrrrrr}
+    \begin{tabular}{lrrrrr}
         \toprule
-        Model & Top@k\%AUC & Top@1 & Top@5 & Top@10 & Top@1\% & Top@5\% & Top@10\% & PR-AUC & F1 & Balanced accuracy \\
+        Model & Mean AUC & SD & 2.5\% & 97.5\% & Highest AUC (\% of seeds) \\
         \midrule
-        CatBoost & \bfseries 0.653 & \bfseries 0.165 & \bfseries 0.417 & 0.524 & \bfseries 0.330 & 0.573 & 0.689 & \bfseries 0.089 & \bfseries 0.165 & \bfseries 0.581 \\
-        CatBoost + ES & 0.646 & 0.126 & \bfseries 0.417 & \bfseries 0.553 & 0.252 & \bfseries 0.612 & 0.699 & 0.081 & 0.126 & 0.561 \\
-        Logistic regression L2 & 0.611 & 0.097 & 0.311 & 0.456 & 0.243 & 0.505 & 0.670 & 0.057 & 0.097 & 0.547 \\
-        Logistic regression L1 & 0.610 & 0.107 & 0.282 & 0.456 & 0.214 & 0.505 & \bfseries 0.709 & 0.057 & 0.107 & 0.552 \\
-        Random forest & 0.565 & 0.117 & 0.320 & 0.417 & 0.262 & 0.456 & 0.602 & 0.084 & 0.117 & 0.556 \\
-        CatBoost + SMOTE & 0.524 & 0.097 & 0.233 & 0.379 & 0.214 & 0.408 & 0.583 & 0.075 & 0.097 & 0.547 \\
-        CatBoost ranker & 0.501 & 0.078 & 0.330 & 0.398 & 0.204 & 0.427 & 0.534 & 0.038 & 0.078 & 0.537 \\
+        CatBoost & 0.6150 & 0.0251 & 0.5599 & 0.6482 & 52 \\
+        Logistic regression & 0.6102 & 0.0036 & 0.5996 & 0.6135 & 25 \\
+        CatBoost + ES & 0.5903 & 0.0418 & 0.4991 & 0.6394 & 23 \\
+        Random forest & 0.5635 & 0.0154 & 0.5351 & 0.5921 & 0 \\
+        CatBoost ranker & 0.5189 & 0.0183 & 0.4775 & 0.5516 & 0 \\
+        CatBoost + SMOTE & 0.4849 & 0.0182 & 0.4539 & 0.5134 & 0 \\
         \bottomrule
     \end{tabular}
     }
@@ -410,149 +434,182 @@ Table~\ref{table:validation_model_selection} compares seven tuned candidates usi
 \end{table*}
 
 
-\begin{figure*}[!t]
+CatBoost minus logistic regression has mean validation AUC difference $0.0049$, with a paired-seed 95\% interval $[-0.0003,\,0.0096]$. This interval includes zero: the highest observed mean determines the selection, but does not establish a clear advantage over logistic regression. Fig.~\ref{fig:validation_seed_distribution}\label{firstref:fig:validation_seed_distribution} shows the full distributions.
+
+\begin{figure}[!tbp]
     \centering
-    \includegraphics[width=\textwidth]{images/topk_accuracy_validation.png}
-    \caption{Validation Top@k accuracy for the seven tuned candidates and the random-ranking baseline.}
+    \includegraphics[width=\columnwidth]{images/validation_seed_distributions.png}
+    \caption{Validation Top@k\%AUC for 100 seeds per model. Each seed uses a 25-trial search within training followed by a fit on all 290 training events. Boxes show the interquartile range and median; triangles show means; dots show individual seeds.}
+    \label{fig:validation_seed_distribution}
+\end{figure}
+
+For the fixed seed-42 models, CatBoost validation AUC is $0.629$. The following threshold curves describe these fixed models; the family selection above uses all 100 seeds.
+
+Fig.~\ref{fig:validation_topk}\label{firstref:fig:validation_topk} shows how validation target inclusion changes with the number of selected assets.
+
+\begin{figure}[!tbp]
+    \centering
+    \includegraphics[width=\columnwidth]{images/topk_accuracy_validation.png}
+    \caption{Validation Top@k accuracy for the six seed-42 models and the random-ranking baseline.}
     \label{fig:validation_topk}
-\end{figure*}
+\end{figure}
 
-\begin{figure*}[!t]
+Fig.~\ref{fig:validation_topkp}\label{firstref:fig:validation_topkp} compares the validation ranking curves as a fraction of each event's eligible assets.
+
+\begin{figure}[!tbp]
     \centering
-    \includegraphics[width=\textwidth]{images/topkp_auc_validation.png}
-    \caption{Validation Top@k\% curves and normalized Top@k\%AUC. Model selection uses this validation criterion.}
+    \includegraphics[width=\columnwidth]{images/topkp_auc_validation.png}
+    \caption{Validation Top@k\% curves and normalized Top@k\%AUC for the six seed-42 models.}
     \label{fig:validation_topkp}
-\end{figure*}
-
-\begin{figure*}[!t]
-    \centering
-    \includegraphics[width=\textwidth]{images/classification_metrics_validation.png}
-    \caption{Validation PR-AUC, F1 and balanced accuracy for the seven candidates; classification uses one predicted target per event.}
-    \label{fig:validation_classification}
-\end{figure*}
+\end{figure}
 
 \subsection{Test Ranking Performance}
-Tables~\ref{table:results_topk} and~\ref{table:results_topkp} report target inclusion at fixed portfolio sizes and cross-section fractions. CatBoost achieves Top@1 $0.188$, Top@5 $0.450$ (36 of 80 events), and Top@10 $0.500$. Test comparisons describe the selected models; they do not change the validation selection rule.
+Table~\ref{table:test_seed_distribution} and Fig.~\ref{fig:test_seed_distribution}\label{firstref:fig:test_seed_distribution} summarize test performance across the same 100 seeds. Each configuration is trained on the same 290 training events and evaluated on the same 80 test events, without retuning or adding validation events to training. Logistic regression has the highest mean test AUC ($0.7030$, SD $0.0015$), followed by CatBoost ($0.6786$). The test ranking does not change the validation-based model selection.
 
-\begin{table*}[!t]
+\begin{table*}[!tbp]
     \centering
     \small
     \setlength{\tabcolsep}{5pt}
     \renewcommand{\arraystretch}{1.15}
-    \caption{Test Top@k accuracy for the seven tuned candidates.}
+    \caption{Test Top@k\%AUC across 100 seeds per model on 80 fixed events. Quantiles describe variation across tuning and training seeds, not event-bootstrap confidence intervals.}
+    \resizebox{\ifdim\width>\textwidth\textwidth\else\width\fi}{!}{%
+    \begin{tabular}{lrrrrr}
+        \toprule
+        Model & Mean AUC & SD & 2.5\% & 97.5\% & Highest AUC (\% of seeds) \\
+        \midrule
+        Logistic regression & 0.7030 & 0.0015 & 0.6988 & 0.7049 & 91 \\
+        CatBoost & 0.6786 & 0.0218 & 0.6283 & 0.7071 & 6 \\
+        CatBoost + ES & 0.6576 & 0.0393 & 0.5720 & 0.7025 & 3 \\
+        Random forest & 0.6212 & 0.0205 & 0.5784 & 0.6515 & 0 \\
+        CatBoost ranker & 0.5846 & 0.0290 & 0.5157 & 0.6280 & 0 \\
+        CatBoost + SMOTE & 0.5087 & 0.0228 & 0.4530 & 0.5429 & 0 \\
+        \bottomrule
+    \end{tabular}
+    }
+    \label{table:test_seed_distribution}
+\end{table*}
+
+\begin{figure}[!tbp]
+    \centering
+    \includegraphics[width=\columnwidth]{images/test_seed_distributions.png}
+    \caption{Test Top@k\%AUC for the same 100 seed-specific configurations. The asterisk marks the family selected on validation. Boxes show the interquartile range and median; triangles show means; dots show individual seeds.}
+    \label{fig:test_seed_distribution}
+\end{figure}
+
+Logistic regression minus CatBoost has mean test AUC difference $0.0244$, with paired-seed 95\% interval $[0.0203,\,0.0288]$. These intervals use 10{,}000 paired resamples of the 100 seed indices and hold the event sample fixed. They measure tuning and training variability; event-sampling uncertainty for fixed models is assessed separately below.
+
+Tables~\ref{table:results_topk} and~\ref{table:results_topkp} report target inclusion for the seed-42 models at fixed portfolio sizes and cross-section fractions. CatBoost achieves Top@1 $0.138$, Top@5 $0.425$ (34 of 80 events), and Top@10 $0.550$.
+
+\begin{table*}[!tbp]
+    \centering
+    \small
+    \setlength{\tabcolsep}{5pt}
+    \renewcommand{\arraystretch}{1.15}
+    \caption{Test Top@k accuracy for the six seed-42 models.}
     \resizebox{\ifdim\width>\textwidth\textwidth\else\width\fi}{!}{%
     \begin{tabular}{lrrrrrr}
         \toprule
         Model & Top@1 & Top@2 & Top@5 & Top@10 & Top@20 & Top@30 \\
         \midrule
-        CatBoost & 0.188 & 0.275 & 0.450 & 0.500 & 0.662 & 0.713 \\
-        CatBoost + ES & 0.125 & 0.212 & 0.438 & 0.575 & 0.688 & 0.750 \\
-        Logistic regression L2 & 0.113 & 0.200 & 0.400 & 0.588 & 0.713 & 0.787 \\
-        Logistic regression L1 & 0.100 & 0.150 & 0.438 & 0.550 & 0.713 & 0.750 \\
-        Random forest & 0.087 & 0.163 & 0.312 & 0.450 & 0.575 & 0.675 \\
-        CatBoost + SMOTE & 0.050 & 0.163 & 0.250 & 0.325 & 0.438 & 0.537 \\
-        CatBoost ranker & 0.050 & 0.125 & 0.212 & 0.400 & 0.537 & 0.588 \\
+        CatBoost & 0.138 & 0.212 & 0.425 & 0.550 & 0.662 & 0.750 \\
+        Logistic regression & 0.075 & 0.175 & 0.388 & 0.550 & 0.700 & 0.787 \\
+        CatBoost + ES & 0.150 & 0.188 & 0.425 & 0.537 & 0.675 & 0.738 \\
+        Random forest & 0.100 & 0.138 & 0.325 & 0.475 & 0.600 & 0.700 \\
+        CatBoost ranker & 0.062 & 0.150 & 0.263 & 0.450 & 0.550 & 0.637 \\
+        CatBoost + SMOTE & 0.087 & 0.138 & 0.263 & 0.312 & 0.475 & 0.588 \\
         \bottomrule
     \end{tabular}
     }
     \label{table:results_topk}
 \end{table*}
 
-\begin{table*}[!t]
+\begin{table*}[!tbp]
     \centering
     \small
     \setlength{\tabcolsep}{5pt}
     \renewcommand{\arraystretch}{1.15}
-    \caption{Test Top@k\% accuracy for the seven tuned candidates.}
+    \caption{Test Top@k\% accuracy for the six seed-42 models.}
     \resizebox{\ifdim\width>\textwidth\textwidth\else\width\fi}{!}{%
     \begin{tabular}{lrrrrrr}
         \toprule
-        Model & Top@1\% & Top@2\% & Top@5\% & Top@10\% & Top@20\% & Top@50\% \\
+        Model & Top@1\% & Top@2\% & Top@5\% & Top@10\% & Top@20\% & Top@30\% \\
         \midrule
-        CatBoost & 0.388 & 0.450 & 0.625 & 0.713 & 0.875 & 0.963 \\
-        CatBoost + ES & 0.312 & 0.500 & 0.662 & 0.750 & 0.863 & 0.963 \\
-        Logistic regression L2 & 0.312 & 0.500 & 0.637 & 0.787 & 0.875 & 0.950 \\
-        Logistic regression L1 & 0.287 & 0.500 & 0.625 & 0.725 & 0.887 & 0.963 \\
-        Random forest & 0.263 & 0.375 & 0.512 & 0.662 & 0.775 & 0.950 \\
-        CatBoost + SMOTE & 0.200 & 0.275 & 0.412 & 0.537 & 0.750 & 0.900 \\
-        CatBoost ranker & 0.163 & 0.263 & 0.500 & 0.588 & 0.688 & 0.912 \\
+        CatBoost & 0.338 & 0.500 & 0.613 & 0.725 & 0.863 & 0.925 \\
+        Logistic regression & 0.312 & 0.438 & 0.637 & 0.787 & 0.875 & 0.912 \\
+        CatBoost + ES & 0.325 & 0.500 & 0.562 & 0.725 & 0.850 & 0.912 \\
+        Random forest & 0.237 & 0.400 & 0.562 & 0.688 & 0.800 & 0.875 \\
+        CatBoost ranker & 0.212 & 0.338 & 0.463 & 0.637 & 0.750 & 0.887 \\
+        CatBoost + SMOTE & 0.212 & 0.287 & 0.412 & 0.588 & 0.738 & 0.838 \\
         \bottomrule
     \end{tabular}
     }
     \label{table:results_topkp}
 \end{table*}
 
-The random-ranking baseline averages $\min(k,T_i)/T_i$ across events, where $T_i$ is the number of eligible assets in event $i$. Normalized Top@k\%AUC integrates the inclusion curve from 0 to 20\% in 0.5\% increments, as in Eq.~\ref{eq:topkpauc}.
+Figs.~\ref{fig:results_topk}\label{firstref:fig:results_topk} and~\ref{fig:results_topkp}\label{firstref:fig:results_topkp} show the corresponding test ranking curves. The random-ranking baseline averages $\min(k,T_i)/T_i$ across events, where $T_i$ is the number of eligible assets in event $i$. Normalized Top@k\%AUC integrates the inclusion curve from 0 to 20\% in 0.5\% increments, as in Eq.~\ref{eq:topkpauc}.
 
-\begin{figure*}[!t]
+\begin{figure}[!tbp]
     \centering
-    \includegraphics[width=\textwidth]{images/topk_accuracy_test.png}
+    \includegraphics[width=\columnwidth]{images/topk_accuracy_test.png}
     \caption{Test Top@k accuracy and the event-specific random-ranking baseline.}
     \label{fig:results_topk}
-\end{figure*}
+\end{figure}
 
-\begin{figure*}[!t]
+\begin{figure}[!tbp]
     \centering
-    \includegraphics[width=\textwidth]{images/topkp_auc_test.png}
-    \caption{Test Top@k\% accuracy curves and normalized Top@k\%AUC for the same seven fitted candidates.}
+    \includegraphics[width=\columnwidth]{images/topkp_auc_test.png}
+    \caption{Test Top@k\% accuracy curves and normalized Top@k\%AUC for the same six fitted candidates.}
     \label{fig:results_topkp}
-\end{figure*}
+\end{figure}
 
-L2 logistic regression has the largest test Top@k\%AUC point estimate ($0.710$), followed by L1 logistic regression ($0.702$), CatBoost + ES ($0.694$), CatBoost ($0.689$), and random forest ($0.598$). Statistical comparisons use paired event resampling in Section~\ref{sec:significance}.
+For seed 42, test Top@k\%AUC is $0.703$ for logistic regression, $0.695$ for CatBoost, $0.686$ for CatBoost + ES, and $0.630$ for random forest. Statistical comparisons of these fixed models use paired event resampling in Section~\ref{sec:significance}.
 
 \subsection{Classification Metrics}
-Fig.~\ref{fig:classification_metrics} reports PR-AUC, F1 and balanced accuracy. F1 and balanced accuracy use the Top@1-per-event rule, so these scores measure the identification of one target within each event rather than an arbitrary probability threshold.
+Fig.~\ref{fig:classification_metrics}\label{firstref:fig:classification_metrics} reports PR-AUC, F1 and balanced accuracy. F1 and balanced accuracy use the Top@1-per-event rule, so these scores measure the identification of one target within each event rather than an arbitrary probability threshold.
 
-CatBoost has the highest test PR-AUC ($0.0799$). Its F1 is $0.1875$ and balanced accuracy is $0.5923$.
+CatBoost has the highest test PR-AUC ($0.0890$). Its F1 is $0.1375$ and balanced accuracy is $0.5672$.
 
-\begin{figure*}[!t]
+\begin{figure}[!tbp]
     \centering
-    \includegraphics[width=\textwidth]{images/classification_metrics_test.png}
-    \caption{Test classification metrics for the seven tuned candidates.}
+    \includegraphics[width=\columnwidth]{images/classification_metrics_test.png}
+    \caption{Test classification metrics for the six seed-42 models.}
     \label{fig:classification_metrics}
-\end{figure*}
+\end{figure}
 
 \subsection{SMOTE and Ranking Models}
-CatBoost with SMOTE attains test Top@1 $5.00\%$ and Top@k\%AUC $0.517$, below the leading class-weighted classifiers. With 81 predictors and 290 positive training events, synthetic interpolation may mix observations with different event-specific reference distributions. This is a plausible explanation, rather than a causal test, and is consistent with known limitations of SMOTE in high-dimensional data~\cite{blagus2013smote}.
+CatBoost with SMOTE attains test Top@1 $8.75\%$ and Top@k\%AUC $0.531$, below the leading class-weighted classifiers. With 81 predictors and 290 positive training events, synthetic interpolation may mix observations with different event-specific reference distributions. This is a plausible explanation, rather than a causal test, and is consistent with known limitations of SMOTE in high-dimensional data~\cite{blagus2013smote}.
 
-The CatBoost ranker attains test Top@1 $5.00\%$ and Top@k\%AUC $0.532$. It learns an ordering of post-announcement returns, whereas evaluation asks whether the single manipulation target appears near the top. Noise in the returns of other assets and the mismatch between these objectives may explain its weaker performance. Ranking advantages in other financial applications~\cite{poh_ltr} do not automatically transfer to this sample.
+The CatBoost ranker attains test Top@1 $6.25\%$ and Top@k\%AUC $0.571$. It learns an ordering of post-announcement returns, whereas evaluation asks whether the single manipulation target appears near the top. Noise in the returns of other assets and the mismatch between these objectives may explain its weaker performance. Ranking advantages in other financial applications~\cite{poh_ltr} do not automatically transfer to this sample.
 
-\subsection{Interpretation of CatBoost + ES}
-Fig.~\ref{fig:catboost_fi} reports CatBoost PredictionValuesChange for CatBoost + ES fitted on all training events. Table~\ref{table:feature_importance_quantiles} summarizes the 15 largest median importances across the 25 training-subset fits in Section~\ref{sec:robustness}. These describe the fitted prediction function; they are not causal effects or evidence of manipulation by themselves.
+\subsection{Interpretation of CatBoost}
+Table~\ref{table:feature_importance_quantiles} summarizes the 15 largest median PredictionValuesChange importances across the 100 seed-specific CatBoost models. These describe the fitted prediction functions; they are not causal effects or evidence of manipulation by themselves.
 
-\begin{figure*}[!t]
-    \centering
-    \includegraphics[width=\textwidth]{images/feature_importances.png}
-    \caption{Feature importance for the CatBoost + ES model fitted on all training events.}
-    \label{fig:catboost_fi}
-\end{figure*}
-
-\begin{table*}[!t]
+\begin{table*}[!tbp]
     \centering
     \small
     \setlength{\tabcolsep}{5pt}
     \renewcommand{\arraystretch}{1.15}
-    \caption{CatBoost PredictionValuesChange quantiles across 25 fits on random 70\% training-event subsets. Rows are ordered by median importance.}
+    \caption{CatBoost PredictionValuesChange quantiles across 100 seed-specific fits on the same 290 training events. Rows are ordered by median importance.}
     \resizebox{\ifdim\width>\textwidth\textwidth\else\width\fi}{!}{%
     \begin{tabular}{lrrrrr}
         \toprule
         Feature & 10\% & 25\% & Median & 75\% & 90\% \\
         \midrule
-        num\_prev\_pump & 9.70 & 11.35 & 12.89 & 16.86 & 20.92 \\
-        num\_trades@7D & 3.17 & 5.06 & 8.73 & 13.11 & 16.11 \\
-        num\_trades@2D & 5.03 & 5.23 & 7.19 & 9.75 & 12.79 \\
-        num\_trades@14D & 1.48 & 3.32 & 4.97 & 8.84 & 11.37 \\
-        slippage\_imbalance@12H & 0.92 & 2.15 & 3.38 & 5.22 & 7.00 \\
-        asset\_return@12H & 1.26 & 1.65 & 2.56 & 3.23 & 3.95 \\
-        asset\_return@1D & 1.05 & 1.37 & 2.43 & 3.19 & 4.35 \\
-        quote\_abs\_zscore@1H & 0.30 & 0.92 & 2.38 & 2.83 & 3.55 \\
-        slippage\_imbalance@2D & 0.71 & 1.39 & 2.24 & 3.40 & 4.73 \\
-        asset\_return@4H & 0.73 & 1.71 & 2.22 & 3.09 & 3.84 \\
-        asset\_return\_zscore@2H & 0.57 & 1.31 & 2.14 & 3.10 & 4.52 \\
-        slippage\_imbalance@4H & 0.00 & 0.36 & 1.69 & 1.95 & 2.49 \\
-        asset\_return@2H & 0.08 & 0.69 & 1.54 & 2.25 & 2.34 \\
-        asset\_return\_zscore@1H & 0.42 & 1.12 & 1.51 & 2.47 & 4.13 \\
-        slippage\_imbalance@1D & 0.07 & 0.46 & 1.49 & 2.61 & 4.27 \\
+        num\_prev\_pump & 8.62 & 9.49 & 10.40 & 11.80 & 13.92 \\
+        num\_trades@14D & 2.74 & 3.68 & 4.90 & 6.41 & 8.19 \\
+        num\_trades@2D & 1.86 & 3.14 & 4.52 & 6.86 & 9.28 \\
+        num\_trades@7D & 2.09 & 3.03 & 4.20 & 5.50 & 7.27 \\
+        asset\_return@4H & 1.70 & 2.13 & 2.59 & 3.04 & 3.61 \\
+        slippage\_imbalance@2D & 0.77 & 1.27 & 2.29 & 3.02 & 3.88 \\
+        quote\_abs\_zscore@1H & 1.44 & 1.96 & 2.27 & 3.03 & 3.98 \\
+        num\_trades@1D & 1.05 & 1.56 & 2.19 & 3.04 & 3.79 \\
+        asset\_return@12H & 1.10 & 1.49 & 2.01 & 2.34 & 3.02 \\
+        asset\_return@1D & 1.13 & 1.54 & 1.96 & 2.62 & 2.99 \\
+        slippage\_imbalance@12H & 1.13 & 1.37 & 1.86 & 2.82 & 4.28 \\
+        asset\_return\_zscore@1D & 0.67 & 1.11 & 1.85 & 2.36 & 2.86 \\
+        quote\_abs\_zscore@15MIN & 0.77 & 1.11 & 1.54 & 2.13 & 2.48 \\
+        slippage\_imbalance@1D & 0.42 & 0.91 & 1.51 & 2.20 & 3.36 \\
+        asset\_return\_zscore@1H & 0.72 & 1.17 & 1.47 & 2.12 & 2.52 \\
         \bottomrule
     \end{tabular}
     }
@@ -561,87 +618,88 @@ Fig.~\ref{fig:catboost_fi} reports CatBoost PredictionValuesChange for CatBoost 
 
 \subsection{Statistical Significance}
 \label{sec:significance}
-We validate the results using 10{,}000 paired bootstrap samples of the 80 whole test events. All candidate assets stay with their event, repeated events retain their multiplicity, and identical event draws are used for all seven fixed models. Models are not retrained within this bootstrap. The percentile intervals quantify sampling uncertainty conditional on the fitted models and assume independent events; they do not account for training uncertainty, temporal dependence or prior test inspection.
+We validate the seed-42 point results using 10{,}000 paired bootstrap samples of the 80 whole test events. All candidate assets stay with their event, repeated events retain their multiplicity, and identical event draws are used for all six fixed models. Models are not retrained within this bootstrap. The percentile intervals quantify event-sampling uncertainty conditional on these fits and assume independent events. They do not include training variability, which is summarized by the 100-seed distributions, or account for temporal dependence or prior test inspection.
 
-Pairwise differences use a two-sided null distribution centered at zero, an add-one Monte Carlo correction and Holm adjustment across the 21 unordered model pairs. We use paired differences rather than marginal-interval overlap to assess significance.
+Pairwise differences use a two-sided null distribution centered at zero, an add-one Monte Carlo correction and Holm adjustment across the 15 unordered pairs of the six reported models. We use paired differences rather than marginal-interval overlap to assess significance.
 
-\begin{table}[!t]
+\begin{table}[!tbp]
     \centering
     \small
     \setlength{\tabcolsep}{5pt}
     \renewcommand{\arraystretch}{1.15}
-    \caption{Test sample Top@k\%AUC point estimates and 95\% percentile intervals from 10{,}000 paired event resamples.}
+    \caption{Seed-42 test sample Top@k\%AUC point estimates and 95\% percentile intervals from 10{,}000 paired event resamples.}
     \begin{tabular}{lrr}
         \toprule
         Model & Top@k\%AUC & 95\% CI \\
         \midrule
-        Logistic regression L2 & 0.710 & $[0.633,\,0.784]$ \\
-        Logistic regression L1 & 0.702 & $[0.625,\,0.776]$ \\
-        CatBoost + ES & 0.694 & $[0.614,\,0.771]$ \\
-        CatBoost & 0.689 & $[0.612,\,0.764]$ \\
-        Random forest & 0.598 & $[0.513,\,0.682]$ \\
-        CatBoost ranker & 0.532 & $[0.442,\,0.621]$ \\
-        CatBoost + SMOTE & 0.517 & $[0.433,\,0.601]$ \\
+        Logistic regression & 0.703 & $[0.627,\,0.776]$ \\
+        CatBoost & 0.695 & $[0.616,\,0.771]$ \\
+        CatBoost + ES & 0.686 & $[0.606,\,0.762]$ \\
+        Random forest & 0.630 & $[0.547,\,0.710]$ \\
+        CatBoost ranker & 0.571 & $[0.482,\,0.658]$ \\
+        CatBoost + SMOTE & 0.531 & $[0.445,\,0.614]$ \\
         \bottomrule
     \end{tabular}
     \label{table:significance_ci}
 \end{table}
 
-CatBoost minus L1 logistic regression has AUC difference $-0.0133$, paired 95\% CI $[-0.0678,\,0.0380]$, two-sided $p=0.6137$ and Holm-adjusted $p=1.000$. Against L2 logistic regression, the difference is $-0.0212$, paired 95\% CI $[-0.0794,\,0.0345]$, two-sided $p=0.4570$ and Holm-adjusted $p=1.000$. Against CatBoost + ES, the difference is $-0.0055$, paired 95\% CI $[-0.0362,\,0.0259]$, two-sided $p=0.7363$ and Holm-adjusted $p=1.000$. The L1-minus-L2 difference is $-0.0080$, paired 95\% CI $[-0.0264,\,0.0112]$, two-sided $p=0.4100$ and Holm-adjusted $p=1.000$. These comparisons do not establish superiority or equivalence. Model selection remains based on validation performance.
+CatBoost minus logistic regression has AUC difference $-0.0077$, paired 95\% CI $[-0.0566,\,0.0389]$, two-sided $p=0.7580$ and Holm-adjusted $p=1.000$. Against CatBoost + ES, the difference is $0.0098$, paired 95\% CI $[0.0009,\,0.0197]$, two-sided $p=0.0417$ and Holm-adjusted $p=0.272$. Neither comparison is significant after Holm correction; this does not establish equivalence. Model selection remains based on mean validation performance across seeds.
 
-The selected model's differences against random forest, CatBoost with SMOTE and the ranker are, respectively: $0.0903$, paired 95\% CI $[0.0286,\,0.1542]$, two-sided $p=0.0045$ and Holm-adjusted $p=0.049$; $0.1713$, paired 95\% CI $[0.1094,\,0.2331]$, two-sided $p=0.0001$ and Holm-adjusted $p=0.002$; and $0.1564$, paired 95\% CI $[0.0747,\,0.2389]$, two-sided $p=0.0003$ and Holm-adjusted $p=0.004$. These three differences remain significant after Holm correction at the 5\% level, subject to the sampling assumptions and test-inspection limitation above.
+The selected model's differences against random forest, CatBoost with SMOTE and the ranker are, respectively: $0.0658$, paired 95\% CI $[0.0103,\,0.1202]$, two-sided $p=0.0192$ and Holm-adjusted $p=0.154$; $0.1647$, paired 95\% CI $[0.0984,\,0.2334]$, two-sided $p=0.0001$ and Holm-adjusted $p=0.001$; and $0.1245$, paired 95\% CI $[0.0581,\,0.1925]$, two-sided $p=0.0006$ and Holm-adjusted $p=0.007$. The differences against SMOTE and the ranker remain significant after Holm correction at the 5\% level; the difference against random forest does not. These conclusions are conditional on the fixed models and the event-sampling assumptions above.
 
-\begin{figure*}[!t]
+Fig.~\ref{fig:auc_bootstrap}\label{firstref:fig:auc_bootstrap} summarizes the model-level AUC distributions; Fig.~\ref{fig:bootstrap_ci}\label{firstref:fig:bootstrap_ci} shows the selected model's uncertainty at individual ranking thresholds.
+
+\begin{figure}[!tbp]
     \centering
-    \includegraphics[width=\textwidth]{images/auc_distributions.png}
-    \caption{Test Top@k\%AUC bootstrap distributions for the seven fixed models: central 50\% and 95\% intervals, medians and test sample point estimates. All models use the same 10{,}000 event draws.}
+    \includegraphics[width=\columnwidth]{images/auc_distributions.png}
+    \caption{Test Top@k\%AUC bootstrap distributions for the six fixed models: central 50\% and 95\% intervals, medians and test sample point estimates. All models use the same 10{,}000 event draws.}
     \label{fig:auc_bootstrap}
-\end{figure*}
+\end{figure}
 
-\begin{figure*}[!t]
+\begin{figure*}[!tbp]
     \centering
     \includegraphics[width=\textwidth]{images/significance_bootstrap_ci.png}
-    \caption{CatBoost test Top@k and Top@k\% point estimates with 95\% intervals from 10{,}000 whole-event resamples.}
+    \caption{CatBoost test Top@k point estimates with 95\% intervals from 10{,}000 whole-event resamples.}
     \label{fig:bootstrap_ci}
 \end{figure*}
 
 \subsection{Robustness Analysis}
 \label{sec:robustness}
-\subsubsection{Training-event sensitivity}
-We retrain CatBoost + ES 25 times on random 70\% subsets of the training events, keeping hyperparameters and validation/test membership fixed. Table~\ref{table:robustness_summary} and Fig.~\ref{fig:robustness_distribution} summarize test performance. Mean AUC is $0.688$, its standard deviation is $0.014$, and the central 80\% range is $[0.668,\,0.702]$.
+\subsubsection{Sensitivity to tuning and training seeds}
+Table~\ref{table:robustness_summary} and Fig.~\ref{fig:robustness_distribution}\label{firstref:fig:robustness_distribution} summarize CatBoost test ranking metrics across the 100 seed-specific configurations. The training events and evaluation samples are fixed; each seed controls its own 25-trial inner search and final training. Mean AUC is $0.679$, its standard deviation is $0.022$, and the central 80\% range is $[0.654,\,0.700]$.
 
-\begin{table}[!t]
+\begin{table}[!tbp]
     \centering
     \small
     \setlength{\tabcolsep}{5pt}
     \renewcommand{\arraystretch}{1.15}
-    \caption{Test performance across 25 random 70\% training-event subset fits of CatBoost + ES.}
+    \caption{CatBoost test performance across 100 tuning and training seeds, with all event partitions fixed.}
     \begin{tabular}{lrrr}
         \toprule
         Metric & Mean & Std & [10\%, 90\%] \\
         \midrule
-        Top@k\%AUC & 0.688 & 0.014 & [0.668, 0.702] \\
-        Top@1\% & 0.326 & 0.047 & [0.260, 0.375] \\
-        Top@2\% & 0.469 & 0.038 & [0.427, 0.512] \\
-        Top@5\% & 0.629 & 0.028 & [0.593, 0.650] \\
-        Top@10\% & 0.747 & 0.021 & [0.725, 0.775] \\
-        Top@20\% & 0.846 & 0.025 & [0.825, 0.863] \\
+        Top@k\%AUC & 0.679 & 0.022 & [0.654, 0.700] \\
+        Top@1\% & 0.320 & 0.035 & [0.275, 0.362] \\
+        Top@2\% & 0.454 & 0.039 & [0.412, 0.500] \\
+        Top@5\% & 0.618 & 0.033 & [0.575, 0.650] \\
+        Top@10\% & 0.733 & 0.029 & [0.700, 0.764] \\
+        Top@20\% & 0.841 & 0.029 & [0.812, 0.875] \\
         \bottomrule
     \end{tabular}
     \label{table:robustness_summary}
 \end{table}
 
-\begin{figure*}[!t]
+\begin{figure*}[!tbp]
     \centering
     \includegraphics[width=\textwidth]{images/robustness_metrics_distribution.png}
-    \caption{Distribution of test ranking metrics across 25 CatBoost + ES fits on different 70\% training-event subsets, with validation and test membership fixed.}
+    \caption{CatBoost test ranking metrics across 100 seed-specific configurations trained on the same 290 events.}
     \label{fig:robustness_distribution}
 \end{figure*}
 
-The corresponding L2 logistic regression analysis keeps the selected penalty, $C$, and class weights fixed. Its mean test AUC is $0.707$, standard deviation $0.007$, and central 80\% range $[0.698,\,0.715]$. Preprocessing is fitted using each training subset. These experiments measure conditional training sensitivity and do not provide independent external validation.
+These experiments measure conditional training sensitivity and do not provide independent external validation.
 
 \subsubsection{Temporal subperiod analysis}
-Using June~1, 2022 as the subperiod boundary, the early test period contains 76 events and has CatBoost AUC $0.695$. The late period contains only four events and is excluded by the minimum of ten events per subperiod. This sample therefore does not support a reliable claim about bear-market or cross-regime performance.
+Using June~1, 2022 as the subperiod boundary, the early test period contains 76 events and has CatBoost AUC $0.689$. The late period contains only four events and is excluded by the minimum of ten events per subperiod. This sample therefore does not support a reliable claim about bear-market or cross-regime performance.
 
 \section{Portfolio strategy}
 \label{sec:portfolio}
@@ -659,12 +717,13 @@ We propose using models tuned for Top@k\%AUC which will ensure that the models a
 \end{enumerate}
 
 
-We use the validation-selected CatBoost model for every portfolio and price-impact analysis. We compare $k\in\{1,2,5,10,20,30\}$ and retain $k=5$ for order-size sensitivity. At $k=5$, target inclusion is $45.00\%$ (36 of 80 events), exactly matching Top@5 in Table~\ref{table:results_topk}.
+We use the selected seed-42 CatBoost model for every portfolio and price-impact analysis. We compare $k\in\{1,2,5,10,20,30\}$ and retain $k=5$ for order-size sensitivity. At $k=5$, target inclusion is $42.50\%$ (34 of 80 events), exactly matching Top@5 in Table~\ref{table:results_topk}.
 
 For each size, we generate 10{,}000 random portfolios. At each event, $k$ different eligible assets are selected uniformly and assigned equal weights, using common random asset orders across sizes. Trading rules, USDT conversion and the 25 bp round-trip cost match the model strategy. Unfilled allocations remain in cash. Events stay in chronological order and returns are summed without reinvestment. Annualized statistics use zero-filled daily returns over the same calendar and 365 days per year; each statistic is computed for each draw before averaging.
 
-At $k=5$, CatBoost cumulative return is $97.46\%$ and Sharpe is $2.86$. Random selection has mean return $-10.22\%$ with a central 95\% range of $[-23.29\%,\,20.90\%]$ and mean target inclusion $1.74\%$. These ranges describe random selection within the observed test period, not event-bootstrap confidence intervals or confirmatory significance tests.
-\begin{table*}[!t]
+\Needspace{6\baselineskip} % keep portfolio results together
+Table~\ref{table:performance_by_k} reports portfolio statistics, and Fig.~\ref{fig:portfolio_test}\label{firstref:fig:portfolio_test} shows the cumulative return paths. At $k=5$, CatBoost cumulative return is $92.42\%$ and Sharpe is $2.53$. Random selection has mean return $-10.22\%$ with a central 95\% range of $[-23.29\%,\,20.90\%]$ and mean target inclusion $1.74\%$. These ranges describe random selection within the observed test period, not event-bootstrap confidence intervals or confirmatory significance tests.
+\begin{table*}[!tbp]
     \centering
     \small
     \setlength{\tabcolsep}{5pt}
@@ -675,12 +734,12 @@ At $k=5$, CatBoost cumulative return is $97.46\%$ and Sharpe is $2.86$. Random s
         \toprule
         Portfolio & Avg. event return & Cumulative return & Annualized return & Annualized volatility & Sharpe \\
         \midrule
-        CatBoost $k=1$ & 0.0091 & 0.7281 & 0.5642 & 0.6839 & 0.8250 \\
-        CatBoost $k=2$ & 0.0141 & 1.1268 & 0.8732 & 0.4534 & 1.9258 \\
-        CatBoost $k=5$ & 0.0122 & 0.9746 & 0.7553 & 0.2643 & 2.8581 \\
-        CatBoost $k=10$ & 0.0058 & 0.4654 & 0.3607 & 0.2010 & 1.7943 \\
-        CatBoost $k=20$ & 0.0043 & 0.3469 & 0.2688 & 0.1293 & 2.0796 \\
-        CatBoost $k=30$ & 0.0025 & 0.1998 & 0.1548 & 0.0877 & 1.7648 \\
+        CatBoost $k=1$ & 0.0095 & 0.7582 & 0.5876 & 0.7338 & 0.8008 \\
+        CatBoost $k=2$ & 0.0159 & 1.2735 & 0.9869 & 0.5071 & 1.9460 \\
+        CatBoost $k=5$ & 0.0116 & 0.9242 & 0.7162 & 0.2828 & 2.5322 \\
+        CatBoost $k=10$ & 0.0068 & 0.5416 & 0.4197 & 0.1659 & 2.5298 \\
+        CatBoost $k=20$ & 0.0033 & 0.2663 & 0.2063 & 0.1251 & 1.6490 \\
+        CatBoost $k=30$ & 0.0027 & 0.2138 & 0.1657 & 0.0897 & 1.8467 \\
         Random $k=1$ & -0.0013 & -0.1023 & -0.0793 & 0.1313 & -1.2805 \\
         Random $k=2$ & -0.0013 & -0.1015 & -0.0787 & 0.1089 & -1.3999 \\
         Random $k=5$ & -0.0013 & -0.1022 & -0.0792 & 0.0843 & -1.4597 \\
@@ -693,7 +752,7 @@ At $k=5$, CatBoost cumulative return is $97.46\%$ and Sharpe is $2.86$. Random s
     }
     \label{table:performance_by_k}
 \end{table*}
-\begin{figure*}[!t]
+\begin{figure*}[!tbp]
     \centering
     \includegraphics[width=\textwidth]{images/portfolios_vs_btc_test.png}
     \caption{CatBoost portfolio cumulative returns, random selection and BTC/USDT over the same calendar. Returns include 25 bp round-trip costs and exclude size-dependent impact. The dashed curve averages 10{,}000 random $k=5$ portfolios; shading is the pointwise 95\% selection range. The solid black line is BTC/USDT buy-and-hold.}
@@ -768,18 +827,18 @@ where the 25 bps term is charged against entry capital and covers the round-trip
 \textbf{Manipulated-asset exit.} The sell leg occurs during the manipulation window where buying and selling pressure are not balanced. Its impact model uses 5-second sell-dominated candles available strictly before the exit, never observations after the simulated transaction. A manipulation-window fit is used only when at least 20 sell-dominated candle samples are available; otherwise the framework falls back to the pre-pump entry model. The ten-minute diagnostic fit below is illustrative; each execution fit uses only observations before its own exit.
 
 \subsubsection{Regression fit quality}
-Fig.~\ref{fig:impact_regression} shows an example of the fitted entry impact regression for one pump asset. The absolute-impact approach pools buy and sell 5-minute candles into a single regression ($I = \beta\sqrt{Q}$, no intercept), yielding $R^2 = 0.310$ on the buy side, $R^2 = 0.355$ on the sell side, and $\beta = 0.7224$ in the example shown.
+Fig.~\ref{fig:impact_regression}\label{firstref:fig:impact_regression} shows an example of the fitted entry impact regression for one pump asset. The absolute-impact approach pools buy and sell 5-minute candles into a single regression ($I = \beta\sqrt{Q}$, no intercept), yielding $R^2 = 0.310$ on the buy side, $R^2 = 0.355$ on the sell side, and $\beta = 0.7224$ in the example shown.
 
-Fig.~\ref{fig:exit_impact_regression} is a descriptive fit over the full capped 10-minute manipulation window for one asset. This longer diagnostic window is used only to visualize the sell-side relation; the execution backtest instead truncates each fit at that transaction's realized exit. The sell-only 5-second candle approach yields $R^2 = 0.274$ with $\beta = 1.3188$ ($n = 83$ candles) in the example shown. These illustrative coefficients do not establish a general causal difference between entry and exit liquidity.
+Fig.~\ref{fig:exit_impact_regression}\label{firstref:fig:exit_impact_regression} is a descriptive fit over the full capped 10-minute manipulation window for one asset. This longer diagnostic window is used only to visualize the sell-side relation; the execution backtest instead truncates each fit at that transaction's realized exit. The sell-only 5-second candle approach yields $R^2 = 0.274$ with $\beta = 1.3188$ ($n = 83$ candles) in the example shown. These illustrative coefficients do not establish a general causal difference between entry and exit liquidity.
 
-\begin{figure*}[!t]
+\begin{figure*}[!tbp]
     \centering
     \includegraphics[width=\textwidth]{images/impact_regression_example.png}
     \caption{Entry price-impact fit for SKY-BTC using 14 days of 5-minute candles ending 15 minutes before the announcement. Left: buy-dominated candles; right: sell-dominated candles. Each point shows absolute net volume $|Q_{\mathrm{net}}|$ in USDT against absolute close-to-close price change $|\Delta p|$ in basis points. The solid line in both panels is the joint fit $|\Delta p| = 0.72\sqrt{|Q_{\mathrm{net}}|}$ with no intercept, used to estimate entry VWAP slippage.}
     \label{fig:impact_regression}
 \end{figure*}
 
-\begin{figure}[!t]
+\begin{figure}[!tbp]
     \centering
     \includegraphics[width=\columnwidth]{images/exit_impact_regression_example.png}
     \caption{Illustrative exit price-impact fit for DLT-BTC using 83 sell-dominated 5-second candles from the first 10 minutes after the announcement. Points show absolute net sell volume in USDT against absolute close-to-close price change in basis points; the line is $|\Delta p| = 1.32\sqrt{|Q_{\mathrm{net}}|}$. The illustration uses the full window; each backtested exit uses only candles strictly preceding its own exit timestamp.}
@@ -789,9 +848,10 @@ Fig.~\ref{fig:exit_impact_regression} is a descriptive fit over the full capped 
 \subsubsection{Unmodeled execution frictions}
 The fitted impact model captures average slippage against historical candle-level liquidity but intentionally omits several real-world frictions in order to keep the estimate interpretable. Specifically, we do not model (i) order-book depth exhaustion at the deepest levels (which would manifest as partial fills rather than a smooth $\beta\sqrt{Q}$ curve), (ii) queue priority and time-in-force dynamics on the exchange matching engine, (iii) exchange-side API latency between signal generation and order arrival, and (iv) the risk that other market participants detect the same pump signature and front-run the entry. Each of these frictions works in the same direction and would reduce realized PnL further, so the sensitivity numbers reported below should be read as assumption-dependent scenarios, not a validated upper bound on achievable performance.
 
+\FloatBarrier % local figure placement
 \subsubsection{Portfolio performance with price impact}
-We apply the fitted impact model to both execution legs with 1{,}000 USDT per selected asset, so a size-$k$ portfolio targets $k\times1{,}000$ USDT per event. Predictions, event order, random selections and other trading rules are identical to the no-impact comparison. At $k=5$, CatBoost cumulative return is $61.49\%$ and Sharpe is $1.87$. Random selection has mean return $-32.99\%$, with a central 95\% range of $[-46.11\%,\,-2.22\%]$.
-\begin{table*}[!t]
+We apply the fitted impact model to both execution legs with 1{,}000 USDT per selected asset, so a size-$k$ portfolio targets $k\times1{,}000$ USDT per event. Predictions, event order, random selections and other trading rules are identical to the no-impact comparison. Table~\ref{table:performance_by_k_impact} and Fig.~\ref{fig:portfolio_test_impact}\label{firstref:fig:portfolio_test_impact} report the resulting statistics and return paths. At $k=5$, CatBoost cumulative return is $54.86\%$ and Sharpe is $1.54$. Random selection has mean return $-32.99\%$, with a central 95\% range of $[-46.11\%,\,-2.22\%]$.
+\begin{table*}[!tbp]
     \centering
     \small
     \setlength{\tabcolsep}{5pt}
@@ -802,12 +862,12 @@ We apply the fitted impact model to both execution legs with 1{,}000 USDT per se
         \toprule
         Portfolio & Avg. event return & Cumulative return & Annualized return & Annualized volatility & Sharpe \\
         \midrule
-        CatBoost $k=1$ & 0.0044 & 0.3496 & 0.2709 & 0.6806 & 0.3980 \\
-        CatBoost $k=2$ & 0.0093 & 0.7467 & 0.5787 & 0.4468 & 1.2951 \\
-        CatBoost $k=5$ & 0.0077 & 0.6149 & 0.4766 & 0.2549 & 1.8693 \\
-        CatBoost $k=10$ & 0.0014 & 0.1113 & 0.0863 & 0.2026 & 0.4259 \\
-        CatBoost $k=20$ & 0.0001 & 0.0048 & 0.0037 & 0.1289 & 0.0291 \\
-        CatBoost $k=30$ & -0.0016 & -0.1298 & -0.1006 & 0.0904 & -1.1131 \\
+        CatBoost $k=1$ & 0.0048 & 0.3820 & 0.2960 & 0.7308 & 0.4051 \\
+        CatBoost $k=2$ & 0.0113 & 0.9013 & 0.6984 & 0.4986 & 1.4008 \\
+        CatBoost $k=5$ & 0.0069 & 0.5486 & 0.4252 & 0.2760 & 1.5402 \\
+        CatBoost $k=10$ & 0.0022 & 0.1741 & 0.1349 & 0.1620 & 0.8329 \\
+        CatBoost $k=20$ & -0.0010 & -0.0828 & -0.0642 & 0.1297 & -0.4951 \\
+        CatBoost $k=30$ & -0.0015 & -0.1209 & -0.0937 & 0.0918 & -1.0211 \\
         Random $k=1$ & -0.0041 & -0.3300 & -0.2557 & 0.1394 & -2.8156 \\
         Random $k=2$ & -0.0041 & -0.3293 & -0.2552 & 0.1174 & -3.1083 \\
         Random $k=5$ & -0.0041 & -0.3299 & -0.2556 & 0.0932 & -3.3821 \\
@@ -820,15 +880,15 @@ We apply the fitted impact model to both execution legs with 1{,}000 USDT per se
     }
     \label{table:performance_by_k_impact}
 \end{table*}
-\begin{figure*}[!t]
+\begin{figure*}[!tbp]
     \centering
     \includegraphics[width=\textwidth]{images/portfolios_1000usdt_with_slippage.png}
     \caption{The same portfolios and random selections as Fig.~\ref{fig:portfolio_test}, with fitted price impact on both legs at 1{,}000 USDT per asset. Shading is the pointwise 95\% random-selection range; the BTC/USDT benchmark is unchanged.}
     \label{fig:portfolio_test_impact}
 \end{figure*}
 \subsubsection{PnL sensitivity to order size}
-For $k=5$, we vary intended size from 100 to 10{,}000 USDT per asset. Cumulative ROE without reinvestment is $0.861$ at 100 USDT, $0.467$ at 2{,}000 USDT, $0.174$ at 5{,}000 USDT, and $-0.155$ at 10{,}000 USDT. These conditional simulation outcomes depend on fill and impact assumptions and do not establish executable capacity.
-\begin{figure}[!t]
+Fig.~\ref{fig:pnl_vs_quantity}\label{firstref:fig:pnl_vs_quantity} shows the order-size sensitivity for $k=5$, varying intended size from 100 to 10{,}000 USDT per asset. Cumulative ROE without reinvestment is $0.805$ at 100 USDT, $0.394$ at 2{,}000 USDT, $0.088$ at 5{,}000 USDT, and $-0.254$ at 10{,}000 USDT. These conditional simulation outcomes depend on fill and impact assumptions and do not establish executable capacity.
+\begin{figure}[!tbp]
     \centering
     \includegraphics[width=\columnwidth]{images/pnl_vs_quantity_with_impact.png}
     \caption{CatBoost cumulative ROE over the 80 test events as intended per-asset notional changes. The $k=5$ strategy includes fitted entry and exit impact and 25 bp costs; returns are summed without reinvestment.}
@@ -842,7 +902,7 @@ For $k=5$, we vary intended size from 100 to 10{,}000 USDT per asset. Cumulative
 Our analysis is restricted to Binance BTC pairs during 2018--2022. The evidence does not establish generalisation to USDT pairs, other exchanges, decentralised venues, later market regimes, or continuous surveillance when announcement times are unknown. Each extension requires new labels, point-in-time features, and out-of-period or external validation.
 
 \textbf{Dataset size.}
-With 473 analyzed events (80 in test), statistical power remains limited. The reported intervals condition on the fitted models and assume independent pump events; correlated campaigns and test-set reuse may make them optimistic. The paired comparison in Section~\ref{sec:significance} does not establish a statistically significant AUC advantage for CatBoost + ES over tuned CatBoost.
+With 473 analyzed events (80 in test), statistical power remains limited. Event-bootstrap intervals condition on the fixed seed-42 models and assume independent pump events; correlated campaigns and test-set reuse may make them optimistic. The seed distributions measure a different source of variability and do not enlarge the event sample. The paired comparison in Section~\ref{sec:significance} does not establish a statistically significant AUC advantage for CatBoost + ES over tuned CatBoost.
 \textbf{Execution assumptions.}
 The fitted impact and 25 bp cost assumptions do not establish real trading feasibility. Order-book depth, queue priority, partial fills, signal/API latency, front-running, and exchange access restrictions are incompletely observed. Historical transaction prices do not guarantee executable quotes or scalable capacity. Predictive hit rates and simulated PnL are therefore separate outcomes, and positive simulated returns are not evidence of attainable live profits.
 
@@ -855,12 +915,13 @@ We evaluated class weighting~\cite{elkan2001cost} and SMOTE. Focal loss~\cite{li
 \textbf{Temporal safeguards and reproducibility.}
 The pipeline uses only data available before each decision. Feature windows and normalization data end strictly before $T-15$ minutes, and missing-value estimates are learned only from the training set. Automated tests add future trades, listings, and pump announcements to confirm that eligible assets and features do not change. They also check timestamp boundaries, exclude outcome variables from model inputs, keep test data out of training and tuning, and verify that currency conversion uses completed bars and price-impact estimates exclude trades after execution. These tests found no use of future data in the cases checked.
 
-The repository provides the event cohort, split membership, software versions, seed settings, feature hashes, model parameters, test predictions, shared bootstrap draws, and random-portfolio selections and execution outcomes. The same saved predictions underlie the test comparison, resampling and portfolios. The event records cannot independently validate Telegram annotations because the underlying messages and URLs are unavailable.
+The repository provides the event cohort, split membership, software versions, seeds 1--100, feature hashes, all 600 fitted configurations, validation and test predictions, shared bootstrap draws, and random-portfolio selections and execution outcomes. Repeating all 600 final fits reproduces their saved validation and test predictions exactly. The seed-42 point estimates, event resampling and portfolios use the same saved predictions. The event records cannot independently validate Telegram annotations because the underlying messages and URLs are unavailable.
 
 
+\FloatBarrier % local figure placement
 \section{Conclusion}
 
-This study compares seven tuned imbalance-aware prediction models on the same Binance BTC-pair events. Validation selects CatBoost (Top@k\%AUC $0.653$), which achieves test AUC $0.689$ and Top@5 $0.450$. L2 logistic regression has the largest descriptive test AUC ($0.710$), but paired resampling does not establish its superiority over CatBoost. The same selected model supplies all portfolio analyses: its $k=5$ cumulative return is $97.46\%$ without size-dependent impact and $61.49\%$ with fitted impact at 1{,}000 USDT per asset. These simulation outcomes are sensitive to execution assumptions and order size.
+This study compares six tuned imbalance-aware model families across 100 seeds on the same Binance BTC-pair events. CatBoost has the highest mean validation Top@k\%AUC ($0.6150$), while logistic regression has the highest mean test AUC ($0.7030$, compared with CatBoost's $0.6786$). The preselected seed-42 CatBoost model achieves test AUC $0.695$ and Top@5 $0.425$; paired event resampling does not establish its AUC superiority over logistic regression or CatBoost + ES after multiplicity correction. Its $k=5$ cumulative return is $92.42\%$ without size-dependent impact and $54.86\%$ with fitted impact at 1{,}000 USDT per asset. These simulation outcomes are sensitive to execution assumptions and order size.
 
 The evaluated SMOTE and ranking variants are weaker than the leading classifiers in this sample. These results motivate further work on market surveillance, with independent label verification and external chronological validation needed before broader claims or operational use.
 
@@ -936,18 +997,22 @@ M.~Mironov, D.~Bogutsky, and P.~Lukianchenko, ``Pump-and-dump target prediction 
 
 \end{thebibliography}
 
+\noindent\begin{minipage}{\columnwidth} % compact biography
 \begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{images/mironov.png}}]{Mikhail Mironov}
 received the B.S.\ degree in economics from Universitat Pompeu Fabra, Barcelona, Spain, and the National Research University Higher School of Economics (HSE), St.\ Petersburg, Russia, in 2023 (double degree), and the M.S.\ degree with honors in financial economics from International College of Economics and Finance, ICEF HSE, Moscow, Russia, in 2025. He is currently pursuing the Ph.D.\ degree in finance at HSE, Moscow, Russia. His major field of study is finance and financial economics.
 
 \end{IEEEbiography}
+\end{minipage}\par % compact biography
 
+\noindent\begin{minipage}{\columnwidth} % compact biography
 \begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{images/bogutsky.png}}]{Denis Bogutsky} received the M.S. degree in mathematics from Lomonosov Moscow State University in 2020. He is currently a Junior Researcher with the Laboratory of AI in Mathematical Finance at the National Research University Higher School of Economics. His research focuses on quantitative finance, market microstructure, credit risk modeling, and anomaly detection in financial systems.
 \end{IEEEbiography}
+\end{minipage}\par % compact biography
 
-\newpage
 
 %If you do not have or do not want to include a photo, you can use IEEEbiographynophoto as shown below:
 
+\noindent\begin{minipage}{\columnwidth} % compact biography
 \begin{IEEEbiography}
 [{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{images/lukyanchenko.png}}]
 {PETR P. LUKIANCHENKO} received the bachelor’s and master’s degrees in information science from HSE University, Moscow, Russia, in
@@ -969,6 +1034,7 @@ detection of structural breaks in financial time series and the development of
 simulators for financial market crises.
 
 \end{IEEEbiography}
+\end{minipage}\par % compact biography
 
 \EOD
 

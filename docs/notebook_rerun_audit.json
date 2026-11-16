@@ -69,7 +69,11 @@
   "random_selections_replayed": true,
   "same_predictions_used_throughout": true,
   "annualized_portfolio_statistics_replayed": true,
+  "all_six_daily_pnl_curves_and_random_mean_replayed_with_and_without_impact": true,
   "training_subset_summaries_and_feature_quantiles_recomputed": true,
+  "feature_importance_and_portfolio_model": "CatBoost classifier + Tuned",
+  "full_training_feature_importance_verified_against_checkpoint": true,
+  "training_subset_parameters_match_selected_model": true,
   "temporal_metric_and_l2_grid_choice_verified": true,
   "prediction_sha256": "fb0afc7e3c580d4609c48d63a36ec6bdd52139ac81f118b9f97cb991752640a1"
 }

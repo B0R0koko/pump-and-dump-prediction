@@ -1,0 +1,89 @@
+{
+  "status": "PASS",
+  "families": 6,
+  "seeds_per_family": 100,
+  "point_estimate_seed": 42,
+  "event_bootstrap_replicates": 10000,
+  "event_bootstrap_comparisons": 15,
+  "validation_and_test_point_metrics_replayed": true,
+  "event_bootstrap_replayed": true,
+  "seed_tables_match_audited_experiments": true,
+  "feature_importance_models_verified": 100,
+  "random_portfolio_selections_replayed": true,
+  "portfolio_results": {
+    "no_impact": {
+      "1": {
+        "return": 0.7582203723780886,
+        "target_hits": 11
+      },
+      "2": {
+        "return": 1.2734685449879275,
+        "target_hits": 17
+      },
+      "5": {
+        "return": 0.924213480128406,
+        "target_hits": 34
+      },
+      "10": {
+        "return": 0.54164467402186,
+        "target_hits": 44
+      },
+      "20": {
+        "return": 0.2662512841902319,
+        "target_hits": 53
+      },
+      "30": {
+        "return": 0.21379403582796597,
+        "target_hits": 60
+      }
+    },
+    "impact_1000": {
+      "1": {
+        "return": 0.38202261218758243,
+        "target_hits": 11
+      },
+      "2": {
+        "return": 0.9012800657006632,
+        "target_hits": 17
+      },
+      "5": {
+        "return": 0.548643629723069,
+        "target_hits": 34
+      },
+      "10": {
+        "return": 0.17408825013991452,
+        "target_hits": 44
+      },
+      "20": {
+        "return": -0.08284047894546127,
+        "target_hits": 53
+      },
+      "30": {
+        "return": -0.1208894629099314,
+        "target_hits": 60
+      }
+    }
+  },
+  "impact_scaling": {
+    "execution_universe": 23015,
+    "impact_scaling_replayed_at_quantities": 7,
+    "same_model_for_ranking_and_portfolios": true,
+    "no_impact_k5": {
+      "average event return": 0.011552668501605075,
+      "cumulative return": 0.924213480128406,
+      "annualized return": 0.7162163911823106,
+      "annualized volatility": 0.2828382100265729,
+      "Sharpe ratio": 2.5322476447401554,
+      "Top@k hit rate": 0.425
+    },
+    "impact_k5": {
+      "average event return": 0.006858045371538363,
+      "cumulative return": 0.548643629723069,
+      "annualized return": 0.4251696918236096,
+      "annualized volatility": 0.276039886135966,
+      "Sharpe ratio": 1.5402473090942674,
+      "Top@k hit rate": 0.425
+    }
+  },
+  "artifact_provenance_sha256": "946750e96bc7f2ff68f343dd3fe8816641c579d82132168cbdad20d2a3c2c5da"
+}

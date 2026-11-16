@@ -2,7 +2,7 @@
 
 Empirical comparison of pump-target prediction models on Binance BTC pairs, with event-level ranking metrics and an execution-sensitivity backtest.
 
-The active experiment restores the **473 pumps analyzed in the paper at `0167ddd`**: **290 train / 103 validation / 80 test**. The exact cohort is the original 498-event manifest minus its 25 recorded exclusions. It evaluates seven tuned predictive candidates with the existing regenerated features and estimates test Top@k%AUC uncertainty using 10,000 paired whole-event bootstrap samples. The notebook starts with a standalone statsmodels `summary2()` diagnostic, excluded from model comparisons. The primary model is selected automatically by the highest validation Top@k%AUC; the current winner is tuned CatBoost. The L2 logistic model uses the same preprocessing and class weights, selecting C from a fixed 25-value grid on validation data only. See [results](docs/results.md) and [cohort provenance](research_snapshots/paper_0167ddd/provenance.json).
+The active experiment uses **473 events: 290 train / 103 validation / 80 test**, from the 498-event manifest and its 25 recorded exclusions. The manuscript compares six model families across **seeds 1–100**, with **25 Optuna trials per model and seed** using a chronological 232/58 split within training. **CatBoost** has the highest mean validation Top@k%AUC (0.6150). Logistic regression has the highest mean test AUC (0.7030), followed by CatBoost (0.6786). The preselected seed-42 models supply point estimates and 10,000 paired event-bootstrap samples; the selected CatBoost model supplies feature interpretation and all portfolios. See [results](docs/results.md) and [cohort provenance](research_snapshots/paper_0167ddd/provenance.json).
 
 ## Setup and data
 
@@ -16,7 +16,7 @@ The default [event manifest](resources/pumps.json) contains exactly **498 announ
 
 Existing regenerated features can be reused. Data paths, Docker options, and commands are in the [reproduction guide](docs/reproduction.md).
 
-The committed [studies.db](studies.db) contains the latest saved searches used by the notebook: six Optuna studies with 100 completed trials each. Unused model experiments are excluded. The [search snapshot](research_snapshots/latest_search/README.md) records provenance and the latest L2 validation grid. Copy the database into the configured data directory before fitting on a fresh installation; see the reproduction guide.
+The committed [studies.db](studies.db) contains the six 100-trial searches used by the retained fixed-seed notebook. The [search snapshot](research_snapshots/latest_search/README.md) records that archive's provenance. The current manuscript uses the 600 separate 25-trial databases under `notebooks/analysis_outputs/validation_seed_sweep_100x25/studies/`; see the reproduction guide.
 
 ## Research
 
@@ -25,7 +25,9 @@ source .venv/bin/activate
 jupyter lab notebooks/research_notebook.ipynb
 ```
 
-- [research_notebook.ipynb](notebooks/research_notebook.ipynb): primary analysis, diagnostic preprocessing, models, comparisons, portfolios, and robustness.
+- [research_notebook.ipynb](notebooks/research_notebook.ipynb): retained fixed-seed analysis, diagnostic preprocessing, model comparisons, portfolios, and training-subset checks.
+- [validation_seed_sweep.ipynb](notebooks/validation_seed_sweep.ipynb): six model families, 25-trial inner searches for seeds 1–100, and model selection by mean validation Top@k%AUC.
+- [test_seed_sweep.ipynb](notebooks/test_seed_sweep.ipynb): the same 600 seed-specific configurations evaluated on the 80 test events, with the validation selection fixed.
 - [analysis_helpers.ipynb](notebooks/analysis_helpers.ipynb): shared plotting, analysis tables, diagnostics, and exports; loaded by the research notebooks.
 - [portfolio_1000usdt_slippage.ipynb](notebooks/portfolio_1000usdt_slippage.ipynb): saved-model portfolios and random selections with 1,000 USDT per asset, entry/exit price impact, and 25 bp round-trip costs.
 - [visualisations.ipynb](notebooks/visualisations.ipynb): trade-level illustrations.
@@ -41,9 +43,9 @@ MPLBACKEND=Agg .venv/bin/python scripts/run_test_auc_bootstrap.py --portfolio
 .venv/bin/python paper/src/update_results.py
 ```
 
-Outputs and executed notebooks go under `notebooks/analysis_outputs/paper_cohort_473_l2/`. The paper source is [paper/src/access.tex](paper/src/access.tex); `just paper` builds it. [Build and reproduction details](docs/reproduction.md).
+These fixed-seed notebook outputs remain under `notebooks/analysis_outputs/paper_cohort_473_l2/`. The manuscript now uses `validation_seed_sweep_100x25/`, `test_seed_sweep_100x25/`, and derived artifacts in `seed_sweep_paper/`. Refresh the paper from the completed seed sweeps with `python paper/src/update_results.py`, then audit with `python scripts/audit_seed_sweep_manuscript.py`. The source is [paper/src/access.tex](paper/src/access.tex); `just paper` builds it. [Build and reproduction details](docs/reproduction.md).
 
-The manuscript uses the completed fixed-seed run for every numerical result. Model comparisons, paired resampling and portfolios share the same saved predictions. The [submitted PDF](paper/baselines/ieee_final_submission/submitted.pdf) is used only as the baseline for highlighting changes.
+The 100-seed distributions describe tuning and training variability on fixed events. Seed-42 point estimates, paired event resampling and portfolios use the same saved predictions. The [submitted PDF](paper/baselines/ieee_final_submission/submitted.pdf) is used only as the baseline for highlighting changes.
 
 ## Code layout and checks
 

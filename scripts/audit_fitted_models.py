@@ -16,6 +16,9 @@ from sklearn.metrics import auc, precision_recall_curve, f1_score, balanced_accu
 
 
 def audit_models():
+    from research_snapshots.reproducibility import initialize_reproducibility
+
+    initialize_reproducibility()
     root = Path(__file__).resolve().parents[1]
     run = root / "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run"
     record = json.loads((run / "models/manifest.json").read_text())

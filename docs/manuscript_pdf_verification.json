@@ -1,26 +1,26 @@
 {
   "status": "PASS",
   "pages": [
-    21,
-    21
+    19,
+    19
   ],
   "clean_and_highlighted_text_identical": true,
   "all_cross_references_resolved": true,
   "current_result_values_present": [
-    "0.653",
-    "0.689",
-    "0.702",
-    "0.710",
-    "0.598",
-    "0.517",
-    "0.532",
-    "97.46",
-    "61.49"
+    "0.6150",
+    "0.6786",
+    "0.7030",
+    "0.695",
+    "0.425",
+    "92.42",
+    "54.86",
+    "42.50"
   ],
   "baseline_pdf_sha256": "0c3b40e93a729f8840ed8f62e714e827981703acf29cee6082f59fb1451ad361",
   "changed_tables_highlighted": [
     "table:train_val_test_stats",
     "table:validation_model_selection",
+    "table:test_seed_distribution",
     "table:results_topk",
     "table:results_topkp",
     "table:feature_importance_quantiles",
@@ -32,13 +32,13 @@
   "changed_figures_highlighted": [
     "fig:cross-section_size_over_time",
     "fig:data_with_crossnorm",
+    "fig:validation_seed_distribution",
     "fig:validation_topk",
     "fig:validation_topkp",
-    "fig:validation_classification",
+    "fig:test_seed_distribution",
     "fig:results_topk",
     "fig:results_topkp",
     "fig:classification_metrics",
-    "fig:catboost_fi",
     "fig:auc_bootstrap",
     "fig:bootstrap_ci",
     "fig:robustness_distribution",
@@ -48,9 +48,18 @@
     "fig:portfolio_test_impact",
     "fig:pnl_vs_quantity"
   ],
-  "source_sha256": "7a92d95376b4396c1ca134b4548409f35092ee7e4db603c3ea8bc0e276e12170",
+  "source_sha256": "c31fbfbb21b09bc58b4741a7dfd2edb22bd52ff6f9c296c6454e3b6d66178c1a",
   "pdf_sha256": {
-    "paper/access.pdf": "309a20e988e6c2a5e2f3d33f5eb4b4cd07449ea5e24c528c98f3b8664d3c71f4",
-    "paper/access_highlighted.pdf": "c6e0abbc1b2a5bf98cad636d915802c8d432f13c7e66d8c4a9f419ceb9ef304f"
-  }
+    "paper/access.pdf": "4f6dcdd0479f2fe69dc6eb2f5fa8b2ee077f98ae87802c6ee47d3988a5ca70ae",
+    "paper/access_highlighted.pdf": "73a89d753a5ef2b061b1251715d597e4955342c28a68bef77c5bdc0f52fdccb9"
+  },
+  "reported_models": 6,
+  "seeds_per_model": 100,
+  "fixed_model_seed": 42,
+  "single_logistic_regression_model": true,
+  "feature_importance_and_all_pnl_model": "CatBoost classifier + Tuned",
+  "page_limit": 20,
+  "compact_auc_bootstrap_figure_width": "columnwidth",
+  "figures_on_first_reference_page_or_next": 18,
+  "layout_audit": "docs/manuscript_layout_audit.json"
 }

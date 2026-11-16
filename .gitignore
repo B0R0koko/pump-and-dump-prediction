@@ -37,6 +37,10 @@ paper/src/*
 !paper/src/*.tex
 !paper/src/build_highlighted.py
 !paper/src/update_results.py
+!paper/src/prepare_comparison.py
+!paper/src/prepare_seed_results.py
+!paper/src/compact_figures.py
+!paper/src/layout.py
 !paper/baselines/
 paper/baselines/*
 !paper/baselines/ieee_final_submission/
@@ -48,6 +52,8 @@ paper/baselines/*
 !paper/src/images/
 paper/src/images/*
 !paper/src/images/auc_distributions.png
+!paper/src/images/validation_seed_distributions.png
+!paper/src/images/test_seed_distributions.png
 !paper/src/images/bogutsky.png
 !paper/src/images/bullet.png
 !paper/src/images/cs_size.jpeg

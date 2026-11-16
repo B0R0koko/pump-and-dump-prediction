@@ -1,32 +1,120 @@
 {
   "status": "PASS",
-  "run_manifest_sha256": "fa52e87a0efe617499bec4ac9a8954f80bb9f1b42a9e246ff613c1a8e5080f0a",
-  "paper_source_sha256": "7a92d95376b4396c1ca134b4548409f35092ee7e4db603c3ea8bc0e276e12170",
+  "run_manifest_sha256": "a31980ffe235a6ee0528514951d86a6b1162a7ca0a5f4884c6057a8dbfb51d73",
+  "paper_source_sha256": "c31fbfbb21b09bc58b4741a7dfd2edb22bd52ff6f9c296c6454e3b6d66178c1a",
   "reproducibility": {
     "random_seed": 42,
-    "optuna_sampler": "TPESampler",
-    "optuna_n_jobs": 1,
     "model_threads": 1,
-    "catboost_task_type": "CPU",
-    "python": "3.13.7",
-    "python_hash_seed": "42",
-    "versions": {
-      "numpy": "2.5.4",
-      "pandas": "3.0.6",
-      "polars": "2.0.0",
-      "scipy": "1.18.1",
-      "scikit-learn": "1.9.1",
-      "catboost": "1.2.10",
-      "imbalanced-learn": "0.14.2",
-      "optuna": "5.0.0",
-      "numba": "0.68.0",
-      "statsmodels": "0.14.6",
-      "threadpoolctl": "3.7.0"
-    },
-    "search_replay": "Start a fresh study with identical inputs, trial count, search space and software versions."
+    "optuna_n_jobs": 1,
+    "tuning_and_training_seeds": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54,
+      55,
+      56,
+      57,
+      58,
+      59,
+      60,
+      61,
+      62,
+      63,
+      64,
+      65,
+      66,
+      67,
+      68,
+      69,
+      70,
+      71,
+      72,
+      73,
+      74,
+      75,
+      76,
+      77,
+      78,
+      79,
+      80,
+      81,
+      82,
+      83,
+      84,
+      85,
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95,
+      96,
+      97,
+      98,
+      99,
+      100
+    ],
+    "trials_per_seed": 25,
+    "point_estimate_seed": 42,
+    "resampling_seed": 42
   },
   "tables": [
     "table:validation_model_selection",
+    "table:test_seed_distribution",
     "table:results_topk",
     "table:results_topkp",
     "table:feature_importance_quantiles",
@@ -39,35 +127,59 @@
   "table_rows": [
     {
       "table": "table:validation_model_selection",
-      "row": "Model & Top@k\\%AUC & Top@1 & Top@5 & Top@10 & Top@1\\% & Top@5\\% & Top@10\\% & PR-AUC & F1 & Balanced accuracy \\\\"
+      "row": "Model & Mean AUC & SD & 2.5\\% & 97.5\\% & Highest AUC (\\% of seeds) \\\\"
     },
     {
       "table": "table:validation_model_selection",
-      "row": "CatBoost & \\bfseries 0.653 & \\bfseries 0.165 & \\bfseries 0.417 & 0.524 & \\bfseries 0.330 & 0.573 & 0.689 & \\bfseries 0.089 & \\bfseries 0.165 & \\bfseries 0.581 \\\\"
+      "row": "CatBoost & 0.6150 & 0.0251 & 0.5599 & 0.6482 & 52 \\\\"
     },
     {
       "table": "table:validation_model_selection",
-      "row": "CatBoost + ES & 0.646 & 0.126 & \\bfseries 0.417 & \\bfseries 0.553 & 0.252 & \\bfseries 0.612 & 0.699 & 0.081 & 0.126 & 0.561 \\\\"
+      "row": "Logistic regression & 0.6102 & 0.0036 & 0.5996 & 0.6135 & 25 \\\\"
     },
     {
       "table": "table:validation_model_selection",
-      "row": "Logistic regression L2 & 0.611 & 0.097 & 0.311 & 0.456 & 0.243 & 0.505 & 0.670 & 0.057 & 0.097 & 0.547 \\\\"
+      "row": "CatBoost + ES & 0.5903 & 0.0418 & 0.4991 & 0.6394 & 23 \\\\"
     },
     {
       "table": "table:validation_model_selection",
-      "row": "Logistic regression L1 & 0.610 & 0.107 & 0.282 & 0.456 & 0.214 & 0.505 & \\bfseries 0.709 & 0.057 & 0.107 & 0.552 \\\\"
+      "row": "Random forest & 0.5635 & 0.0154 & 0.5351 & 0.5921 & 0 \\\\"
     },
     {
       "table": "table:validation_model_selection",
-      "row": "Random forest & 0.565 & 0.117 & 0.320 & 0.417 & 0.262 & 0.456 & 0.602 & 0.084 & 0.117 & 0.556 \\\\"
+      "row": "CatBoost ranker & 0.5189 & 0.0183 & 0.4775 & 0.5516 & 0 \\\\"
     },
     {
       "table": "table:validation_model_selection",
-      "row": "CatBoost + SMOTE & 0.524 & 0.097 & 0.233 & 0.379 & 0.214 & 0.408 & 0.583 & 0.075 & 0.097 & 0.547 \\\\"
+      "row": "CatBoost + SMOTE & 0.4849 & 0.0182 & 0.4539 & 0.5134 & 0 \\\\"
     },
     {
-      "table": "table:validation_model_selection",
-      "row": "CatBoost ranker & 0.501 & 0.078 & 0.330 & 0.398 & 0.204 & 0.427 & 0.534 & 0.038 & 0.078 & 0.537 \\\\"
+      "table": "table:test_seed_distribution",
+      "row": "Model & Mean AUC & SD & 2.5\\% & 97.5\\% & Highest AUC (\\% of seeds) \\\\"
+    },
+    {
+      "table": "table:test_seed_distribution",
+      "row": "Logistic regression & 0.7030 & 0.0015 & 0.6988 & 0.7049 & 91 \\\\"
+    },
+    {
+      "table": "table:test_seed_distribution",
+      "row": "CatBoost & 0.6786 & 0.0218 & 0.6283 & 0.7071 & 6 \\\\"
+    },
+    {
+      "table": "table:test_seed_distribution",
+      "row": "CatBoost + ES & 0.6576 & 0.0393 & 0.5720 & 0.7025 & 3 \\\\"
+    },
+    {
+      "table": "table:test_seed_distribution",
+      "row": "Random forest & 0.6212 & 0.0205 & 0.5784 & 0.6515 & 0 \\\\"
+    },
+    {
+      "table": "table:test_seed_distribution",
+      "row": "CatBoost ranker & 0.5846 & 0.0290 & 0.5157 & 0.6280 & 0 \\\\"
+    },
+    {
+      "table": "table:test_seed_distribution",
+      "row": "CatBoost + SMOTE & 0.5087 & 0.0228 & 0.4530 & 0.5429 & 0 \\\\"
     },
     {
       "table": "table:results_topk",
@@ -75,63 +187,55 @@
     },
     {
       "table": "table:results_topk",
-      "row": "CatBoost & 0.188 & 0.275 & 0.450 & 0.500 & 0.662 & 0.713 \\\\"
+      "row": "CatBoost & 0.138 & 0.212 & 0.425 & 0.550 & 0.662 & 0.750 \\\\"
     },
     {
       "table": "table:results_topk",
-      "row": "CatBoost + ES & 0.125 & 0.212 & 0.438 & 0.575 & 0.688 & 0.750 \\\\"
+      "row": "Logistic regression & 0.075 & 0.175 & 0.388 & 0.550 & 0.700 & 0.787 \\\\"
     },
     {
       "table": "table:results_topk",
-      "row": "Logistic regression L2 & 0.113 & 0.200 & 0.400 & 0.588 & 0.713 & 0.787 \\\\"
+      "row": "CatBoost + ES & 0.150 & 0.188 & 0.425 & 0.537 & 0.675 & 0.738 \\\\"
     },
     {
       "table": "table:results_topk",
-      "row": "Logistic regression L1 & 0.100 & 0.150 & 0.438 & 0.550 & 0.713 & 0.750 \\\\"
+      "row": "Random forest & 0.100 & 0.138 & 0.325 & 0.475 & 0.600 & 0.700 \\\\"
     },
     {
       "table": "table:results_topk",
-      "row": "Random forest & 0.087 & 0.163 & 0.312 & 0.450 & 0.575 & 0.675 \\\\"
+      "row": "CatBoost ranker & 0.062 & 0.150 & 0.263 & 0.450 & 0.550 & 0.637 \\\\"
     },
     {
       "table": "table:results_topk",
-      "row": "CatBoost + SMOTE & 0.050 & 0.163 & 0.250 & 0.325 & 0.438 & 0.537 \\\\"
-    },
-    {
-      "table": "table:results_topk",
-      "row": "CatBoost ranker & 0.050 & 0.125 & 0.212 & 0.400 & 0.537 & 0.588 \\\\"
+      "row": "CatBoost + SMOTE & 0.087 & 0.138 & 0.263 & 0.312 & 0.475 & 0.588 \\\\"
     },
     {
       "table": "table:results_topkp",
-      "row": "Model & Top@1\\% & Top@2\\% & Top@5\\% & Top@10\\% & Top@20\\% & Top@50\\% \\\\"
+      "row": "Model & Top@1\\% & Top@2\\% & Top@5\\% & Top@10\\% & Top@20\\% & Top@30\\% \\\\"
     },
     {
       "table": "table:results_topkp",
-      "row": "CatBoost & 0.388 & 0.450 & 0.625 & 0.713 & 0.875 & 0.963 \\\\"
+      "row": "CatBoost & 0.338 & 0.500 & 0.613 & 0.725 & 0.863 & 0.925 \\\\"
     },
     {
       "table": "table:results_topkp",
-      "row": "CatBoost + ES & 0.312 & 0.500 & 0.662 & 0.750 & 0.863 & 0.963 \\\\"
+      "row": "Logistic regression & 0.312 & 0.438 & 0.637 & 0.787 & 0.875 & 0.912 \\\\"
     },
     {
       "table": "table:results_topkp",
-      "row": "Logistic regression L2 & 0.312 & 0.500 & 0.637 & 0.787 & 0.875 & 0.950 \\\\"
+      "row": "CatBoost + ES & 0.325 & 0.500 & 0.562 & 0.725 & 0.850 & 0.912 \\\\"
     },
     {
       "table": "table:results_topkp",
-      "row": "Logistic regression L1 & 0.287 & 0.500 & 0.625 & 0.725 & 0.887 & 0.963 \\\\"
+      "row": "Random forest & 0.237 & 0.400 & 0.562 & 0.688 & 0.800 & 0.875 \\\\"
     },
     {
       "table": "table:results_topkp",
-      "row": "Random forest & 0.263 & 0.375 & 0.512 & 0.662 & 0.775 & 0.950 \\\\"
+      "row": "CatBoost ranker & 0.212 & 0.338 & 0.463 & 0.637 & 0.750 & 0.887 \\\\"
     },
     {
       "table": "table:results_topkp",
-      "row": "CatBoost + SMOTE & 0.200 & 0.275 & 0.412 & 0.537 & 0.750 & 0.900 \\\\"
-    },
-    {
-      "table": "table:results_topkp",
-      "row": "CatBoost ranker & 0.163 & 0.263 & 0.500 & 0.588 & 0.688 & 0.912 \\\\"
+      "row": "CatBoost + SMOTE & 0.212 & 0.287 & 0.412 & 0.588 & 0.738 & 0.838 \\\\"
     },
     {
       "table": "table:feature_importance_quantiles",
@@ -139,63 +243,63 @@
     },
     {
       "table": "table:feature_importance_quantiles",
-      "row": "num\\_prev\\_pump & 9.70 & 11.35 & 12.89 & 16.86 & 20.92 \\\\"
+      "row": "num\\_prev\\_pump & 8.62 & 9.49 & 10.40 & 11.80 & 13.92 \\\\"
     },
     {
       "table": "table:feature_importance_quantiles",
-      "row": "num\\_trades@7D & 3.17 & 5.06 & 8.73 & 13.11 & 16.11 \\\\"
+      "row": "num\\_trades@14D & 2.74 & 3.68 & 4.90 & 6.41 & 8.19 \\\\"
     },
     {
       "table": "table:feature_importance_quantiles",
-      "row": "num\\_trades@2D & 5.03 & 5.23 & 7.19 & 9.75 & 12.79 \\\\"
+      "row": "num\\_trades@2D & 1.86 & 3.14 & 4.52 & 6.86 & 9.28 \\\\"
     },
     {
       "table": "table:feature_importance_quantiles",
-      "row": "num\\_trades@14D & 1.48 & 3.32 & 4.97 & 8.84 & 11.37 \\\\"
+      "row": "num\\_trades@7D & 2.09 & 3.03 & 4.20 & 5.50 & 7.27 \\\\"
     },
     {
       "table": "table:feature_importance_quantiles",
-      "row": "slippage\\_imbalance@12H & 0.92 & 2.15 & 3.38 & 5.22 & 7.00 \\\\"
+      "row": "asset\\_return@4H & 1.70 & 2.13 & 2.59 & 3.04 & 3.61 \\\\"
     },
     {
       "table": "table:feature_importance_quantiles",
-      "row": "asset\\_return@12H & 1.26 & 1.65 & 2.56 & 3.23 & 3.95 \\\\"
+      "row": "slippage\\_imbalance@2D & 0.77 & 1.27 & 2.29 & 3.02 & 3.88 \\\\"
     },
     {
       "table": "table:feature_importance_quantiles",
-      "row": "asset\\_return@1D & 1.05 & 1.37 & 2.43 & 3.19 & 4.35 \\\\"
+      "row": "quote\\_abs\\_zscore@1H & 1.44 & 1.96 & 2.27 & 3.03 & 3.98 \\\\"
     },
     {
       "table": "table:feature_importance_quantiles",
-      "row": "quote\\_abs\\_zscore@1H & 0.30 & 0.92 & 2.38 & 2.83 & 3.55 \\\\"
+      "row": "num\\_trades@1D & 1.05 & 1.56 & 2.19 & 3.04 & 3.79 \\\\"
     },
     {
       "table": "table:feature_importance_quantiles",
-      "row": "slippage\\_imbalance@2D & 0.71 & 1.39 & 2.24 & 3.40 & 4.73 \\\\"
+      "row": "asset\\_return@12H & 1.10 & 1.49 & 2.01 & 2.34 & 3.02 \\\\"
     },
     {
       "table": "table:feature_importance_quantiles",
-      "row": "asset\\_return@4H & 0.73 & 1.71 & 2.22 & 3.09 & 3.84 \\\\"
+      "row": "asset\\_return@1D & 1.13 & 1.54 & 1.96 & 2.62 & 2.99 \\\\"
     },
     {
       "table": "table:feature_importance_quantiles",
-      "row": "asset\\_return\\_zscore@2H & 0.57 & 1.31 & 2.14 & 3.10 & 4.52 \\\\"
+      "row": "slippage\\_imbalance@12H & 1.13 & 1.37 & 1.86 & 2.82 & 4.28 \\\\"
     },
     {
       "table": "table:feature_importance_quantiles",
-      "row": "slippage\\_imbalance@4H & 0.00 & 0.36 & 1.69 & 1.95 & 2.49 \\\\"
+      "row": "asset\\_return\\_zscore@1D & 0.67 & 1.11 & 1.85 & 2.36 & 2.86 \\\\"
     },
     {
       "table": "table:feature_importance_quantiles",
-      "row": "asset\\_return@2H & 0.08 & 0.69 & 1.54 & 2.25 & 2.34 \\\\"
+      "row": "quote\\_abs\\_zscore@15MIN & 0.77 & 1.11 & 1.54 & 2.13 & 2.48 \\\\"
     },
     {
       "table": "table:feature_importance_quantiles",
-      "row": "asset\\_return\\_zscore@1H & 0.42 & 1.12 & 1.51 & 2.47 & 4.13 \\\\"
+      "row": "slippage\\_imbalance@1D & 0.42 & 0.91 & 1.51 & 2.20 & 3.36 \\\\"
     },
     {
       "table": "table:feature_importance_quantiles",
-      "row": "slippage\\_imbalance@1D & 0.07 & 0.46 & 1.49 & 2.61 & 4.27 \\\\"
+      "row": "asset\\_return\\_zscore@1H & 0.72 & 1.17 & 1.47 & 2.12 & 2.52 \\\\"
     },
     {
       "table": "table:significance_ci",
@@ -203,31 +307,27 @@
     },
     {
       "table": "table:significance_ci",
-      "row": "Logistic regression L2 & 0.710 & $[0.633,\\,0.784]$ \\\\"
+      "row": "Logistic regression & 0.703 & $[0.627,\\,0.776]$ \\\\"
     },
     {
       "table": "table:significance_ci",
-      "row": "Logistic regression L1 & 0.702 & $[0.625,\\,0.776]$ \\\\"
+      "row": "CatBoost & 0.695 & $[0.616,\\,0.771]$ \\\\"
     },
     {
       "table": "table:significance_ci",
-      "row": "CatBoost + ES & 0.694 & $[0.614,\\,0.771]$ \\\\"
+      "row": "CatBoost + ES & 0.686 & $[0.606,\\,0.762]$ \\\\"
     },
     {
       "table": "table:significance_ci",
-      "row": "CatBoost & 0.689 & $[0.612,\\,0.764]$ \\\\"
+      "row": "Random forest & 0.630 & $[0.547,\\,0.710]$ \\\\"
     },
     {
       "table": "table:significance_ci",
-      "row": "Random forest & 0.598 & $[0.513,\\,0.682]$ \\\\"
+      "row": "CatBoost ranker & 0.571 & $[0.482,\\,0.658]$ \\\\"
     },
     {
       "table": "table:significance_ci",
-      "row": "CatBoost ranker & 0.532 & $[0.442,\\,0.621]$ \\\\"
-    },
-    {
-      "table": "table:significance_ci",
-      "row": "CatBoost + SMOTE & 0.517 & $[0.433,\\,0.601]$ \\\\"
+      "row": "CatBoost + SMOTE & 0.531 & $[0.445,\\,0.614]$ \\\\"
     },
     {
       "table": "table:robustness_summary",
@@ -235,27 +335,27 @@
     },
     {
       "table": "table:robustness_summary",
-      "row": "Top@k\\%AUC & 0.688 & 0.014 & [0.668, 0.702] \\\\"
+      "row": "Top@k\\%AUC & 0.679 & 0.022 & [0.654, 0.700] \\\\"
     },
     {
       "table": "table:robustness_summary",
-      "row": "Top@1\\% & 0.326 & 0.047 & [0.260, 0.375] \\\\"
+      "row": "Top@1\\% & 0.320 & 0.035 & [0.275, 0.362] \\\\"
     },
     {
       "table": "table:robustness_summary",
-      "row": "Top@2\\% & 0.469 & 0.038 & [0.427, 0.512] \\\\"
+      "row": "Top@2\\% & 0.454 & 0.039 & [0.412, 0.500] \\\\"
     },
     {
       "table": "table:robustness_summary",
-      "row": "Top@5\\% & 0.629 & 0.028 & [0.593, 0.650] \\\\"
+      "row": "Top@5\\% & 0.618 & 0.033 & [0.575, 0.650] \\\\"
     },
     {
       "table": "table:robustness_summary",
-      "row": "Top@10\\% & 0.747 & 0.021 & [0.725, 0.775] \\\\"
+      "row": "Top@10\\% & 0.733 & 0.029 & [0.700, 0.764] \\\\"
     },
     {
       "table": "table:robustness_summary",
-      "row": "Top@20\\% & 0.846 & 0.025 & [0.825, 0.863] \\\\"
+      "row": "Top@20\\% & 0.841 & 0.029 & [0.812, 0.875] \\\\"
     },
     {
       "table": "table:performance_by_k",
@@ -263,27 +363,27 @@
     },
     {
       "table": "table:performance_by_k",
-      "row": "CatBoost $k=1$ & 0.0091 & 0.7281 & 0.5642 & 0.6839 & 0.8250 \\\\"
+      "row": "CatBoost $k=1$ & 0.0095 & 0.7582 & 0.5876 & 0.7338 & 0.8008 \\\\"
     },
     {
       "table": "table:performance_by_k",
-      "row": "CatBoost $k=2$ & 0.0141 & 1.1268 & 0.8732 & 0.4534 & 1.9258 \\\\"
+      "row": "CatBoost $k=2$ & 0.0159 & 1.2735 & 0.9869 & 0.5071 & 1.9460 \\\\"
     },
     {
       "table": "table:performance_by_k",
-      "row": "CatBoost $k=5$ & 0.0122 & 0.9746 & 0.7553 & 0.2643 & 2.8581 \\\\"
+      "row": "CatBoost $k=5$ & 0.0116 & 0.9242 & 0.7162 & 0.2828 & 2.5322 \\\\"
     },
     {
       "table": "table:performance_by_k",
-      "row": "CatBoost $k=10$ & 0.0058 & 0.4654 & 0.3607 & 0.2010 & 1.7943 \\\\"
+      "row": "CatBoost $k=10$ & 0.0068 & 0.5416 & 0.4197 & 0.1659 & 2.5298 \\\\"
     },
     {
       "table": "table:performance_by_k",
-      "row": "CatBoost $k=20$ & 0.0043 & 0.3469 & 0.2688 & 0.1293 & 2.0796 \\\\"
+      "row": "CatBoost $k=20$ & 0.0033 & 0.2663 & 0.2063 & 0.1251 & 1.6490 \\\\"
     },
     {
       "table": "table:performance_by_k",
-      "row": "CatBoost $k=30$ & 0.0025 & 0.1998 & 0.1548 & 0.0877 & 1.7648 \\\\"
+      "row": "CatBoost $k=30$ & 0.0027 & 0.2138 & 0.1657 & 0.0897 & 1.8467 \\\\"
     },
     {
       "table": "table:performance_by_k",
@@ -319,27 +419,27 @@
     },
     {
       "table": "table:performance_by_k_impact",
-      "row": "CatBoost $k=1$ & 0.0044 & 0.3496 & 0.2709 & 0.6806 & 0.3980 \\\\"
+      "row": "CatBoost $k=1$ & 0.0048 & 0.3820 & 0.2960 & 0.7308 & 0.4051 \\\\"
     },
     {
       "table": "table:performance_by_k_impact",
-      "row": "CatBoost $k=2$ & 0.0093 & 0.7467 & 0.5787 & 0.4468 & 1.2951 \\\\"
+      "row": "CatBoost $k=2$ & 0.0113 & 0.9013 & 0.6984 & 0.4986 & 1.4008 \\\\"
     },
     {
       "table": "table:performance_by_k_impact",
-      "row": "CatBoost $k=5$ & 0.0077 & 0.6149 & 0.4766 & 0.2549 & 1.8693 \\\\"
+      "row": "CatBoost $k=5$ & 0.0069 & 0.5486 & 0.4252 & 0.2760 & 1.5402 \\\\"
     },
     {
       "table": "table:performance_by_k_impact",
-      "row": "CatBoost $k=10$ & 0.0014 & 0.1113 & 0.0863 & 0.2026 & 0.4259 \\\\"
+      "row": "CatBoost $k=10$ & 0.0022 & 0.1741 & 0.1349 & 0.1620 & 0.8329 \\\\"
     },
     {
       "table": "table:performance_by_k_impact",
-      "row": "CatBoost $k=20$ & 0.0001 & 0.0048 & 0.0037 & 0.1289 & 0.0291 \\\\"
+      "row": "CatBoost $k=20$ & -0.0010 & -0.0828 & -0.0642 & 0.1297 & -0.4951 \\\\"
     },
     {
       "table": "table:performance_by_k_impact",
-      "row": "CatBoost $k=30$ & -0.0016 & -0.1298 & -0.1006 & 0.0904 & -1.1131 \\\\"
+      "row": "CatBoost $k=30$ & -0.0015 & -0.1209 & -0.0937 & 0.0918 & -1.0211 \\\\"
     },
     {
       "table": "table:performance_by_k_impact",
@@ -392,45 +492,43 @@
   ],
   "key_results": {
     "selected": "CatBoost",
-    "validation_auc": "0.653",
-    "cb_auc": "0.689",
-    "es_auc": "0.694",
-    "l1_auc": "0.702",
-    "l2_auc": "0.710",
-    "rf_auc": "0.598",
-    "cat_auc": "0.689",
-    "smote_auc": "0.517",
-    "ranker_auc": "0.532",
-    "top1": "0.188",
-    "top5": "0.450",
-    "top10": "0.500",
-    "hits": 36,
-    "hit_percent": "45.00",
-    "smote_top1": "5.00",
-    "ranker_top1": "5.00",
-    "robust_mean": "0.688",
-    "robust_std": "0.014",
-    "robust_low": "0.668",
-    "robust_high": "0.702",
-    "lr_mean": "0.707",
-    "lr_std": "0.007",
-    "lr_low": "0.698",
-    "lr_high": "0.715",
-    "early_auc": "0.695",
+    "validation_auc": "0.629",
+    "validation_mean": "0.6150",
+    "validation_sd": "0.0251",
+    "l1_validation_mean": "0.6102",
+    "cat_test_mean": "0.6786",
+    "l1_test_mean": "0.7030",
+    "l1_test_sd": "0.0015",
+    "cb_auc": "0.695",
+    "es_auc": "0.686",
+    "l1_auc": "0.703",
+    "rf_auc": "0.630",
+    "cat_auc": "0.695",
+    "smote_auc": "0.531",
+    "ranker_auc": "0.571",
+    "top1": "0.138",
+    "top5": "0.425",
+    "top10": "0.550",
+    "hits": 34,
+    "hit_percent": "42.50",
+    "smote_top1": "8.75",
+    "ranker_top1": "6.25",
+    "robust_mean": "0.679",
+    "robust_std": "0.022",
+    "robust_low": "0.654",
+    "robust_high": "0.700",
+    "early_auc": "0.689",
     "early_events": 76,
-    "l2_c": "4.642\\times10^{-5}",
-    "cb_l1": "$-0.0133$, paired 95\\% CI $[-0.0678,\\,0.0380]$, two-sided $p=0.6137$ and Holm-adjusted $p=1.000$",
-    "cb_l2": "$-0.0212$, paired 95\\% CI $[-0.0794,\\,0.0345]$, two-sided $p=0.4570$ and Holm-adjusted $p=1.000$",
+    "cb_l1": "$-0.0077$, paired 95\\% CI $[-0.0566,\\,0.0389]$, two-sided $p=0.7580$ and Holm-adjusted $p=1.000$",
     "reference": "CatBoost + ES",
-    "cb_cat": "$-0.0055$, paired 95\\% CI $[-0.0362,\\,0.0259]$, two-sided $p=0.7363$ and Holm-adjusted $p=1.000$",
-    "selected_rf": "$0.0903$, paired 95\\% CI $[0.0286,\\,0.1542]$, two-sided $p=0.0045$ and Holm-adjusted $p=0.049$",
-    "selected_smote": "$0.1713$, paired 95\\% CI $[0.1094,\\,0.2331]$, two-sided $p=0.0001$ and Holm-adjusted $p=0.002$",
-    "selected_ranker": "$0.1564$, paired 95\\% CI $[0.0747,\\,0.2389]$, two-sided $p=0.0003$ and Holm-adjusted $p=0.004$",
-    "l1_l2": "$-0.0080$, paired 95\\% CI $[-0.0264,\\,0.0112]$, two-sided $p=0.4100$ and Holm-adjusted $p=1.000$",
-    "model_return": "97.46",
-    "model_sharpe": "2.86",
-    "impact_return": "61.49",
-    "impact_sharpe": "1.87",
+    "cb_cat": "$0.0098$, paired 95\\% CI $[0.0009,\\,0.0197]$, two-sided $p=0.0417$ and Holm-adjusted $p=0.272$",
+    "selected_rf": "$0.0658$, paired 95\\% CI $[0.0103,\\,0.1202]$, two-sided $p=0.0192$ and Holm-adjusted $p=0.154$",
+    "selected_smote": "$0.1647$, paired 95\\% CI $[0.0984,\\,0.2334]$, two-sided $p=0.0001$ and Holm-adjusted $p=0.001$",
+    "selected_ranker": "$0.1245$, paired 95\\% CI $[0.0581,\\,0.1925]$, two-sided $p=0.0006$ and Holm-adjusted $p=0.007$",
+    "model_return": "92.42",
+    "model_sharpe": "2.53",
+    "impact_return": "54.86",
+    "impact_sharpe": "1.54",
     "random_return": "-10.22",
     "random_low": "-23.29",
     "random_high": "20.90",
@@ -440,38 +538,355 @@
     "impact_random_high": "-2.22"
   },
   "input_sha256": {
-    "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/tables/validation_metrics.csv": "cf80fbaa07f8c30daddb1114f267b8115cc950445171d72097ec27773aa731db",
-    "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/tables/test_topk.csv": "dc2e67e6ece02bd6ebcda89609df48866124b6342d7c923bb8a7cf2c57f701df",
-    "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/tables/test_topkp.csv": "7a2a62f4641b13ce3172fb3a5ea818e56ec3aebd2b7d0832447ef85d70a4a307",
-    "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/tables/test_classification.csv": "71fb3764f20b6a8321d6faf031a78918147f5ad4f79b5fc3bab14a1318a2e63c",
-    "notebooks/analysis_outputs/paper_cohort_473_l2/test_auc_bootstrap/auc_summary.csv": "8ce4942e782e2d40723b9725826140c11f87b29227a74eeff694565ec984566d",
-    "notebooks/analysis_outputs/paper_cohort_473_l2/test_auc_bootstrap/auc_pairwise.csv": "d3e9c02c51bb204afa128d46cf33d1fb23bc93e2b940dc3aba0624dce066ca5c",
-    "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/tables/robustness_summary.csv": "08dc9113fdf5c565d2eba607e84202c20df85d2c330f3d009cc90570ae10d686",
-    "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/tables/logistic_robustness_summary.csv": "50a689daac3454350a165dfe0d5c657b4b95a4888baf35da8a5282cc2941ab12",
-    "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/tables/feature_importance_quantiles.csv": "ef8dbeb6b4214d1d1568623441c24fd6769144c75ed267697b5b1ee82459a0f0",
-    "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/tables/subperiod_metrics.csv": "a45b4d5f002ea5780d97da7f3e66d6844ac9ea4cec293ebd9d4ba05ef03e732e",
-    "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/tables/portfolio_statistics.csv": "88c9f971c1cd385870352c72a1506b6a74b4ff349370bf5d4e1c1e1ee0aa4abb",
-    "notebooks/analysis_outputs/paper_cohort_473_l2/portfolio_1000usdt_slippage/model_statistics.csv": "c81a9875289c354717f53f4493908f159c28182b45e13f6a4275efbf33691bb5",
-    "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/tables/impact_sensitivity.csv": "7693f3bafb1065a389ca911954370eed07252003d0f2810b51a9471299ad2a16"
+    "notebooks/analysis_outputs/seed_sweep_paper/tables/validation_metrics.csv": "f6967b05e7a370af870e20603fe28bab3ad23385c9aa72f167e46bcd199ad74c",
+    "notebooks/analysis_outputs/seed_sweep_paper/tables/validation_seed_distributions.csv": "f0c7ad1f08fe295ea817fa0ae4b12cf32b9d592f303d60f5e8e9c3301876f027",
+    "notebooks/analysis_outputs/seed_sweep_paper/tables/test_seed_distributions.csv": "9aff140a85ecee2584d1c022e620686b2bab0b8b0dc66bb1dd0d4a90349ff514",
+    "notebooks/analysis_outputs/seed_sweep_paper/tables/test_topk.csv": "9523dcebdb3177da7af9e8f3cf83a76f0182c3a73c29385962853d3cb54bf2f5",
+    "notebooks/analysis_outputs/seed_sweep_paper/tables/test_topkp.csv": "c8fbdff87c73eaee3c6cb8655c0f0a33b5dc6d27e9c17709666f04f7c65ee7fa",
+    "notebooks/analysis_outputs/seed_sweep_paper/tables/test_classification.csv": "71162f0553c2625f4f6e89a5fa513eec35eeb05a42fa6457d6987b18feee59ca",
+    "notebooks/analysis_outputs/seed_sweep_paper/tables/auc_summary.csv": "eb2f894c6afd6370a84370c91885d70757d3988ca35ef2be8dc7926b59ec77e6",
+    "notebooks/analysis_outputs/seed_sweep_paper/tables/auc_pairwise.csv": "28edf72036dd7691706d37f4811803962d315496ce57e96dbd001c523ad7f30e",
+    "notebooks/analysis_outputs/seed_sweep_paper/tables/robustness_summary.csv": "0c721bab6ed049465b4922b7ab42df1a784b79cf9fcb90d40b9b9e1bc9f7d67b",
+    "notebooks/analysis_outputs/seed_sweep_paper/tables/feature_importance_quantiles.csv": "cf3a7f789dcbd12747a559a5ab48c3dd573f536a3db903694daaba19bee2f67e",
+    "notebooks/analysis_outputs/seed_sweep_paper/tables/subperiod_metrics.csv": "2fb54adf11e496d16d2f44e405b9f5777ff106c5f6e70d75d5f4f343b005f44d",
+    "notebooks/analysis_outputs/seed_sweep_paper/tables/portfolio_statistics.csv": "82bdf546d0ea1ed63fb48694a59842053995f00f75b0322b7ad05c27c22046bf",
+    "notebooks/analysis_outputs/seed_sweep_paper/portfolio_1000usdt_slippage/model_statistics.csv": "9591bdce2bc24326d21639f8b15d7c7d52ab1ac5a1da54f5d7fc04968e266cd6",
+    "notebooks/analysis_outputs/seed_sweep_paper/tables/impact_sensitivity.csv": "8cf8a53389e59199ef9d8b2991a585f14118d97556f9fb6826cdefa8be5a6528",
+    "notebooks/analysis_outputs/seed_sweep_paper/tables/selected_model_analysis.json": "98b0349321193e850c0297858431a6d52efe816a8b10e62979b65306bf704a2d"
   },
   "figure_sources": {
-    "paper/src/images/topk_accuracy_validation.png": "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/images/topk_accuracy_validation.png",
-    "paper/src/images/topkp_auc_validation.png": "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/images/topkp_auc_validation.png",
-    "paper/src/images/classification_metrics_validation.png": "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/images/classification_metrics_validation.png",
-    "paper/src/images/topk_accuracy_test.png": "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/images/topk_accuracy_test.png",
-    "paper/src/images/topkp_auc_test.png": "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/images/topkp_auc_test.png",
-    "paper/src/images/classification_metrics_test.png": "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/images/classification_metrics_test.png",
-    "paper/src/images/feature_importances.png": "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/images/feature_importances.png",
-    "paper/src/images/auc_distributions.png": "notebooks/analysis_outputs/paper_cohort_473_l2/test_auc_bootstrap/auc_distributions.png",
-    "paper/src/images/significance_bootstrap_ci.png": "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/images/significance_bootstrap_ci.png",
-    "paper/src/images/robustness_metrics_distribution.png": "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/images/robustness_metrics_distribution.png",
-    "paper/src/images/portfolios_vs_btc_test.png": "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/images/portfolios_vs_btc_test.png",
-    "paper/src/images/portfolios_1000usdt_with_slippage.png": "notebooks/analysis_outputs/paper_cohort_473_l2/portfolio_1000usdt_slippage/portfolios_1000usdt_with_slippage.png",
-    "paper/src/images/pnl_vs_quantity_with_impact.png": "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/images/pnl_vs_quantity_with_impact.png",
-    "paper/src/images/cs_size.jpeg": "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/images/cs_size.jpeg",
-    "paper/src/images/cs_standardization_impact.png": "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/images/cs_standardization_impact.png",
-    "paper/src/images/impact_regression_example.png": "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/images/impact_regression_example.png",
-    "paper/src/images/exit_impact_regression_example.png": "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/images/exit_impact_regression_example.png"
+    "paper/src/images/validation_seed_distributions.png": "notebooks/analysis_outputs/seed_sweep_paper_compact/images/validation_seed_distributions.png",
+    "paper/src/images/topk_accuracy_validation.png": "notebooks/analysis_outputs/seed_sweep_paper_compact/images/topk_accuracy_validation.png",
+    "paper/src/images/topkp_auc_validation.png": "notebooks/analysis_outputs/seed_sweep_paper_compact/images/topkp_auc_validation.png",
+    "paper/src/images/test_seed_distributions.png": "notebooks/analysis_outputs/seed_sweep_paper_compact/images/test_seed_distributions.png",
+    "paper/src/images/topk_accuracy_test.png": "notebooks/analysis_outputs/seed_sweep_paper_compact/images/topk_accuracy_test.png",
+    "paper/src/images/topkp_auc_test.png": "notebooks/analysis_outputs/seed_sweep_paper_compact/images/topkp_auc_test.png",
+    "paper/src/images/classification_metrics_test.png": "notebooks/analysis_outputs/seed_sweep_paper_compact/images/classification_metrics_test.png",
+    "paper/src/images/auc_distributions.png": "notebooks/analysis_outputs/seed_sweep_paper_compact/images/auc_distributions.png",
+    "paper/src/images/significance_bootstrap_ci.png": "notebooks/analysis_outputs/seed_sweep_paper_compact/images/significance_bootstrap_ci.png",
+    "paper/src/images/robustness_metrics_distribution.png": "notebooks/analysis_outputs/seed_sweep_paper_compact/images/robustness_metrics_distribution.png",
+    "paper/src/images/portfolios_vs_btc_test.png": "notebooks/analysis_outputs/seed_sweep_paper_compact/images/portfolios_vs_btc_test.png",
+    "paper/src/images/portfolios_1000usdt_with_slippage.png": "notebooks/analysis_outputs/seed_sweep_paper_compact/images/portfolios_1000usdt_with_slippage.png",
+    "paper/src/images/pnl_vs_quantity_with_impact.png": "notebooks/analysis_outputs/seed_sweep_paper/images/pnl_vs_quantity_with_impact.png",
+    "paper/src/images/cs_size.jpeg": "notebooks/analysis_outputs/seed_sweep_paper/images/cs_size.jpeg",
+    "paper/src/images/cs_standardization_impact.png": "notebooks/analysis_outputs/seed_sweep_paper/images/cs_standardization_impact.png",
+    "paper/src/images/impact_regression_example.png": "notebooks/analysis_outputs/seed_sweep_paper/images/impact_regression_example.png",
+    "paper/src/images/exit_impact_regression_example.png": "notebooks/analysis_outputs/seed_sweep_paper/images/exit_impact_regression_example.png"
+  },
+  "comparison": {
+    "inputs": {
+      "paper/src/prepare_seed_results.py": "a34dfdf65a9ec4c04955a397a83a0be08f072ab4388296b52d2269565429b77c",
+      "notebooks/analysis_helpers.ipynb": "770221e7a2dbb60984d70991176d8c66bcb8d5b7b845acbc8945db3ce2f6bf5f",
+      "notebooks/analysis_outputs/validation_seed_sweep_100x25/selection.json": "afcbfb7672a21054cf7e5841e1f4cf189c1e0ed681745b762521b8483f3401c8",
+      "notebooks/analysis_outputs/validation_seed_sweep_100x25/model_distributions.csv": "f0c7ad1f08fe295ea817fa0ae4b12cf32b9d592f303d60f5e8e9c3301876f027",
+      "notebooks/analysis_outputs/validation_seed_sweep_100x25/paired_seed_differences.csv": "6c0ee28438d10ee60971cb165a7422a06de773c3cbd9491b3485e96001f1e544",
+      "notebooks/analysis_outputs/validation_seed_sweep_100x25/validation_seed_distributions.png": "56aee6fb3cebe676bb96605d6a52e2a65127adfbd6bba649807c0dded1c2fe25",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/model_distributions.csv": "9aff140a85ecee2584d1c022e620686b2bab0b8b0dc66bb1dd0d4a90349ff514",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/paired_seed_differences.csv": "4cf7c02522c43d6d364fdd1a3eff45c4c488709ca7ebf5ca147c70f55b23a441",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/test_seed_distributions.png": "188a03be2796ee3e85a4e99ed7503ac0a0088875def39b1514545e23ef3a334c",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/test_event_metrics.parquet": "2106bd1f31d22ca32ffa22ef75d29dc44d1830ed77605a5a68618be561cff6d1",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/audit.json": "d47297922a4e91a699976da5beaf9bb37504ef5334c7130c4b6f5cd6644be06d",
+      "notebooks/analysis_outputs/validation_seed_sweep_100x25/development.parquet": "7157e5e7be06c68a965567ed42cf7af569b7e0aa9cf1557434f084a6e456f512",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/test.parquet": "310d47bdf891734ad0d4517cd5bc723305b560f66a96c7cfe48ba8257a3ad5d9",
+      "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/run_manifest.json": "fa52e87a0efe617499bec4ac9a8954f80bb9f1b42a9e246ff613c1a8e5080f0a",
+      "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/random_portfolio/asset_returns.parquet": "7975958ca682f530e29c5c17cdaa03fc79049615f5ce569c60d00cabb0ce8aa0",
+      "notebooks/analysis_outputs/paper_cohort_473_l2/portfolio_1000usdt_slippage/asset_returns.parquet": "c4b39b993257c70067cdca57c8dd185f97b52612c7d348bfed7812927b1bd26a",
+      "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/tables/impact_sensitivity.csv": "7693f3bafb1065a389ca911954370eed07252003d0f2810b51a9471299ad2a16",
+      "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/tables/portfolio_statistics.csv": "88c9f971c1cd385870352c72a1506b6a74b4ff349370bf5d4e1c1e1ee0aa4abb",
+      "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/tables/portfolio_returns.csv": "4a44d8798654f3d3699425a79069cd5acba5c9a442d15412b8c74a93e0b39eda",
+      "notebooks/analysis_outputs/paper_cohort_473_l2/test_auc_bootstrap/test_predictions.parquet": "fb0afc7e3c580d4609c48d63a36ec6bdd52139ac81f118b9f97cb991752640a1",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/logistic/seed_042/result.json": "9bbed88a52f40b7aa58939f1e2a23fad3534b377d674309a91560660fd94f10f",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/logistic/seed_042/model.pickle": "c91c9e66bd7251406153e5beda3535e72d43eccfd5eaa07d102fac0e92455793",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/logistic/seed_042/validation_predictions.parquet": "04781c26a945522db6f8ca54fb007c46227e37a4134313d55a9cac9452783cf9",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/logistic/seed_042/test_predictions.parquet": "74d19e493b714a01626a11e509221047c5b77327a17341ca484304159d87aaa1",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/forest/seed_042/result.json": "0f280cab89d2019943c5b2017aa515cf1bdea91b38d1edfd413aff5fd4ac31b4",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/forest/seed_042/model.pickle": "c74b044c727cf57e4a4e09ee8326b88694905d43ead0295093fd4665ac2228e5",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/forest/seed_042/validation_predictions.parquet": "11013c33b6c8badb7b2772b0c77bdf72462fe4a22cb7ff20eb7d743cc559bf48",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/forest/seed_042/test_predictions.parquet": "8dc691bcb5ffea1c773a87e7ea1100626bf606dfad550e42eecc3cf205ca82dc",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_042/result.json": "2316d2857c7596818ae929661319e63df222a29694e378aa235d9b1ee88a32c0",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_042/model.pickle": "2721b4d0b7430af5b558d878936514659ed96bd4ba3da60400fb313e194b1229",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_042/validation_predictions.parquet": "ee2046eac95f17228a429ead9da06f87af015daf8e5e685a0a43f4dd98d2c1a9",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_042/test_predictions.parquet": "03f92b52e8d2f6b7a0d5e5d66e2ef4d5e776f6f212b6488f52970b694f262baa",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/smote/seed_042/result.json": "ccd8847157c408e3ad710273ca5f83a065ec099e0c5aca347c31e18e3109e043",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/smote/seed_042/model.pickle": "ca6b42ead0238a365af5fe689f018ea78084ff9e8d5f7078c35c0258d217f2a2",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/smote/seed_042/validation_predictions.parquet": "e371bebadfe91f4bf634a19759f72c1a7c7b50a342b43b6c9e474f18dd23a667",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/smote/seed_042/test_predictions.parquet": "220462f13d294efe1844295efdb5f60b55e1254f04df7d22bb9a8fb225a3746e",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/ranker/seed_042/result.json": "a58908c31da56e43df03dee1ed58741106474663760ca96fb8f399124aaeacfa",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/ranker/seed_042/model.pickle": "1d58d0cac416f59142978c251df642f1ddd77d6368a3f4770972d4ad59abd223",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/ranker/seed_042/validation_predictions.parquet": "5f677a0571e665b35db464689e962797839b002fed778537483baa5f7eec737d",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/ranker/seed_042/test_predictions.parquet": "fceb998e928889280a4b1b4f596d719013401184fce5bbbf0d36b9a10de6d409",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost_es/seed_042/result.json": "a85137c9aebada9e4744bbd0c1b4cc0aa4d825f216899f87b0cd3c9a9dd02134",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost_es/seed_042/model.pickle": "934cb1fd878ed93f49b2bea1f1a1a89ab804539029d03ecd01b1274d0de66e7e",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost_es/seed_042/validation_predictions.parquet": "53f8bb0dfb3687dcc85c296eb1c34ba55e4fdec8d812f0919375c97f27a680cc",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost_es/seed_042/test_predictions.parquet": "0b5ed188b8c2eba8afa4f623eace9e4f57051d7b2a73c3b61bcbf2cf94c47fa1",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_001/model.pickle": "c7ed107682088bdfa558806a837080b65be20c4f20f513fafb20fad5b9624757",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_002/model.pickle": "5f587a0f7d3813b909d6f00ca5d91fe7e4c5ceaa6b2a52c9f81319afb5eeff83",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_003/model.pickle": "0e9389bc60a9ec36befd439db281d166d41094831a57dbb0b01d55479c85f43c",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_004/model.pickle": "512a702698ab51daaa7c28e96011999bd20f805cb41445ea64c5e1625bc9210f",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_005/model.pickle": "7392b52d5b78503c532565703af42e48a0e5347e3fe8fa61c6a79c9b8bed875d",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_006/model.pickle": "8999b32c5f1f848b807800559cdac3f6e5a1b6bc7eb07d8524c54062ae579044",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_007/model.pickle": "df4799e718b178a31b0e77c7a606fdfd94e849a81518c1b3ffc4bf8e66ca45f3",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_008/model.pickle": "6420862e6e2c369726f05ba3af85408aec2a157a0650a96c568c1d76ddcef985",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_009/model.pickle": "1df1a49139aaca9621bb4e12a3074685a3412465007032ef1de9e7e4169ad88e",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_010/model.pickle": "4073d87efb2ab979cbcd5b11faea08ae8adeeec18f9860586dccbf6b2a812011",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_011/model.pickle": "eae399536e94063e5ca10ffdbbe7421644fbc644acaaeb21637913c6f86dfcab",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_012/model.pickle": "fe33b5b4776e0e118e300e130b75ea1c72479acb4d4e387c4b7712c4b7e6bee5",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_013/model.pickle": "92a85606d972221a4649a2c228a99cd978e7f115333a09e679c733771b2369e2",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_014/model.pickle": "177f91afe2af1c4ff8793298c7da9d770781a4206166f88c9fde299f150d7979",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_015/model.pickle": "911c79c096770998e003050035e499c155ea981cc68ac5290cc124364fd11d86",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_016/model.pickle": "bfe885b5fa8b23e81372e1d5748d0d8bc331c83bcb8f4ef988e9c61eb19cee26",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_017/model.pickle": "31392584ec2278a286e63493aca129b8f14fa63fb2fc9cdbd05138293a0dbbca",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_018/model.pickle": "0d4f984fc5fc2d9a3f905c519e2e469b0bfbc3be623dbd348815021a7c8a9582",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_019/model.pickle": "2d160562d5d5b2a4997782b1051ade229a1ff54e0c8a9d828691e46d3a6c8e7f",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_020/model.pickle": "8394a9e3c3d9226412974890d5c2518bb71ce70094670f433b82ac4421c6580c",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_021/model.pickle": "53b9cbe1c5a5d1c4f1a1301e65f898088d1a0e8ab52e292ebc5f88940c29184d",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_022/model.pickle": "845364e95da57622881ff2983f2221c7e767ee3278d869d55b5e90a143545982",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_023/model.pickle": "76fb136c84907b75731de65292346639631e91fad064a8e5f7cf18eb33003e62",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_024/model.pickle": "1c9eb38417515e5aac1c1dde1d4cea4653952a66a50c4d2350dcfafa41e6f760",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_025/model.pickle": "f729d96400673396d89e6bdad93c7708f1c80977784af23f06bb216064b2bdd9",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_026/model.pickle": "c74c3f2ff16b9f183ae923694af21b46d1e2c4ba3bb6802cec028cfbd8002446",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_027/model.pickle": "b094a0c637afc60b1f4a37fe4ebc3d2362050e9e2bea8f8543e3e06664d4a71c",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_028/model.pickle": "bb435757cbbf1c0bb785fc4ca987d7230736a133eed20fd0a49385976f65c215",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_029/model.pickle": "c45e64a61c06e849915af3b0d9b38a3f532453be6f1987390e6f7ecb38121c6b",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_030/model.pickle": "26de68442e23e5ad6c7ec4666bc8e83c0d4f947f3766343f1e9d43e96e7596b3",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_031/model.pickle": "513768eeac652ebcf1fd5dc79d73d381bfea6d03e81ef66ba83db1448f48a0ee",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_032/model.pickle": "0b62d1a79ce050436e21668aa8fb5a9a07ea54aee4ef33290ee68e37d1ff67ca",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_033/model.pickle": "c91822be90fc578a65cd9b9f7af405726cff56c5234bfa15c951ec812110784b",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_034/model.pickle": "27c337cd03d9491c03a59ed1f29b2492d02d7832e18ddce9d2841470bc3ec8ec",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_035/model.pickle": "424657765adb232dfbf2d11c9ca6c3fd9041892eba3d851cedb3809f83864c49",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_036/model.pickle": "0f4d3c9fcef0a852448465a7459dd7e39677672a8c23313768fca14e147595c8",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_037/model.pickle": "c4cebe48c0518924a44fe4e5e6303c26a3245c01c8a3ec6d65a6dd52c6d6be2d",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_038/model.pickle": "e7d30e0d76c74983da3cf45ecb9f3f2d9ca464403b495a0f87a36e24db2a8ad3",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_039/model.pickle": "1eb6cfef605dcda675f296ca58d106b6544442208c8416d12aec9a6f61f5c667",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_040/model.pickle": "15b0cf43b59e34edec1fb0af5191069ef002dd181cc371b905718f9879541126",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_041/model.pickle": "929a880fb9cb12a59a86ec0a91eee752d5686e9988a3d9debbcf9d1e37b1bd93",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_043/model.pickle": "2e2ac24a28ee0d38ddaa6f7cbccd68b9b530dd528426d35405a06f0f5df7e3ab",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_044/model.pickle": "69011ffaad37fba212a3a9052b3330ae9d8f3481f8b2f52848940748c4c5db44",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_045/model.pickle": "27f781b09c5874fa78e9383ea30c80d25b602641130db01eb9c7cbaf552c1c5b",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_046/model.pickle": "6e534a15e33ec39e8dd1bb18762855a527dda5b5d5e8a0849beb35103849babb",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_047/model.pickle": "3e071eaa442d3c32bf43662c3238760770e5d091b6fc520e888dfc16ba215d74",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_048/model.pickle": "700e663ff6791a4ae8dcc6a2fa6dc1ccd200547c1e8416e0dfb05fc10a32e9f0",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_049/model.pickle": "496aa20ed496713146da7be837bcccf5429af26a48e056980feb89eecc60c0bb",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_050/model.pickle": "bbe129d8610b92b7c6247cd5f60ccaafa8cb788f7e3d34eafdb8ad14f55fcc48",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_051/model.pickle": "d7e6806bcb93ab9db52b07ad9812baeb704b3340c31bc441ac76ceca6ce5dc30",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_052/model.pickle": "6f10014d631bd178898c01c79d50384b1022dff0d5d46649a91ed94fc37b1180",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_053/model.pickle": "8a258058f7ac2f402dd328fd7c841ece9f5992714a8d4d5c300a78401c907233",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_054/model.pickle": "cb92a42de617b6150a2c5a04916019b5ddfae3a6f1b7d06b37b745e8bfaefa70",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_055/model.pickle": "0efd262dcd55e9c025af17e0f319c9e629488abe60394faf60fc8e14cc8ce51a",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_056/model.pickle": "10217705bf1b08cd01aed38a11736804d153b9987fd3d93b190eb9dd91575ab4",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_057/model.pickle": "7634703c30094194aeac7d0369d34be4897601e7171238eb517ac16ba140033f",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_058/model.pickle": "fd57e487b1042d92f28d22f0d636eb144cd7bf9a15380f0576453c28d2f58c51",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_059/model.pickle": "aefe67d24436c0215da1b5bccf39aae45e8cfbc209344bee0df61c8a356d19a6",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_060/model.pickle": "26d2c54ebd42c02b317274edd18d53ba2a6f5a4dd03a0ba5718fc1ac6a57aae8",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_061/model.pickle": "887b0c0fe343de938fae0abae3875d03aba55d3decfef5108182885496389cf0",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_062/model.pickle": "b40f36b823577db6f3288c8ebca99d9f9c633e931243ce01d52295dc3578b82c",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_063/model.pickle": "7302837d8cee399d3227edf5f1ccdbcd1763bedbb548df0566aa59544bf2b142",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_064/model.pickle": "af303ca65c9e87180c1fe273608101938960f42dad2eaa940a232afa7ac021b3",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_065/model.pickle": "a2b9e13fa27fe24d961b280eacb52975107bd9ccbfefe37cf28cbaab000e96c4",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_066/model.pickle": "dc1e30459c6471ede5c3a6394955f672905a3046db59a0aba5497106fefe0721",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_067/model.pickle": "5caef04717748089d73a4a7ac8eaec87968c000a13cdbefbfc0a4c8263db1815",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_068/model.pickle": "191d90eb447006df1935dec808650d6c0969f1b14ef99a2e7cb5b731d2211350",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_069/model.pickle": "5ba3af481bb5670c28acf65052c7b23e23931ace464530f84d6e1d2b780b3bde",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_070/model.pickle": "f335c808303742b3b03cfdba8f16230c7d3093364153afc2a6929fb435f35525",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_071/model.pickle": "4a469f2d12fc1c90f19e749683ec5729af2613819d8db1ab22bcded5916db555",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_072/model.pickle": "15ea12946e1b5b8df9181d0ba319bc82f28f2f49ab6c42f465826e1e34f13278",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_073/model.pickle": "d5b83803a66a52439833c5b659f3e42783602ea5644b0afbe4814ec47b83b032",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_074/model.pickle": "9f094868da36b6bec700e6aedebe8d0b814c3a6fbe9a2557b5e6844c14412b1a",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_075/model.pickle": "7b10b93270aa0fab008dbba7a696fd48c26edf5a8142aded81ce84857a0c4f55",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_076/model.pickle": "72f103aa7fba0e9878827cec5874df79add9cfc5c63b802e1d92e6a0a6bf698a",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_077/model.pickle": "df99db45254a257c5654369eb3a8a78b93de773d26e26d3e08aa62b15695ef8a",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_078/model.pickle": "ec3e2c40131c8df8dea1258bc11f26d51a0fc004ba1d65e422f455cf90bfe74f",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_079/model.pickle": "1ba6bc73111cc9f7f3f0287edc55547f8f2612fe5adf95bff89a98d9a1773991",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_080/model.pickle": "7a170a6523dd00a6e3c2e0819d59f0f17d7dd986db0d0a267e08157985ef864a",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_081/model.pickle": "770fce0beabd0b38e10d62dff1ff49123b7fc074f39c106c7d3a4bdfdfd80543",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_082/model.pickle": "e3c45f061398e22f7acf9d609b8fcd09ee84658a2efb3d27a7ca484881021749",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_083/model.pickle": "f5ae61a183e4a22dbc431fcb4aadbaf7f8836b4022f54a91fa4889c1a9576772",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_084/model.pickle": "97e223fd9e351007c1d96f3f54ef758abba5edf4ac5da8b56aa0533eadffe836",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_085/model.pickle": "cf89cc47afc581cea91df55ea6c8b098cf3ffd8bc76f77e406defdd04a49f0e3",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_086/model.pickle": "c01b7b762a21d23f5e8c19675074230446e21e7f57b9ed03b93219835ac9022c",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_087/model.pickle": "1405f041060e2ce8d8a8c6a74f69ca1080982df7bdc9a53aae954da0048233d8",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_088/model.pickle": "bb88ad4ab8aaf4d13d208911e844ec12c5debb842695250245b39d9d34fd454f",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_089/model.pickle": "988937c8e1b41dbe298d8568e685e80ecf0ba240737c95a7901d614743cd7b1a",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_090/model.pickle": "4c8d4a0af86d58d3c940c58da01ddcfcaaa6f811fb4ae6f20b1d28384b575300",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_091/model.pickle": "87d51b9a4ff6f0173611ff7856553839683f19c56fee04cb8f163df09e17fdba",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_092/model.pickle": "23263a4ce712455852567de65e5c6c73e6a9678d085e2025cc0873148d013756",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_093/model.pickle": "b4238441a3bb359f4a35457fff991413f21ce79f8c88f88ea0df1c3d6310448c",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_094/model.pickle": "b2806fb051545fc5e913bb745e6cb502181da4f85bf2a332909ea8d6626b9106",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_095/model.pickle": "f0f59db06eebd4a20bda019d2d3718b26c714e5b241e1b0dd49f28de4af4e629",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_096/model.pickle": "dae2447684fb7e96cd95e7ac570e545d5418eb7f666b50ca4270f876b14d7423",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_097/model.pickle": "6a6caf508029b0425863a5a1b0d4e1ba18d3b1dae317d856563036780351161b",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_098/model.pickle": "b337f78a34d82fcf9e4e33191cbd85696cf29531fcc19f92c31edeb1e2b2c2ec",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_099/model.pickle": "43b850f0a74a9b4041342d72cbff82044ba3ad0e73cd962ccb96a3ab5beace74",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_100/model.pickle": "0eea956fc561a9f1843cf9a381db4dd19171517f004fff6ffa8435ebee780c2e",
+      "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/random_portfolio/summary.csv": "7e772bc36b7f78a7705d198ffe616e14944d4c64c1eafadf97bc76e23c03786a",
+      "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/random_portfolio/metrics.csv": "509b93d18c1db7f06ade24311487cc720efcff602a29d75a37e692c6c0fa9317",
+      "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/random_portfolio/mean_event_returns.csv": "a624ad44d14333f37fae7cbf4367576d69bc03b51996e58791a88af62e0165bb",
+      "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/random_portfolio/cumulative_paths.csv": "7f0b25737766b02c3d32f44cca4de4ad316f6f6bb5d7537f9d2cc7d0393d2808",
+      "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/random_portfolio/resampled_assets.npz": "36baf3f07d6e87a1a9811382e1d6fe75e92f163af5abda49dc3d564eb573e143",
+      "notebooks/analysis_outputs/paper_cohort_473_l2/portfolio_1000usdt_slippage/random_portfolio/summary.csv": "43a6cbd17f270b7c1210c261e7aafac84ba120f986d54298d1253fcf1d7eca17",
+      "notebooks/analysis_outputs/paper_cohort_473_l2/portfolio_1000usdt_slippage/random_portfolio/metrics.csv": "bbe8ad88a29e45e2d15b02097fd8eba097a55b6d7f99bae79f77669325cb5612",
+      "notebooks/analysis_outputs/paper_cohort_473_l2/portfolio_1000usdt_slippage/random_portfolio/mean_event_returns.csv": "da442823ce87b51f83ea24f2b7d7cf7cba5c21b204ced804f78c30de2cc4fac7",
+      "notebooks/analysis_outputs/paper_cohort_473_l2/portfolio_1000usdt_slippage/random_portfolio/cumulative_paths.csv": "9645f43223f9f0f8d10fcdeabec129c1b30739ce6d64c5345fc2aa866661efae",
+      "notebooks/analysis_outputs/paper_cohort_473_l2/portfolio_1000usdt_slippage/random_portfolio/resampled_assets.npz": "42450e8688a00360957aa42f1ae7dba328bd4ce9ec62c417a9faa1247530be31",
+      "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/images/cs_size.jpeg": "e423c9bc6b94121e8dd4fd8fa8ac1fe2cfe184cf4926f423939cc456be147d37",
+      "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/images/cs_standardization_impact.png": "b979d0e300180606d4e8bd70765111ca454262c7cf21ac8d7e2eee5602f2552f",
+      "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/images/impact_regression_example.png": "ef37e8e2cdd6ead44d71a4694f65865598ea1dc0a1be9a86c0d1d5c2f1c32494",
+      "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/images/exit_impact_regression_example.png": "7c3962a61a75ba9c539364a97f952c8dbcdd6850c47f902ed8588411ce9e3cb4"
+    },
+    "outputs": {
+      "portfolio_rankings.parquet": "1cd8443bda20320a603f6ae83e024d0a82bf91d038b5a4561e92265e0f056716",
+      "model_event_returns.csv": "464809712f42066adc9ad82d8c35dc4b4f4f8e01b0311f971adad3eacdfdef3c",
+      "daily_returns.csv": "985c3103a1bf3830db1b5f0cf0ebdb2e9a182ffcc96813cfc88ac6d50adf6687",
+      "model_vs_random.csv": "79d357f329f2a09b2dae41cad871f3d7854841331b50e0388224ab5da2413b0c",
+      "run_manifest.json": "a31980ffe235a6ee0528514951d86a6b1162a7ca0a5f4884c6057a8dbfb51d73",
+      "model_statistics.csv": "f8d0c4f69a4244849d5758f5a801b317cd33af8b8a1db2d7723140a3f0d465df",
+      "portfolio_1000usdt_slippage/model_event_returns.csv": "156dac96cbc5c86028f9bf20cacc8a2b2be636173fa6b118aa54f9659bd5c343",
+      "portfolio_1000usdt_slippage/daily_returns.csv": "f60a689cfccf2385ce21d13c5fd744e75f6b80779fa780def1d4fcef0bba94ac",
+      "portfolio_1000usdt_slippage/model_vs_random.csv": "9ff18cfdc8c955e327fc01b2b60a94483b34702ef208b43015ca0dfd5232ec09",
+      "portfolio_1000usdt_slippage/model_statistics.csv": "9591bdce2bc24326d21639f8b15d7c7d52ab1ac5a1da54f5d7fc04968e266cd6",
+      "portfolio_1000usdt_slippage/portfolios_1000usdt_with_slippage.png": "e3d300a637b67f2424e4dd24db6127e1f8b57ddb35f02794782639dc43478415",
+      "robustness/seed_feature_importances.csv": "85e6657f8f3ec413722b75ceb91065d859240c5cf6cea1712068fca50c99fab9",
+      "robustness/seed_metrics.csv": "014dad7c17981a5946ba823d9b85cfe999405e61bbdb846c0db6e9b77f3dc601",
+      "random_portfolio/summary.csv": "7e772bc36b7f78a7705d198ffe616e14944d4c64c1eafadf97bc76e23c03786a",
+      "tables/selected_model_analysis.json": "98b0349321193e850c0297858431a6d52efe816a8b10e62979b65306bf704a2d",
+      "tables/subperiod_metrics.csv": "2fb54adf11e496d16d2f44e405b9f5777ff106c5f6e70d75d5f4f343b005f44d",
+      "tables/impact_sensitivity.csv": "8cf8a53389e59199ef9d8b2991a585f14118d97556f9fb6826cdefa8be5a6528",
+      "tables/validation_classification.csv": "d3b9f9c7c4a6606782847f3110d118d051201f44b9ade57c2d09bf7c5caffb70",
+      "tables/test_paired_seed_differences.csv": "4cf7c02522c43d6d364fdd1a3eff45c4c488709ca7ebf5ca147c70f55b23a441",
+      "tables/auc_pairwise.csv": "28edf72036dd7691706d37f4811803962d315496ce57e96dbd001c523ad7f30e",
+      "tables/validation_metrics.csv": "f6967b05e7a370af870e20603fe28bab3ad23385c9aa72f167e46bcd199ad74c",
+      "tables/validation_paired_seed_differences.csv": "6c0ee28438d10ee60971cb165a7422a06de773c3cbd9491b3485e96001f1e544",
+      "tables/selected_topk_ci.csv": "8b92e437b1ed45963b18d65f7cef3ee14cd833f233eb777ffd1190d6c6e3ebc9",
+      "tables/auc_summary.csv": "eb2f894c6afd6370a84370c91885d70757d3988ca35ef2be8dc7926b59ec77e6",
+      "tables/test_seed_distributions.csv": "9aff140a85ecee2584d1c022e620686b2bab0b8b0dc66bb1dd0d4a90349ff514",
+      "tables/test_topkp.csv": "c8fbdff87c73eaee3c6cb8655c0f0a33b5dc6d27e9c17709666f04f7c65ee7fa",
+      "tables/random_portfolio_metrics.csv": "7e772bc36b7f78a7705d198ffe616e14944d4c64c1eafadf97bc76e23c03786a",
+      "tables/robustness_summary.csv": "0c721bab6ed049465b4922b7ab42df1a784b79cf9fcb90d40b9b9e1bc9f7d67b",
+      "tables/test_topk.csv": "9523dcebdb3177da7af9e8f3cf83a76f0182c3a73c29385962853d3cb54bf2f5",
+      "tables/feature_importance_quantiles.csv": "cf3a7f789dcbd12747a559a5ab48c3dd573f536a3db903694daaba19bee2f67e",
+      "tables/selected_topkp_ci.csv": "cb4fe568475a06dfa3dfcea89a2b960c1c4b9495f1c698b53937813e5261fe85",
+      "tables/validation_topkp_curves.csv": "ecd041d0dbd832830a497156b99bebd1d76d11ea3a26a24d0fc683e6f5a66b96",
+      "tables/selected_model_feature_importances.csv": "e80fb1d3abdc7146ac97aa9f5ff42d4d2ddbbd11ae2b07fc905e74f6e3b4f23e",
+      "tables/validation_seed_distributions.csv": "f0c7ad1f08fe295ea817fa0ae4b12cf32b9d592f303d60f5e8e9c3301876f027",
+      "tables/portfolio_statistics.csv": "82bdf546d0ea1ed63fb48694a59842053995f00f75b0322b7ad05c27c22046bf",
+      "tables/validation_topk.csv": "9cd1d19cf90264b89f520912278ee72adfca1c2c06486d4951ea10024dbf7584",
+      "tables/validation_topkp.csv": "ef2c6324d176e222971a3167da1c44c69b4a2a4147df61354ee4f6c389988f4e",
+      "tables/test_topkp_curves.csv": "2a2450922b7f3399af4e22b762c522430e15ef6abb9d6b2157dd3b7381d519e9",
+      "tables/test_classification.csv": "71162f0553c2625f4f6e89a5fa513eec35eeb05a42fa6457d6987b18feee59ca",
+      "tables/portfolio_returns.csv": "985c3103a1bf3830db1b5f0cf0ebdb2e9a182ffcc96813cfc88ac6d50adf6687",
+      "images/topk_accuracy_validation.png": "fb5a2a97d0651c74f2773d183beb8f1a08cb437973358ff732999c08e032630e",
+      "images/classification_metrics_validation.png": "9f69421023e3ff4fdff73bbe5d7af8d12fed95f8485c9c26b8ab8214e1b6de71",
+      "images/robustness_metrics_distribution.png": "e74a2f323eb7206732a992db95700304fac088a4d6b80c8823cd250ea9c7a430",
+      "images/pnl_vs_quantity_with_impact.png": "ddc4efcffc7885f782ec7cad345d7db3073a68e8cd977e1e330d123d5e4a8065",
+      "images/topkp_auc_validation.png": "4c69ce22358612f02b8c58768d74ad1e8b5230a5ad3d4c9df476710d2c0e4456",
+      "images/topk_accuracy_test.png": "25ad8e7ac79914a24cb66a87d1e1c3964170a392478db4bb37f52693fcc0c546",
+      "images/topkp_auc_test.png": "bd9d7ef5cde97a09376aa66ff0f62f817d5445a20313218541a287c83eef96b6",
+      "images/cs_size.jpeg": "e423c9bc6b94121e8dd4fd8fa8ac1fe2cfe184cf4926f423939cc456be147d37",
+      "images/significance_bootstrap_ci.png": "2e2a355b6c0e842a711c56ba8cdf0bde67d000d50796ebd927000654243af325",
+      "images/impact_regression_example.png": "ef37e8e2cdd6ead44d71a4694f65865598ea1dc0a1be9a86c0d1d5c2f1c32494",
+      "images/validation_seed_distributions.png": "56aee6fb3cebe676bb96605d6a52e2a65127adfbd6bba649807c0dded1c2fe25",
+      "images/classification_metrics_test.png": "7c47d1171ab16be67f082a9baba8e84da26c9180dded80ac324b54402dbb4e96",
+      "images/auc_distributions.png": "8ce20a7aec52814b0a11ad20954b3361e5aa2aa5969ea16879264a4a1eb8956e",
+      "images/feature_importances.png": "b5b199ef3608f7c3da3c7ab4ea778e17443279b22da046a4c268d8e029672aae",
+      "images/test_seed_distributions.png": "188a03be2796ee3e85a4e99ed7503ac0a0088875def39b1514545e23ef3a334c",
+      "images/cs_standardization_impact.png": "b979d0e300180606d4e8bd70765111ca454262c7cf21ac8d7e2eee5602f2552f",
+      "images/portfolios_vs_btc_test.png": "ec816a289927834897df87ced9ae5d291c65106f81ddcae674d26635932d0c80",
+      "images/exit_impact_regression_example.png": "7c3962a61a75ba9c539364a97f952c8dbcdd6850c47f902ed8588411ce9e3cb4",
+      "test_auc_bootstrap/auc_pairwise.csv": "28edf72036dd7691706d37f4811803962d315496ce57e96dbd001c523ad7f30e",
+      "test_auc_bootstrap/resampled_events.npz": "27db8849c565c76556636a8b9ec158b880593e6a46c35ca4df063285439117e2",
+      "test_auc_bootstrap/auc_summary.csv": "eb2f894c6afd6370a84370c91885d70757d3988ca35ef2be8dc7926b59ec77e6",
+      "test_auc_bootstrap/auc_distributions.csv": "e4036fde67e7c3ba1724222bcc169cb7747a44fde0cc8edad635b6a0b36b934a",
+      "test_auc_bootstrap/metadata.json": "eb31234ddf5561f9c02bdb16c61e3ccb0bec27d456f712645811a5ea1e28ec03",
+      "test_auc_bootstrap/test_predictions.parquet": "fea950a90ab4bcb145e9073b61cc4d932398b9b3f24bbc61cf13635a4c0cbfe7",
+      "test_auc_bootstrap/event_aucs.csv": "d12681d146b337e75a76da8c9fa97874c4cd03a1cd5f1c7c54945b8e5b6be8ec",
+      "portfolio_1000usdt_slippage/random_portfolio/summary.csv": "43a6cbd17f270b7c1210c261e7aafac84ba120f986d54298d1253fcf1d7eca17"
+    },
+    "models": 6,
+    "seeds": 100,
+    "paired_comparisons": 15,
+    "selection": "Highest mean validation AUC; fixed seed 42 for point, event-bootstrap and portfolio results",
+    "same_fitted_models_and_predictions": true,
+    "execution": {
+      "execution_universe": 23015,
+      "impact_scaling_replayed_at_quantities": 7,
+      "same_model_for_ranking_and_portfolios": true,
+      "no_impact_k5": {
+        "average event return": 0.011552668501605075,
+        "cumulative return": 0.924213480128406,
+        "annualized return": 0.7162163911823106,
+        "annualized volatility": 0.2828382100265729,
+        "Sharpe ratio": 2.5322476447401554,
+        "Top@k hit rate": 0.425
+      },
+      "impact_k5": {
+        "average event return": 0.006858045371538363,
+        "cumulative return": 0.548643629723069,
+        "annualized return": 0.4251696918236096,
+        "annualized volatility": 0.276039886135966,
+        "Sharpe ratio": 1.5402473090942674,
+        "Top@k hit rate": 0.425
+      }
+    }
+  },
+  "reported_models": [
+    "CatBoost classifier + Top@k%AUC early stopping",
+    "Logistic regression + Tuned",
+    "Random forest + Tuned",
+    "CatBoost classifier + Tuned",
+    "CatBoost classifier + SMOTE + Tuned",
+    "CatBoost ranker + Tuned"
+  ],
+  "paired_comparisons": 15,
+  "compact_figure_provenance": {
+    "code_sha256": "b3e3bae75222bbab76be915e92d1e4393a08a15fb8e2fa939a690f343b71a177",
+    "model_names": {
+      "CatBoost classifier + Top@k%AUC early stopping": "CatBoost + ES",
+      "Logistic regression + Tuned": "Logistic regression",
+      "Random forest + Tuned": "Random forest",
+      "CatBoost classifier + Tuned": "CatBoost",
+      "CatBoost classifier + SMOTE + Tuned": "CatBoost + SMOTE",
+      "CatBoost ranker + Tuned": "CatBoost ranker"
+    },
+    "input_sha256": {
+      "notebooks/analysis_outputs/validation_seed_sweep_100x25/validation_auc_by_seed.csv": "3af2493150a6897979a6dca072070c52f235a6c856f0becdf8a793351975d2a3",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_042/validation_predictions.parquet": "ee2046eac95f17228a429ead9da06f87af015daf8e5e685a0a43f4dd98d2c1a9",
+      "notebooks/analysis_outputs/seed_sweep_paper/tables/validation_topk.csv": "9cd1d19cf90264b89f520912278ee72adfca1c2c06486d4951ea10024dbf7584",
+      "notebooks/analysis_outputs/seed_sweep_paper/tables/validation_topkp_curves.csv": "ecd041d0dbd832830a497156b99bebd1d76d11ea3a26a24d0fc683e6f5a66b96",
+      "notebooks/analysis_outputs/seed_sweep_paper/tables/validation_classification.csv": "d3b9f9c7c4a6606782847f3110d118d051201f44b9ade57c2d09bf7c5caffb70",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/test_auc_by_seed.csv": "80cf81a723be4831a66eef160a83bd37b61947e34d02165cdb4e98ad07ad64ce",
+      "notebooks/analysis_outputs/test_seed_sweep_100x25/fits/catboost/seed_042/test_predictions.parquet": "03f92b52e8d2f6b7a0d5e5d66e2ef4d5e776f6f212b6488f52970b694f262baa",
+      "notebooks/analysis_outputs/seed_sweep_paper/tables/test_topk.csv": "9523dcebdb3177da7af9e8f3cf83a76f0182c3a73c29385962853d3cb54bf2f5",
+      "notebooks/analysis_outputs/seed_sweep_paper/tables/test_topkp_curves.csv": "2a2450922b7f3399af4e22b762c522430e15ef6abb9d6b2157dd3b7381d519e9",
+      "notebooks/analysis_outputs/seed_sweep_paper/tables/test_classification.csv": "71162f0553c2625f4f6e89a5fa513eec35eeb05a42fa6457d6987b18feee59ca",
+      "notebooks/analysis_outputs/seed_sweep_paper/tables/selected_model_feature_importances.csv": "e80fb1d3abdc7146ac97aa9f5ff42d4d2ddbbd11ae2b07fc905e74f6e3b4f23e",
+      "notebooks/analysis_outputs/seed_sweep_paper/test_auc_bootstrap/auc_distributions.csv": "e4036fde67e7c3ba1724222bcc169cb7747a44fde0cc8edad635b6a0b36b934a",
+      "notebooks/analysis_outputs/seed_sweep_paper/tables/auc_summary.csv": "eb2f894c6afd6370a84370c91885d70757d3988ca35ef2be8dc7926b59ec77e6",
+      "notebooks/analysis_outputs/seed_sweep_paper/tables/selected_topk_ci.csv": "8b92e437b1ed45963b18d65f7cef3ee14cd833f233eb777ffd1190d6c6e3ebc9",
+      "notebooks/analysis_outputs/seed_sweep_paper/robustness/seed_metrics.csv": "014dad7c17981a5946ba823d9b85cfe999405e61bbdb846c0db6e9b77f3dc601",
+      "notebooks/analysis_outputs/seed_sweep_paper/daily_returns.csv": "985c3103a1bf3830db1b5f0cf0ebdb2e9a182ffcc96813cfc88ac6d50adf6687",
+      "notebooks/analysis_outputs/paper_cohort_473_l2/paper_run/random_portfolio/cumulative_paths.csv": "7f0b25737766b02c3d32f44cca4de4ad316f6f6bb5d7537f9d2cc7d0393d2808",
+      "notebooks/analysis_outputs/seed_sweep_paper/portfolio_1000usdt_slippage/daily_returns.csv": "f60a689cfccf2385ce21d13c5fd744e75f6b80779fa780def1d4fcef0bba94ac",
+      "notebooks/analysis_outputs/paper_cohort_473_l2/portfolio_1000usdt_slippage/random_portfolio/cumulative_paths.csv": "9645f43223f9f0f8d10fcdeabec129c1b30739ce6d64c5345fc2aa866661efae"
+    },
+    "output_sha256": {
+      "notebooks/analysis_outputs/seed_sweep_paper_compact/images/auc_distributions.png": "685d006459dc7f0167d9a822aa0d0f15141506d69a24ed661aa2e3170e201350",
+      "notebooks/analysis_outputs/seed_sweep_paper_compact/images/classification_metrics_test.png": "9eca75c901aa085d842e97833074c0f1753726838f214c669907c48d15a547be",
+      "notebooks/analysis_outputs/seed_sweep_paper_compact/images/classification_metrics_validation.png": "54bf0923794514008087bd199e8392de1732e067356188b30a787270d83c288f",
+      "notebooks/analysis_outputs/seed_sweep_paper_compact/images/feature_importances.png": "fcc428e44f56ed8328ceb361071ad69418313b14adda437438bb23692dd21ca9",
+      "notebooks/analysis_outputs/seed_sweep_paper_compact/images/portfolios_1000usdt_with_slippage.png": "7242b8a1613c2168a56a8ac13a124fceb7d809455bcbbba84aca5deea0c44475",
+      "notebooks/analysis_outputs/seed_sweep_paper_compact/images/portfolios_vs_btc_test.png": "d582aeaaebfddbddf06ec1b321ed73cfb434317af6e2e459e53e4df6c682c48e",
+      "notebooks/analysis_outputs/seed_sweep_paper_compact/images/robustness_metrics_distribution.png": "f5a094250f32be2cbaf5f9ede0946907bf445d40f3493db50da5d04ce3c04fbf",
+      "notebooks/analysis_outputs/seed_sweep_paper_compact/images/significance_bootstrap_ci.png": "e673bc4bd7c21e3e8f86dcf52b0f2b75d442dc287b6fc973d9ea9f6028c74720",
+      "notebooks/analysis_outputs/seed_sweep_paper_compact/images/test_seed_distributions.png": "79507e7a9e6d847e7ab66949f7e872d4b71af102f66d9da1cc51bc3c6e0cfb9e",
+      "notebooks/analysis_outputs/seed_sweep_paper_compact/images/topk_accuracy_test.png": "da4dc79784ea8a3a630a6e751cc2cb03dd98af77cc5c9d339da8302e2461a858",
+      "notebooks/analysis_outputs/seed_sweep_paper_compact/images/topk_accuracy_validation.png": "6dc25d4dd15d665f34d651b506907f00a89cc2080ef1eb92bb9748e08d8acebc",
+      "notebooks/analysis_outputs/seed_sweep_paper_compact/images/topkp_auc_test.png": "83a722a07c4e68a34bbded88a7885b24b0d549157f81f328433441dd91df5735",
+      "notebooks/analysis_outputs/seed_sweep_paper_compact/images/topkp_auc_validation.png": "ecc7afd96a063847e1382d1d8cf8e0adbbced0f3facc1ad15685a7a2572465e7",
+      "notebooks/analysis_outputs/seed_sweep_paper_compact/images/validation_seed_distributions.png": "42b87455e7ebe1d460bb919afc15bc5030dec3f776b0e4aa56a57243f47474ba"
+    },
+    "single_column_inches": 3.45,
+    "double_column_inches": 6.95,
+    "note": "Layout derivatives of audited numeric exports; no model fitting or resampling."
   },
   "previous_submission_used_only_as_highlight_baseline": true
 }

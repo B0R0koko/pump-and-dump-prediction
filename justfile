@@ -25,5 +25,8 @@ paper:
 paper-highlighted:
     cd paper/src && {{tex_env}} pdflatex -interaction=nonstopmode access_highlighted.tex && {{tex_env}} pdflatex -interaction=nonstopmode access_highlighted.tex
 
+paper-check-layout:
+    python3 paper/src/layout.py --check-pages
+
 presentation:
     cd presentation && lualatex -interaction=nonstopmode main.tex && lualatex -interaction=nonstopmode main.tex

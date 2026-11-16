@@ -181,7 +181,7 @@ def highlight_line(before, after, in_equation):
             return highlight_words(old_content, after[:ending.start()]) + after[ending.start():]
     # Grouping a standalone font declaration in \textcolor would cancel its
     # effect on subsequent text and change table dimensions and pagination.
-    structural = r"\s*\\(?:begin|end|label|centering|setlength|renewcommand|toprule|midrule|bottomrule|hline|resizebox|includegraphics|FloatBarrier|newpage|clearpage|vspace|hspace|EOD|tiny|scriptsize|footnotesize|small|normalsize|large|Large|LARGE|huge|Huge|bfseries|mdseries|itshape|upshape|rmfamily|sffamily|ttfamily)\b"
+    structural = r"\s*\\(?:begin|end|label|centering|noindent|setlength|renewcommand|toprule|midrule|bottomrule|hline|resizebox|includegraphics|FloatBarrier|Needspace|needspace|newpage|clearpage|vspace|hspace|EOD|tiny|scriptsize|footnotesize|small|normalsize|large|Large|LARGE|huge|Huge|bfseries|mdseries|itshape|upshape|rmfamily|sffamily|ttfamily)\b"
     if re.match(structural, after) or stripped.startswith(("}", "&")):
         return after
     if stripped in {r"\\", r"\\ \\"}:

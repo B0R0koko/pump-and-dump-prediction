@@ -1,0 +1,270 @@
+{
+  "status": "PASS",
+  "rule": "Every figure is on its first-reference page or the following page",
+  "documents": {
+    "access": {
+      "source_sha256": "c31fbfbb21b09bc58b4741a7dfd2edb22bd52ff6f9c296c6454e3b6d66178c1a",
+      "pdf_sha256": "4f6dcdd0479f2fe69dc6eb2f5fa8b2ee077f98ae87802c6ee47d3988a5ca70ae",
+      "figures": [
+        {
+          "label": "fig:pump_and_dump_example",
+          "number": "1",
+          "first_reference_page": 1,
+          "figure_page": 2,
+          "page_gap": 1
+        },
+        {
+          "label": "fig:cross-section_size_over_time",
+          "number": "2",
+          "first_reference_page": 4,
+          "figure_page": 4,
+          "page_gap": 0
+        },
+        {
+          "label": "fig:data_with_crossnorm",
+          "number": "3",
+          "first_reference_page": 5,
+          "figure_page": 6,
+          "page_gap": 1
+        },
+        {
+          "label": "fig:validation_seed_distribution",
+          "number": "4",
+          "first_reference_page": 8,
+          "figure_page": 8,
+          "page_gap": 0
+        },
+        {
+          "label": "fig:validation_topk",
+          "number": "5",
+          "first_reference_page": 8,
+          "figure_page": 8,
+          "page_gap": 0
+        },
+        {
+          "label": "fig:validation_topkp",
+          "number": "6",
+          "first_reference_page": 8,
+          "figure_page": 9,
+          "page_gap": 1
+        },
+        {
+          "label": "fig:test_seed_distribution",
+          "number": "7",
+          "first_reference_page": 8,
+          "figure_page": 9,
+          "page_gap": 1
+        },
+        {
+          "label": "fig:results_topk",
+          "number": "8",
+          "first_reference_page": 9,
+          "figure_page": 9,
+          "page_gap": 0
+        },
+        {
+          "label": "fig:results_topkp",
+          "number": "9",
+          "first_reference_page": 9,
+          "figure_page": 10,
+          "page_gap": 1
+        },
+        {
+          "label": "fig:classification_metrics",
+          "number": "10",
+          "first_reference_page": 9,
+          "figure_page": 10,
+          "page_gap": 1
+        },
+        {
+          "label": "fig:auc_bootstrap",
+          "number": "11",
+          "first_reference_page": 11,
+          "figure_page": 11,
+          "page_gap": 0
+        },
+        {
+          "label": "fig:bootstrap_ci",
+          "number": "12",
+          "first_reference_page": 11,
+          "figure_page": 12,
+          "page_gap": 1
+        },
+        {
+          "label": "fig:robustness_distribution",
+          "number": "13",
+          "first_reference_page": 11,
+          "figure_page": 12,
+          "page_gap": 1
+        },
+        {
+          "label": "fig:portfolio_test",
+          "number": "14",
+          "first_reference_page": 13,
+          "figure_page": 14,
+          "page_gap": 1
+        },
+        {
+          "label": "fig:impact_regression",
+          "number": "15",
+          "first_reference_page": 15,
+          "figure_page": 16,
+          "page_gap": 1
+        },
+        {
+          "label": "fig:exit_impact_regression",
+          "number": "16",
+          "first_reference_page": 15,
+          "figure_page": 16,
+          "page_gap": 1
+        },
+        {
+          "label": "fig:portfolio_test_impact",
+          "number": "17",
+          "first_reference_page": 16,
+          "figure_page": 17,
+          "page_gap": 1
+        },
+        {
+          "label": "fig:pnl_vs_quantity",
+          "number": "18",
+          "first_reference_page": 16,
+          "figure_page": 17,
+          "page_gap": 1
+        }
+      ]
+    },
+    "access_highlighted": {
+      "source_sha256": "8e345fc85a17547551c86e72de9e9732bc9f6fa29b83673428da7b17e762d0c4",
+      "pdf_sha256": "73a89d753a5ef2b061b1251715d597e4955342c28a68bef77c5bdc0f52fdccb9",
+      "figures": [
+        {
+          "label": "fig:pump_and_dump_example",
+          "number": "1",
+          "first_reference_page": 1,
+          "figure_page": 2,
+          "page_gap": 1
+        },
+        {
+          "label": "fig:cross-section_size_over_time",
+          "number": "2",
+          "first_reference_page": 4,
+          "figure_page": 4,
+          "page_gap": 0
+        },
+        {
+          "label": "fig:data_with_crossnorm",
+          "number": "3",
+          "first_reference_page": 5,
+          "figure_page": 6,
+          "page_gap": 1
+        },
+        {
+          "label": "fig:validation_seed_distribution",
+          "number": "4",
+          "first_reference_page": 8,
+          "figure_page": 8,
+          "page_gap": 0
+        },
+        {
+          "label": "fig:validation_topk",
+          "number": "5",
+          "first_reference_page": 8,
+          "figure_page": 8,
+          "page_gap": 0
+        },
+        {
+          "label": "fig:validation_topkp",
+          "number": "6",
+          "first_reference_page": 8,
+          "figure_page": 9,
+          "page_gap": 1
+        },
+        {
+          "label": "fig:test_seed_distribution",
+          "number": "7",
+          "first_reference_page": 8,
+          "figure_page": 9,
+          "page_gap": 1
+        },
+        {
+          "label": "fig:results_topk",
+          "number": "8",
+          "first_reference_page": 9,
+          "figure_page": 9,
+          "page_gap": 0
+        },
+        {
+          "label": "fig:results_topkp",
+          "number": "9",
+          "first_reference_page": 9,
+          "figure_page": 10,
+          "page_gap": 1
+        },
+        {
+          "label": "fig:classification_metrics",
+          "number": "10",
+          "first_reference_page": 9,
+          "figure_page": 10,
+          "page_gap": 1
+        },
+        {
+          "label": "fig:auc_bootstrap",
+          "number": "11",
+          "first_reference_page": 11,
+          "figure_page": 11,
+          "page_gap": 0
+        },
+        {
+          "label": "fig:bootstrap_ci",
+          "number": "12",
+          "first_reference_page": 11,
+          "figure_page": 12,
+          "page_gap": 1
+        },
+        {
+          "label": "fig:robustness_distribution",
+          "number": "13",
+          "first_reference_page": 11,
+          "figure_page": 12,
+          "page_gap": 1
+        },
+        {
+          "label": "fig:portfolio_test",
+          "number": "14",
+          "first_reference_page": 13,
+          "figure_page": 14,
+          "page_gap": 1
+        },
+        {
+          "label": "fig:impact_regression",
+          "number": "15",
+          "first_reference_page": 15,
+          "figure_page": 16,
+          "page_gap": 1
+        },
+        {
+          "label": "fig:exit_impact_regression",
+          "number": "16",
+          "first_reference_page": 15,
+          "figure_page": 16,
+          "page_gap": 1
+        },
+        {
+          "label": "fig:portfolio_test_impact",
+          "number": "17",
+          "first_reference_page": 16,
+          "figure_page": 17,
+          "page_gap": 1
+        },
+        {
+          "label": "fig:pnl_vs_quantity",
+          "number": "18",
+          "first_reference_page": 16,
+          "figure_page": 17,
+          "page_gap": 1
+        }
+      ]
+    }
+  }
+}

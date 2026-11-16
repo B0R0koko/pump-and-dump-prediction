@@ -12,30 +12,34 @@ from pathlib import Path
 import re
 import shutil
 
-import numpy as np
 import pandas as pd
 
 from build_highlighted import floats, normalized_lines, table_body
+from prepare_seed_results import COMPARISON, RUN, IMPACT, OUTPUT, MODEL_NAMES, prepare
+from layout import apply_layout, strip_layout
+from compact_figures import FILENAMES, SINGLE_COLUMN, OUTPUT as COMPACT_OUTPUT, prepare_compact_figures
 
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
-OUTPUT = ROOT / "notebooks/analysis_outputs/paper_cohort_473_l2"
-RUN = OUTPUT / "paper_run"
 BOOT = OUTPUT / "test_auc_bootstrap"
-IMPACT = OUTPUT / "portfolio_1000usdt_slippage"
 CB = "CatBoost classifier + Top@k%AUC early stopping"
 L1 = "Logistic regression + Tuned"
-L2 = "Logistic regression L2 + Tuned"
 RF = "Random forest + Tuned"
 CAT = "CatBoost classifier + Tuned"
 SMOTE = "CatBoost classifier + SMOTE + Tuned"
 RANKER = "CatBoost ranker + Tuned"
-NAMES = {CB: "CatBoost + ES", L1: "Logistic regression L1", L2: "Logistic regression L2",
+NAMES = {CB: "CatBoost + ES", L1: "Logistic regression",
          RF: "Random forest", CAT: "CatBoost", SMOTE: "CatBoost + SMOTE", RANKER: "CatBoost ranker"}
 SIZES = [1, 2, 5, 10, 20, 30]
 TABLES = {}
 INPUTS = {}
 FIGURES = {}
+COMPACT_FIGURES = {
+    "topk_accuracy_validation.png", "topkp_auc_validation.png",
+    "topk_accuracy_test.png", "topkp_auc_test.png",
+    "auc_distributions.png",
+    "validation_seed_distributions.png", "test_seed_distributions.png",
+}
 
 
 def digest(path):
@@ -75,7 +79,12 @@ def table(label, caption, headers, rows, wide=False):
 
 
 def figure(filename, label, caption, source=None, wide=True):
-    source = source or RUN / "images" / filename
+    comparison_images = COMPACT_FIGURES | {"classification_metrics_validation.png", "classification_metrics_test.png"}
+    source = source or (COMPARISON if filename in comparison_images else RUN) / "images" / filename
+    if filename in FILENAMES:
+        source = COMPACT_OUTPUT / "images" / filename
+    if filename in SINGLE_COLUMN:
+        wide = False
     target = HERE / "images" / filename
     FIGURES[str(target.relative_to(ROOT))] = source
     width, kind = (r"\textwidth", "figure*") if wide else (r"\columnwidth", "figure")
@@ -101,15 +110,18 @@ def replace_float(source, label, replacement):
 
 
 def render(source):
-    validation = read(RUN / "tables/validation_metrics.csv")
-    topk = read(RUN / "tables/test_topk.csv")
-    topkp = read(RUN / "tables/test_topkp.csv")
-    classification = read(RUN / "tables/test_classification.csv")
-    auc = read(BOOT / "auc_summary.csv")
-    pairwise = pd.read_csv(BOOT / "auc_pairwise.csv")
-    INPUTS[str((BOOT / "auc_pairwise.csv").relative_to(ROOT))] = digest(BOOT / "auc_pairwise.csv")
+    validation = read(COMPARISON / "tables/validation_metrics.csv")
+    validation_seeds = read(COMPARISON / "tables/validation_seed_distributions.csv")
+    test_seeds = read(COMPARISON / "tables/test_seed_distributions.csv")
+    validation_seed_pairs = pd.read_csv(COMPARISON / "tables/validation_paired_seed_differences.csv")
+    test_seed_pairs = pd.read_csv(COMPARISON / "tables/test_paired_seed_differences.csv")
+    topk = read(COMPARISON / "tables/test_topk.csv")
+    topkp = read(COMPARISON / "tables/test_topkp.csv")
+    classification = read(COMPARISON / "tables/test_classification.csv")
+    auc = read(COMPARISON / "tables/auc_summary.csv")
+    pairwise = pd.read_csv(COMPARISON / "tables/auc_pairwise.csv")
+    INPUTS[str((COMPARISON / "tables/auc_pairwise.csv").relative_to(ROOT))] = digest(COMPARISON / "tables/auc_pairwise.csv")
     robust = read(RUN / "tables/robustness_summary.csv")
-    lr_robust = read(RUN / "tables/logistic_robustness_summary.csv")
     importance = read(RUN / "tables/feature_importance_quantiles.csv")
     subperiod = read(RUN / "tables/subperiod_metrics.csv")
     portfolios = read(RUN / "tables/portfolio_statistics.csv")
@@ -119,26 +131,36 @@ def render(source):
     impact_summary = pd.read_csv(IMPACT / "random_portfolio/summary.csv").set_index(["k", "metric"])
     sensitivity = read(RUN / "tables/impact_sensitivity.csv")
     manifest = json.loads((RUN / "run_manifest.json").read_text())
-    selection = json.loads((RUN / "tables/logistic_l2_selection.json").read_text())
     assert set(validation.index) == set(auc.index) == set(NAMES)
-    selected = validation["Top@k%AUC"].idxmax()
+    selected = MODEL_NAMES[manifest["selection"]["model"]]
+    assert manifest["selection"]["model"] == validation_seeds["mean"].idxmax()
     assert selected in (CB, CAT), "Review interpretation for a new model family selected on validation"
+    for relative in ("tables/selected_model_analysis.json",):
+        provenance_path = RUN / relative
+        analysis = json.loads(provenance_path.read_text())
+        assert analysis["model"] == selected, "Interpretation and portfolios must use the validation winner"
+        assert analysis["parameters"] == manifest["model_parameters"][selected]
+        INPUTS[str(provenance_path.relative_to(ROOT))] = digest(provenance_path)
     reference = CB if selected != CB else CAT
     selected_name = NAMES[selected]
     portfolio_key = selected.replace(CB, "CatBoost + ES")
-    assert auc.point_estimate.idxmax() == L2, "Update test-ranking interpretation for a new leading model"
+    assert auc.point_estimate.idxmax() == L1, "Update test-ranking interpretation for a new leading model"
     assert manifest["reproducibility"]["random_seed"] == 42
     assert manifest["reproducibility"]["model_threads"] == 1
     assert manifest["reproducibility"]["optuna_n_jobs"] == 1
-    order = list(validation.sort_values("Top@k%AUC", ascending=False).index)
-    c_mantissa, c_exponent = f"{selection['selected_parameters']['C']:.3e}".split("e")
-    rb, lr = robust.loc["topk_percent_auc"], lr_robust.loc["topk_percent_auc"]
+    order = [MODEL_NAMES[key] for key in validation_seeds.sort_values("mean", ascending=False).index]
+    rb = robust.loc["topk_percent_auc"]
     hits = int(round(topk.loc[5, selected] * manifest["split_counts"]["TEST"]["events"]))
     v = {"selected": selected_name, "validation_auc": f"{validation.loc[selected, 'Top@k%AUC']:.3f}",
+         "validation_mean": f"{validation_seeds.loc['catboost', 'mean']:.4f}",
+         "validation_sd": f"{validation_seeds.loc['catboost', 'std']:.4f}",
+         "l1_validation_mean": f"{validation_seeds.loc['logistic', 'mean']:.4f}",
+         "cat_test_mean": f"{test_seeds.loc['catboost', 'mean']:.4f}",
+         "l1_test_mean": f"{test_seeds.loc['logistic', 'mean']:.4f}",
+         "l1_test_sd": f"{test_seeds.loc['logistic', 'std']:.4f}",
          "cb_auc": f"{auc.loc[selected, 'point_estimate']:.3f}",
          "es_auc": f"{auc.loc[CB, 'point_estimate']:.3f}",
          "l1_auc": f"{auc.loc[L1, 'point_estimate']:.3f}",
-         "l2_auc": f"{auc.loc[L2, 'point_estimate']:.3f}",
          "rf_auc": f"{auc.loc[RF, 'point_estimate']:.3f}",
          "cat_auc": f"{auc.loc[CAT, 'point_estimate']:.3f}",
          "smote_auc": f"{auc.loc[SMOTE, 'point_estimate']:.3f}",
@@ -150,52 +172,73 @@ def render(source):
          "ranker_top1": f"{100 * topk.loc[1, RANKER]:.2f}",
          "robust_mean": f"{rb['mean']:.3f}", "robust_std": f"{rb['std']:.3f}",
          "robust_low": f"{rb['10%']:.3f}", "robust_high": f"{rb['90%']:.3f}",
-         "lr_mean": f"{lr['mean']:.3f}", "lr_std": f"{lr['std']:.3f}",
-         "lr_low": f"{lr['10%']:.3f}", "lr_high": f"{lr['90%']:.3f}",
          "early_auc": f"{subperiod.loc['early', 'topk_percent_auc']:.3f}",
          "early_events": int(subperiod.loc['early', 'n_pumps']),
-         "l2_c": c_mantissa + r"\times10^{" + str(int(c_exponent)) + "}",
-         "cb_l1": paired(pairwise, selected, L1), "cb_l2": paired(pairwise, selected, L2),
+         "cb_l1": paired(pairwise, selected, L1),
          "reference": NAMES[reference], "cb_cat": paired(pairwise, selected, reference),
          "selected_rf": paired(pairwise, selected, RF),
          "selected_smote": paired(pairwise, selected, SMOTE),
-         "selected_ranker": paired(pairwise, selected, RANKER),
-         "l1_l2": paired(pairwise, L1, L2)}
-    headers = ["Model", *map(escaped, validation.columns)]
-    rows = [[NAMES[m], *[(r"\bfseries " if np.isclose(validation.loc[m, col], validation[col].max()) else "")
-                        + f"{validation.loc[m, col]:.3f}" for col in validation.columns]] for m in order]
+         "selected_ranker": paired(pairwise, selected, RANKER)}
+    headers = ["Model", "Mean AUC", "SD", r"2.5\%", r"97.5\%", r"Highest AUC (\% of seeds)"]
+    rows = [[NAMES[MODEL_NAMES[key]], *[f"{row[col]:.4f}" for col in ["mean", "std", "2.5%", "97.5%"]],
+             f"{100*row.win_fraction:.0f}"] for key, row in validation_seeds.sort_values("mean", ascending=False).iterrows()]
     v["validation_table"] = table("table:validation_model_selection",
-        r"Validation metrics for the seven tuned candidates. Top@k\%AUC selects the portfolio model; maxima are bold. F1 and balanced accuracy use one predicted target per event.", headers, rows, wide=True)
+        r"Validation Top@k\%AUC across 100 seeds per model. Quantiles and standard deviations describe seed variation on the same 103 events. Model selection uses the highest mean AUC.", headers, rows, wide=True)
     pieces = [fill(r"""\section{Model Comparison}
 \label{section:results}
 
 \subsection{Validation Performance and Model Selection}
-Table~\ref{table:validation_model_selection} compares seven tuned candidates using the same chronological split. @@selected@@ has the largest validation Top@k\%AUC ($@@validation_auc@@$). Validation guides model selection and early stopping; it is not an independent performance estimate. The selected model supplies all portfolio and price-impact results.
+Table~\ref{table:validation_model_selection} compares six model families across seeds 1--100 on the same 103 validation events. @@selected@@ has the largest mean validation Top@k\%AUC ($@@validation_mean@@$, SD $@@validation_sd@@$), followed by logistic regression ($@@l1_validation_mean@@$). Hyperparameters and early stopping are determined within the training sample; the outer validation sample is used only to compare model families. We select the family with the highest mean validation AUC and use its preselected seed-42 model for feature interpretation, event resampling and all portfolio analyses. Seed 42 is fixed independently of its validation or test score.
 
 @@validation_table@@
 """, v)]
+    val_pair = validation_seed_pairs.query("model_a == 'logistic' and model_b == 'catboost'").iloc[0]
+    pieces.append(f"CatBoost minus logistic regression has mean validation AUC difference ${-val_pair.mean_difference:.4f}$, "
+                  f"with a paired-seed 95\\% interval $[{-val_pair.ci_upper:.4f},\\,{-val_pair.ci_lower:.4f}]$. "
+                  "This interval includes zero: the highest observed mean determines the selection, but does not establish a clear advantage over logistic regression. "
+                  r"Fig.~\ref{fig:validation_seed_distribution} shows the full distributions." + "\n")
+    pieces.append(figure("validation_seed_distributions.png", "fig:validation_seed_distribution",
+                        r"Validation Top@k\%AUC for 100 seeds per model. Each seed uses a 25-trial search within training followed by a fit on all 290 training events. Boxes show the interquartile range and median; triangles show means; dots show individual seeds."))
+    pieces.append(fill(r"""For the fixed seed-42 models, @@selected@@ validation AUC is $@@validation_auc@@$. The following threshold curves describe these fixed models; the family selection above uses all 100 seeds.
+""", v))
     for filename, label, caption in [
-        ("topk_accuracy_validation.png", "fig:validation_topk", r"Validation Top@k accuracy for the seven tuned candidates and the random-ranking baseline."),
-        ("topkp_auc_validation.png", "fig:validation_topkp", r"Validation Top@k\% curves and normalized Top@k\%AUC. Model selection uses this validation criterion."),
-        ("classification_metrics_validation.png", "fig:validation_classification", r"Validation PR-AUC, F1 and balanced accuracy for the seven candidates; classification uses one predicted target per event."),
+        ("topk_accuracy_validation.png", "fig:validation_topk", r"Validation Top@k accuracy for the six seed-42 models and the random-ranking baseline."),
+        ("topkp_auc_validation.png", "fig:validation_topkp", r"Validation Top@k\% curves and normalized Top@k\%AUC for the six seed-42 models."),
     ]:
+        descriptions = {
+            "fig:validation_topk": r"Fig.~\ref{fig:validation_topk} shows how validation target inclusion changes with the number of selected assets.",
+            "fig:validation_topkp": r"Fig.~\ref{fig:validation_topkp} compares the validation ranking curves as a fraction of each event's eligible assets.",
+        }
+        pieces.append(descriptions[label] + "\n")
         pieces.append(figure(filename, label, caption))
     pieces.append(fill(r"""\subsection{Test Ranking Performance}
-Tables~\ref{table:results_topk} and~\ref{table:results_topkp} report target inclusion at fixed portfolio sizes and cross-section fractions. @@selected@@ achieves Top@1 $@@top1@@$, Top@5 $@@top5@@$ (@@hits@@ of 80 events), and Top@10 $@@top10@@$. Test comparisons describe the selected models; they do not change the validation selection rule.
+Table~\ref{table:test_seed_distribution} and Fig.~\ref{fig:test_seed_distribution} summarize test performance across the same 100 seeds. Each configuration is trained on the same 290 training events and evaluated on the same 80 test events, without retuning or adding validation events to training. Logistic regression has the highest mean test AUC ($@@l1_test_mean@@$, SD $@@l1_test_sd@@$), followed by CatBoost ($@@cat_test_mean@@$). The test ranking does not change the validation-based model selection.
+""", v))
+    rows = [[NAMES[MODEL_NAMES[key]], *[f"{row[col]:.4f}" for col in ["mean", "std", "2.5%", "97.5%"]],
+             f"{100*row.win_fraction:.0f}"] for key, row in test_seeds.sort_values("mean", ascending=False).iterrows()]
+    pieces.append(table("table:test_seed_distribution", r"Test Top@k\%AUC across 100 seeds per model on 80 fixed events. Quantiles describe variation across tuning and training seeds, not event-bootstrap confidence intervals.", headers, rows, wide=True))
+    pieces.append(figure("test_seed_distributions.png", "fig:test_seed_distribution",
+        r"Test Top@k\%AUC for the same 100 seed-specific configurations. The asterisk marks the family selected on validation. Boxes show the interquartile range and median; triangles show means; dots show individual seeds."))
+    test_pair = test_seed_pairs.query("model_a == 'logistic' and model_b == 'catboost'").iloc[0]
+    pieces.append(f"Logistic regression minus CatBoost has mean test AUC difference ${test_pair.mean_difference:.4f}$, "
+                  f"with paired-seed 95\\% interval $[{test_pair.ci_lower:.4f},\\,{test_pair.ci_upper:.4f}]$. "
+                  "These intervals use 10{,}000 paired resamples of the 100 seed indices and hold the event sample fixed. "
+                  "They measure tuning and training variability; event-sampling uncertainty for fixed models is assessed separately below.\n")
+    pieces.append(fill(r"""Tables~\ref{table:results_topk} and~\ref{table:results_topkp} report target inclusion for the seed-42 models at fixed portfolio sizes and cross-section fractions. @@selected@@ achieves Top@1 $@@top1@@$, Top@5 $@@top5@@$ (@@hits@@ of 80 events), and Top@10 $@@top10@@$.
 """, v))
     for frame, label, caption, percent in [
-        (topk, "table:results_topk", "Test Top@k accuracy for the seven tuned candidates.", False),
-        (topkp, "table:results_topkp", r"Test Top@k\% accuracy for the seven tuned candidates.", True),
+        (topk, "table:results_topk", "Test Top@k accuracy for the six seed-42 models.", False),
+        (topkp, "table:results_topkp", r"Test Top@k\% accuracy for the six seed-42 models.", True),
     ]:
         columns = [1, 2, 5, 10, 20, 30] if not percent else list(frame.index)
         headers = ["Model", *[f"Top@{100 * k:g}\\%" if percent else f"Top@{k}" for k in columns]]
         rows = [[NAMES[m], *[f"{frame.loc[k, m]:.3f}" for k in columns]] for m in order]
         pieces.append(table(label, caption, headers, rows, wide=True))
-    pieces.append(r"""The random-ranking baseline averages $\min(k,T_i)/T_i$ across events, where $T_i$ is the number of eligible assets in event $i$. Normalized Top@k\%AUC integrates the inclusion curve from 0 to 20\% in 0.5\% increments, as in Eq.~\ref{eq:topkpauc}.
+    pieces.append(r"""Figs.~\ref{fig:results_topk} and~\ref{fig:results_topkp} show the corresponding test ranking curves. The random-ranking baseline averages $\min(k,T_i)/T_i$ across events, where $T_i$ is the number of eligible assets in event $i$. Normalized Top@k\%AUC integrates the inclusion curve from 0 to 20\% in 0.5\% increments, as in Eq.~\ref{eq:topkpauc}.
 """)
     pieces.append(figure("topk_accuracy_test.png", "fig:results_topk", "Test Top@k accuracy and the event-specific random-ranking baseline."))
-    pieces.append(figure("topkp_auc_test.png", "fig:results_topkp", r"Test Top@k\% accuracy curves and normalized Top@k\%AUC for the same seven fitted candidates."))
-    pieces.append(fill(r"""L2 logistic regression has the largest test Top@k\%AUC point estimate ($@@l2_auc@@$), followed by L1 logistic regression ($@@l1_auc@@$), CatBoost + ES ($@@es_auc@@$), CatBoost ($@@cat_auc@@$), and random forest ($@@rf_auc@@$). Statistical comparisons use paired event resampling in Section~\ref{sec:significance}.
+    pieces.append(figure("topkp_auc_test.png", "fig:results_topkp", r"Test Top@k\% accuracy curves and normalized Top@k\%AUC for the same six fitted candidates."))
+    pieces.append(fill(r"""For seed 42, test Top@k\%AUC is $@@l1_auc@@$ for logistic regression, $@@cat_auc@@$ for CatBoost, $@@es_auc@@$ for CatBoost + ES, and $@@rf_auc@@$ for random forest. Statistical comparisons of these fixed models use paired event resampling in Section~\ref{sec:significance}.
 
 \subsection{Classification Metrics}
 Fig.~\ref{fig:classification_metrics} reports PR-AUC, F1 and balanced accuracy. F1 and balanced accuracy use the Top@1-per-event rule, so these scores measure the identification of one target within each event rather than an arbitrary probability threshold.
@@ -207,50 +250,54 @@ Fig.~\ref{fig:classification_metrics} reports PR-AUC, F1 and balanced accuracy. 
     pieces.append(f"{selected_name} has {pr_auc_label} (${classification.loc[selected, 'PR-AUC']:.4f}$). "
                   f"Its F1 is ${classification.loc[selected, 'F1 (Top@1 per cross-section)']:.4f}$ and balanced accuracy is "
                   f"${classification.loc[selected, 'Balanced Accuracy (Top@1 per cross-section)']:.4f}$.\n")
-    pieces.append(figure("classification_metrics_test.png", "fig:classification_metrics", "Test classification metrics for the seven tuned candidates."))
+    pieces.append(figure("classification_metrics_test.png", "fig:classification_metrics", "Test classification metrics for the six seed-42 models."))
     pieces.append(fill(r"""\subsection{SMOTE and Ranking Models}
 CatBoost with SMOTE attains test Top@1 $@@smote_top1@@\%$ and Top@k\%AUC $@@smote_auc@@$, below the leading class-weighted classifiers. With 81 predictors and 290 positive training events, synthetic interpolation may mix observations with different event-specific reference distributions. This is a plausible explanation, rather than a causal test, and is consistent with known limitations of SMOTE in high-dimensional data~\cite{blagus2013smote}.
 
 The CatBoost ranker attains test Top@1 $@@ranker_top1@@\%$ and Top@k\%AUC $@@ranker_auc@@$. It learns an ordering of post-announcement returns, whereas evaluation asks whether the single manipulation target appears near the top. Noise in the returns of other assets and the mismatch between these objectives may explain its weaker performance. Ranking advantages in other financial applications~\cite{poh_ltr} do not automatically transfer to this sample.
 
-\subsection{Interpretation of CatBoost + ES}
-Fig.~\ref{fig:catboost_fi} reports CatBoost PredictionValuesChange for CatBoost + ES fitted on all training events. Table~\ref{table:feature_importance_quantiles} summarizes the 15 largest median importances across the 25 training-subset fits in Section~\ref{sec:robustness}. These describe the fitted prediction function; they are not causal effects or evidence of manipulation by themselves.
+\subsection{Interpretation of @@selected@@}
+Table~\ref{table:feature_importance_quantiles} summarizes the 15 largest median PredictionValuesChange importances across the 100 seed-specific CatBoost models. These describe the fitted prediction functions; they are not causal effects or evidence of manipulation by themselves.
 """, v))
-    pieces.append(figure("feature_importances.png", "fig:catboost_fi", "Feature importance for the CatBoost + ES model fitted on all training events."))
     pieces.append(table("table:feature_importance_quantiles",
-        r"CatBoost PredictionValuesChange quantiles across 25 fits on random 70\% training-event subsets. Rows are ordered by median importance.",
+        selected_name + r" PredictionValuesChange quantiles across 100 seed-specific fits on the same 290 training events. Rows are ordered by median importance.",
         ["Feature", r"10\%", r"25\%", "Median", r"75\%", r"90\%"],
         [[escaped(name), *[f"{row[col]:.2f}" for col in ["p10", "p25", "p50", "p75", "p90"]]]
          for name, row in importance.sort_values("p50", ascending=False).head(15).iterrows()], wide=True))
     pieces.append(r"""\subsection{Statistical Significance}
 \label{sec:significance}
-We validate the results using 10{,}000 paired bootstrap samples of the 80 whole test events. All candidate assets stay with their event, repeated events retain their multiplicity, and identical event draws are used for all seven fixed models. Models are not retrained within this bootstrap. The percentile intervals quantify sampling uncertainty conditional on the fitted models and assume independent events; they do not account for training uncertainty, temporal dependence or prior test inspection.
+We validate the seed-42 point results using 10{,}000 paired bootstrap samples of the 80 whole test events. All candidate assets stay with their event, repeated events retain their multiplicity, and identical event draws are used for all six fixed models. Models are not retrained within this bootstrap. The percentile intervals quantify event-sampling uncertainty conditional on these fits and assume independent events. They do not include training variability, which is summarized by the 100-seed distributions, or account for temporal dependence or prior test inspection.
 
-Pairwise differences use a two-sided null distribution centered at zero, an add-one Monte Carlo correction and Holm adjustment across the 21 unordered model pairs. We use paired differences rather than marginal-interval overlap to assess significance.
+Pairwise differences use a two-sided null distribution centered at zero, an add-one Monte Carlo correction and Holm adjustment across the 15 unordered pairs of the six reported models. We use paired differences rather than marginal-interval overlap to assess significance.
 """)
     pieces.append(table("table:significance_ci",
-        r"Test sample Top@k\%AUC point estimates and 95\% percentile intervals from 10{,}000 paired event resamples.",
+        r"Seed-42 test sample Top@k\%AUC point estimates and 95\% percentile intervals from 10{,}000 paired event resamples.",
         ["Model", r"Top@k\%AUC", r"95\% CI"],
         [[NAMES[m], f"{row.point_estimate:.3f}", f"$[{row.ci_lower:.3f},\\,{row.ci_upper:.3f}]$"]
          for m, row in auc.sort_values("point_estimate", ascending=False).iterrows()]))
-    pieces.append(fill(r"""@@selected@@ minus L1 logistic regression has AUC difference @@cb_l1@@. Against L2 logistic regression, the difference is @@cb_l2@@. Against @@reference@@, the difference is @@cb_cat@@. The L1-minus-L2 difference is @@l1_l2@@. These comparisons do not establish superiority or equivalence. Model selection remains based on validation performance.
+    pieces.append(fill(r"""@@selected@@ minus logistic regression has AUC difference @@cb_l1@@. Against @@reference@@, the difference is @@cb_cat@@. Neither comparison is significant after Holm correction; this does not establish equivalence. Model selection remains based on mean validation performance across seeds.
 
-The selected model's differences against random forest, CatBoost with SMOTE and the ranker are, respectively: @@selected_rf@@; @@selected_smote@@; and @@selected_ranker@@. These three differences remain significant after Holm correction at the 5\% level, subject to the sampling assumptions and test-inspection limitation above.
+The selected model's differences against random forest, CatBoost with SMOTE and the ranker are, respectively: @@selected_rf@@; @@selected_smote@@; and @@selected_ranker@@. The differences against SMOTE and the ranker remain significant after Holm correction at the 5\% level; the difference against random forest does not. These conclusions are conditional on the fixed models and the event-sampling assumptions above.
 """, v))
-    pieces.append(figure("auc_distributions.png", "fig:auc_bootstrap", r"Test Top@k\%AUC bootstrap distributions for the seven fixed models: central 50\% and 95\% intervals, medians and test sample point estimates. All models use the same 10{,}000 event draws.", source=BOOT / "auc_distributions.png"))
-    pieces.append(figure("significance_bootstrap_ci.png", "fig:bootstrap_ci", selected_name + r" test Top@k and Top@k\% point estimates with 95\% intervals from 10{,}000 whole-event resamples."))
+    for other, expected in [(L1, False), (reference, False), (RF, False), (SMOTE, True), (RANKER, True)]:
+        row = pairwise.loc[((pairwise.model_a == selected) & (pairwise.model_b == other)) |
+                           ((pairwise.model_b == selected) & (pairwise.model_a == other))].iloc[0]
+        assert bool(row.p_value_holm < .05) == expected, "Review significance interpretation"
+    pieces.append(r"Fig.~\ref{fig:auc_bootstrap} summarizes the model-level AUC distributions; Fig.~\ref{fig:bootstrap_ci} shows the selected model's uncertainty at individual ranking thresholds." + "\n")
+    pieces.append(figure("auc_distributions.png", "fig:auc_bootstrap", r"Test Top@k\%AUC bootstrap distributions for the six fixed models: central 50\% and 95\% intervals, medians and test sample point estimates. All models use the same 10{,}000 event draws.", source=COMPARISON / "images/auc_distributions.png"))
+    pieces.append(figure("significance_bootstrap_ci.png", "fig:bootstrap_ci", selected_name + r" test Top@k point estimates with 95\% intervals from 10{,}000 whole-event resamples."))
     pieces.append(fill(r"""\subsection{Robustness Analysis}
 \label{sec:robustness}
-\subsubsection{Training-event sensitivity}
-We retrain CatBoost + ES 25 times on random 70\% subsets of the training events, keeping hyperparameters and validation/test membership fixed. Table~\ref{table:robustness_summary} and Fig.~\ref{fig:robustness_distribution} summarize test performance. Mean AUC is $@@robust_mean@@$, its standard deviation is $@@robust_std@@$, and the central 80\% range is $[@@robust_low@@,\,@@robust_high@@]$.
+\subsubsection{Sensitivity to tuning and training seeds}
+Table~\ref{table:robustness_summary} and Fig.~\ref{fig:robustness_distribution} summarize @@selected@@ test ranking metrics across the 100 seed-specific configurations. The training events and evaluation samples are fixed; each seed controls its own 25-trial inner search and final training. Mean AUC is $@@robust_mean@@$, its standard deviation is $@@robust_std@@$, and the central 80\% range is $[@@robust_low@@,\,@@robust_high@@]$.
 """, v))
     robust_labels = {"topk_percent_auc": r"Top@k\%AUC", **{f"topk_percent@{k}": f"Top@{100*k:g}\\%" for k in [0.01, 0.02, 0.05, 0.1, 0.2]}}
-    pieces.append(table("table:robustness_summary", r"Test performance across 25 random 70\% training-event subset fits of CatBoost + ES.",
+    pieces.append(table("table:robustness_summary", selected_name + r" test performance across 100 tuning and training seeds, with all event partitions fixed.",
         ["Metric", "Mean", "Std", r"[10\%, 90\%]"],
         [[robust_labels[name], f"{row['mean']:.3f}", f"{row['std']:.3f}", f"[{row['10%']:.3f}, {row['90%']:.3f}]"]
          for name, row in robust.iterrows() if name in robust_labels]))
-    pieces.append(figure("robustness_metrics_distribution.png", "fig:robustness_distribution", r"Distribution of test ranking metrics across 25 CatBoost + ES fits on different 70\% training-event subsets, with validation and test membership fixed."))
-    pieces.append(fill(r"""The corresponding L2 logistic regression analysis keeps the selected penalty, $C$, and class weights fixed. Its mean test AUC is $@@lr_mean@@$, standard deviation $@@lr_std@@$, and central 80\% range $[@@lr_low@@,\,@@lr_high@@]$. Preprocessing is fitted using each training subset. These experiments measure conditional training sensitivity and do not provide independent external validation.
+    pieces.append(figure("robustness_metrics_distribution.png", "fig:robustness_distribution", selected_name + r" test ranking metrics across 100 seed-specific configurations trained on the same 290 events."))
+    pieces.append(fill(r"""These experiments measure conditional training sensitivity and do not provide independent external validation.
 
 \subsubsection{Temporal subperiod analysis}
 Using June~1, 2022 as the subperiod boundary, the early test period contains @@early_events@@ events and has @@selected@@ AUC $@@early_auc@@$. The late period contains only four events and is excluded by the minimum of ten events per subperiod. This sample therefore does not support a reliable claim about bear-market or cross-regime performance.
@@ -281,11 +328,11 @@ Using June~1, 2022 as the subperiod boundary, the early test period contains @@e
               "impact_random_high": f"{100*impact_summary.loc[(5,'cumulative return'),'upper']:.2f}"})
     start = source.index("We use ", source.index(r"\section{Portfolio strategy}"))
     end = source.index(r"\subsection{Execution-Aware Backtesting with Price Impact}")
-    portfolio_text = fill(r"""We use the validation-selected @@selected@@ model for every portfolio and price-impact analysis. We compare $k\in\{1,2,5,10,20,30\}$ and retain $k=5$ for order-size sensitivity. At $k=5$, target inclusion is $@@hit_percent@@\%$ (@@hits@@ of 80 events), exactly matching Top@5 in Table~\ref{table:results_topk}.
+    portfolio_text = fill(r"""We use the selected seed-42 @@selected@@ model for every portfolio and price-impact analysis. We compare $k\in\{1,2,5,10,20,30\}$ and retain $k=5$ for order-size sensitivity. At $k=5$, target inclusion is $@@hit_percent@@\%$ (@@hits@@ of 80 events), exactly matching Top@5 in Table~\ref{table:results_topk}.
 
 For each size, we generate 10{,}000 random portfolios. At each event, $k$ different eligible assets are selected uniformly and assigned equal weights, using common random asset orders across sizes. Trading rules, USDT conversion and the 25 bp round-trip cost match the model strategy. Unfilled allocations remain in cash. Events stay in chronological order and returns are summed without reinvestment. Annualized statistics use zero-filled daily returns over the same calendar and 365 days per year; each statistic is computed for each draw before averaging.
 
-At $k=5$, @@selected@@ cumulative return is $@@model_return@@\%$ and Sharpe is $@@model_sharpe@@$. Random selection has mean return $@@random_return@@\%$ with a central 95\% range of $[@@random_low@@\%,\,@@random_high@@\%]$ and mean target inclusion $@@random_hits@@\%$. These ranges describe random selection within the observed test period, not event-bootstrap confidence intervals or confirmatory significance tests.
+Table~\ref{table:performance_by_k} reports portfolio statistics, and Fig.~\ref{fig:portfolio_test} shows the cumulative return paths. At $k=5$, @@selected@@ cumulative return is $@@model_return@@\%$ and Sharpe is $@@model_sharpe@@$. Random selection has mean return $@@random_return@@\%$ with a central 95\% range of $[@@random_low@@\%,\,@@random_high@@\%]$ and mean target inclusion $@@random_hits@@\%$. These ranges describe random selection within the observed test period, not event-bootstrap confidence intervals or confirmatory significance tests.
 """, v)
     portfolio_text += portfolio_table + figure("portfolios_vs_btc_test.png", "fig:portfolio_test",
         selected_name + r" portfolio cumulative returns, random selection and BTC/USDT over the same calendar. Returns include 25 bp round-trip costs and exclude size-dependent impact. The dashed curve averages 10{,}000 random $k=5$ portfolios; shading is the pointwise 95\% selection range. The solid black line is BTC/USDT buy-and-hold.")
@@ -304,14 +351,14 @@ At $k=5$, @@selected@@ cumulative return is $@@model_return@@\%$ and Sharpe is $
     impact_rows += [[f"Random $k={k}$", *[f"{impact_random.loc[(k,col),'random mean']:.4f}" for col in metrics]] for k in SIZES]
     impact_rows.append(btc_row)
     tail = fill(r"""\subsubsection{Portfolio performance with price impact}
-We apply the fitted impact model to both execution legs with 1{,}000 USDT per selected asset, so a size-$k$ portfolio targets $k\times1{,}000$ USDT per event. Predictions, event order, random selections and other trading rules are identical to the no-impact comparison. At $k=5$, @@selected@@ cumulative return is $@@impact_return@@\%$ and Sharpe is $@@impact_sharpe@@$. Random selection has mean return $@@impact_random@@\%$, with a central 95\% range of $[@@impact_random_low@@\%,\,@@impact_random_high@@\%]$.
+We apply the fitted impact model to both execution legs with 1{,}000 USDT per selected asset, so a size-$k$ portfolio targets $k\times1{,}000$ USDT per event. Predictions, event order, random selections and other trading rules are identical to the no-impact comparison. Table~\ref{table:performance_by_k_impact} and Fig.~\ref{fig:portfolio_test_impact} report the resulting statistics and return paths. At $k=5$, @@selected@@ cumulative return is $@@impact_return@@\%$ and Sharpe is $@@impact_sharpe@@$. Random selection has mean return $@@impact_random@@\%$, with a central 95\% range of $[@@impact_random_low@@\%,\,@@impact_random_high@@\%]$.
 """, v)
     tail += table("table:performance_by_k_impact", r"Portfolio performance with 1{,}000 USDT per asset, fitted entry and exit impact, and 25 bp costs. Random rows average 10{,}000 draws; returns are decimal fractions.", portfolio_headers, impact_rows, wide=True)
     tail += figure("portfolios_1000usdt_with_slippage.png", "fig:portfolio_test_impact",
         r"The same portfolios and random selections as Fig.~\ref{fig:portfolio_test}, with fitted price impact on both legs at 1{,}000 USDT per asset. Shading is the pointwise 95\% random-selection range; the BTC/USDT benchmark is unchanged.", source=IMPACT / "portfolios_1000usdt_with_slippage.png")
     sensitivity = sensitivity.set_index("quantity_usdt") if "quantity_usdt" in sensitivity.columns else sensitivity
     tail += r"\subsubsection{PnL sensitivity to order size}" + "\n"
-    tail += ("For $k=5$, we vary intended size from 100 to 10{,}000 USDT per asset. "
+    tail += (r"Fig.~\ref{fig:pnl_vs_quantity} shows the order-size sensitivity for $k=5$, varying intended size from 100 to 10{,}000 USDT per asset. "
              f"Cumulative ROE without reinvestment is ${sensitivity.loc[100,'cumulative_roe']:.3f}$ at 100 USDT, "
              f"${sensitivity.loc[2000,'cumulative_roe']:.3f}$ at 2{{,}}000 USDT, "
              f"${sensitivity.loc[5000,'cumulative_roe']:.3f}$ at 5{{,}}000 USDT, and "
@@ -320,13 +367,26 @@ We apply the fitted impact model to both execution legs with 1{,}000 USDT per se
     tail += figure("pnl_vs_quantity_with_impact.png", "fig:pnl_vs_quantity",
         selected_name + r" cumulative ROE over the 80 test events as intended per-asset notional changes. The $k=5$ strategy includes fitted entry and exit impact and 25 bp costs; returns are summed without reinvestment.", wide=False)
     source = source[:start] + tail + "\n" + source[end:]
-    source = re.sub(r"^(?:In the model comparison, validation|Validation) Top@k.*$", lambda _: fill(
-        r"Validation Top@k\%AUC selects @@selected@@ ($@@validation_auc@@$). It attains test Top@1 $@@top1@@$, Top@10 $@@top10@@$, and Top@k\%AUC $@@cb_auc@@$ on 80 events. L2 logistic regression has the highest descriptive test AUC ($@@l2_auc@@$); paired resampling does not establish a significant AUC difference between these two models.", v), source, flags=re.M)
-    source = re.sub(r"^This study compares (?:established|seven tuned).*$", lambda _: fill(
-        r"This study compares seven tuned imbalance-aware prediction models on the same Binance BTC-pair events. Validation selects @@selected@@ (Top@k\%AUC $@@validation_auc@@$), which achieves test AUC $@@cb_auc@@$ and Top@5 $@@top5@@$. L2 logistic regression has the largest descriptive test AUC ($@@l2_auc@@$), but paired resampling does not establish its superiority over @@selected@@. The same selected model supplies all portfolio analyses: its $k=5$ cumulative return is $@@model_return@@\%$ without size-dependent impact and $@@impact_return@@\%$ with fitted impact at 1{,}000 USDT per asset. These simulation outcomes are sensitive to execution assumptions and order size.", v), source, flags=re.M)
-    source = re.sub(r"^The repository provides numerical tables.*$",
-        "The repository provides the event cohort, split membership, software versions, seed settings, feature hashes, model parameters, test predictions, shared bootstrap draws, and random-portfolio selections and execution outcomes. The same saved predictions underlie the test comparison, resampling and portfolios. The event records cannot independently validate Telegram annotations because the underlying messages and URLs are unavailable.", source, flags=re.M)
-    method = fill(r"We compare tuned L1 and L2 logistic regression, random forest, CatBoost, CatBoost with SMOTE, CatBoost ranker, and CatBoost + ES. L2 uses the L1 predictors and class weights and selects $C$ on validation Top@k\%AUC from 25 logarithmically spaced values between $10^{-6}$ and $10^2$, breaking ties toward smaller $C$. The selected value is $C=@@l2_c@@$. The standalone unweighted, unpenalized statsmodels diagnostic is excluded from predictive comparisons.", v)
+    source = re.sub(r"^(?:In the model comparison, validation|Validation Top@k|Across 100 seeds).*$", lambda _: fill(
+        r"Across 100 seeds per model, each with 25 hyperparameter trials within training, @@selected@@ has the highest mean validation Top@k\%AUC ($@@validation_mean@@$). On 80 test events, mean AUC is $@@cat_test_mean@@$ for CatBoost and $@@l1_test_mean@@$ for logistic regression. The selected seed-42 CatBoost model attains test AUC $@@cb_auc@@$ and Top@5 $@@top5@@$; paired event resampling does not establish a significant AUC difference from the seed-42 logistic model.", v), source, flags=re.M)
+    source = re.sub(r"^This study compares (?:established|seven tuned|six tuned).*$", lambda _: fill(
+        r"This study compares six tuned imbalance-aware model families across 100 seeds on the same Binance BTC-pair events. CatBoost has the highest mean validation Top@k\%AUC ($@@validation_mean@@$), while logistic regression has the highest mean test AUC ($@@l1_test_mean@@$, compared with CatBoost's $@@cat_test_mean@@$). The preselected seed-42 CatBoost model achieves test AUC $@@cb_auc@@$ and Top@5 $@@top5@@$; paired event resampling does not establish its AUC superiority over logistic regression or CatBoost + ES after multiplicity correction. Its $k=5$ cumulative return is $@@model_return@@\%$ without size-dependent impact and $@@impact_return@@\%$ with fitted impact at 1{,}000 USDT per asset. These simulation outcomes are sensitive to execution assumptions and order size.", v), source, flags=re.M)
+    source = re.sub(r"^The repository provides.*$",
+        "The repository provides the event cohort, split membership, software versions, seeds 1--100, feature hashes, all 600 fitted configurations, validation and test predictions, shared bootstrap draws, and random-portfolio selections and execution outcomes. Repeating all 600 final fits reproduces their saved validation and test predictions exactly. The seed-42 point estimates, event resampling and portfolios use the same saved predictions. The event records cannot independently validate Telegram annotations because the underlying messages and URLs are unavailable.", source, flags=re.M)
+    training_start = source.index(r"\subsection{Training}")
+    training_end = source.index("% BEGIN MODEL CONFIGURATION", training_start)
+    source = source[:training_start] + r"""\subsection{Training}
+We run 25 Optuna TPE trials for each of six model families and each seed from 1 to 100: 600 studies and 15{,}000 trials. Within the 290 training events, a chronological split at March 18, 2020, 19:00 UTC gives 232 inner-training events and 58 inner-tuning events. Simultaneous events remain together. Hyperparameters maximize inner-tuning Top@k\%AUC; preprocessing priors use only the corresponding training partition.
+
+Tree depth is tuned for random forest and CatBoost. During the inner search, CatBoost variants use early stopping with 50 rounds of patience; CatBoost + ES uses Top@k\%AUC as its stopping metric. For each seed, we retain the best trial's parameters and fitted tree count, then train on all 290 training events with no validation-controlled stopping. These models are evaluated on the 103 outer-validation events and the 80 test events. Neither evaluation sample is used for hyperparameter tuning or final training.
+
+The same seed controls TPE, stochastic model training and SMOTE within each configuration. Trials run sequentially and each model uses one CPU thread; independent configurations run in parallel. We select the family with the highest mean validation AUC across the 100 seeds, breaking exact ties by lower standard deviation and then model key. Seed 42 is chosen in advance for the fixed-model analyses, independently of performance. Event and seed resampling also use a fixed random seed. Run records preserve parameters, fitted models, feature order, input hashes and software versions.
+
+""" + source[training_end:]
+    source = source.replace("The reported intervals condition on the fitted models and assume independent pump events; correlated campaigns and test-set reuse may make them optimistic.",
+        "Event-bootstrap intervals condition on the fixed seed-42 models and assume independent pump events; correlated campaigns and test-set reuse may make them optimistic. The seed distributions measure a different source of variability and do not enlarge the event sample.")
+    method = r"We compare tuned logistic regression, random forest, CatBoost, CatBoost with SMOTE, CatBoost ranker, and CatBoost + ES. Logistic regression uses L1 regularization and class weights. The standalone unweighted, unpenalized statsmodels diagnostic is excluded from predictive comparisons."
+    source = source.replace("L2 grid-search ties favor smaller $C$; the unpenalized logistic diagnostic", "The unpenalized logistic diagnostic")
     anchor = "We validated the results using event-level resampling"
     if "% BEGIN MODEL CONFIGURATION" in source:
         source = re.sub(r"% BEGIN MODEL CONFIGURATION.*?% END MODEL CONFIGURATION", lambda _: "% BEGIN MODEL CONFIGURATION\n" + method + "\n% END MODEL CONFIGURATION", source, flags=re.S)
@@ -354,27 +414,44 @@ We apply the fitted impact model to both execution legs with 1{,}000 USDT per se
 
 
 def results_report(manifest, values):
-    validation = read(RUN / "tables/validation_metrics.csv")
-    summary = read(BOOT / "auc_summary.csv")
-    topk = read(RUN / "tables/test_topk.csv")
+    validation = read(COMPARISON / "tables/validation_metrics.csv")
+    validation_seeds = read(COMPARISON / "tables/validation_seed_distributions.csv")
+    test_seeds = read(COMPARISON / "tables/test_seed_distributions.csv")
+    summary = read(COMPARISON / "tables/auc_summary.csv")
+    topk = read(COMPARISON / "tables/test_topk.csv")
     portfolio = read(RUN / "tables/portfolio_statistics.csv")
     impact = read(IMPACT / "model_statistics.csv")
-    selected = validation["Top@k%AUC"].idxmax()
+    selected = MODEL_NAMES[manifest["selection"]["model"]]
     key = selected.replace(CB, "CatBoost + ES")
     lines = [
-        "# Results: fixed-seed notebook run",
+        "# Results: 100 tuning and training seeds",
         "",
-        "The manuscript uses this completed run throughout. The submitted PDF is retained only as the highlighting baseline. "
+        "The manuscript reports six model families across seeds 1–100, with one regularized Logistic regression model. The submitted PDF is retained only as the highlighting baseline. "
         "The cohort contains 473 events from 498 announcements and 25 recorded exclusions: 290 training, 103 validation and 80 test events.",
         "",
-        f"Validation selects **{NAMES[selected]}** (Top@k%AUC **{validation.loc[selected, 'Top@k%AUC']:.4f}**). "
-        "Its saved predictions supply all portfolio analyses. Each model's point estimates and bootstrap intervals use that model's same saved predictions.",
+        f"Mean validation Top@k%AUC selects **{NAMES[selected]}** (**{validation_seeds.loc['catboost', 'mean']:.4f}** across 100 seeds). "
+        "The preselected seed-42 model supplies all portfolio analyses. Each family's seed-42 point estimates and event-bootstrap intervals use the same saved predictions.",
         "",
-        "Training and resampling use seed 42 and one CPU thread; Optuna searches are configured for sequential seeded TPE trials. "
-        "This execution fits the six saved study configurations and reruns the L2 validation grid; it does not rerun the six Optuna searches. "
-        "The study database and feature inputs are unchanged. Fitted model files, exact feature order, package versions, input hashes and executed notebooks are saved with the run.",
+        "Each model and seed has 25 sequential TPE trials using a chronological 232/58 inner split of the 290 training events. "
+        "The best configuration is fitted on all 290 events, with the inner-selected CatBoost tree count fixed and no evaluation-set early stopping. "
+        "The 103 outer-validation events compare model families; the same configurations are evaluated on 80 test events without retuning. "
+        "All 600 repeated final fits reproduced the saved validation and test predictions exactly. Fitted models, parameters, predictions and software/input hashes are saved.",
         "",
-        "## Model comparisons",
+        "## Seed distributions",
+        "",
+        "| Model | Mean validation AUC | Validation SD | Mean test AUC | Test SD |",
+        "|---|---:|---:|---:|---:|",
+    ]
+    for model, row in validation_seeds.iterrows():
+        test = test_seeds.loc[model]
+        lines.append(f"| {NAMES[MODEL_NAMES[model]]} | {row['mean']:.4f} | {row['std']:.4f} | {test['mean']:.4f} | {test['std']:.4f} |")
+    lines += [
+        "",
+        "These distributions describe tuning/training randomness conditional on the fixed events. "
+        "The paired-seed mean difference for logistic regression minus CatBoost on test is 0.0244, with 95% interval [0.0203, 0.0288]. "
+        "Seed resampling does not measure event-sampling uncertainty or change the validation selection.",
+        "",
+        "## Seed-42 point estimates and event bootstrap",
         "",
         "| Model | Validation AUC | Test AUC | Test 95% CI | Test Top@5 |",
         "|---|---:|---:|---:|---:|",
@@ -383,8 +460,8 @@ def results_report(manifest, values):
         lines.append(f"| {NAMES[model]} | {validation.loc[model, 'Top@k%AUC']:.4f} | {row.point_estimate:.4f} | "
                      f"[{row.ci_lower:.4f}, {row.ci_upper:.4f}] | {topk.loc[5, model]:.4f} |")
     lines += ["", "AUC integrates Top@k% from 0–20% in 0.5% increments and divides by 0.2. "
-              "The percentile intervals use 10,000 paired whole-event draws shared by all seven fixed models. "
-              "Two-sided centered tests use an add-one correction and Holm adjustment across 21 pairs. "
+              "The percentile intervals use 10,000 paired whole-event draws shared by all six fixed models. "
+              "Two-sided centered tests use an add-one correction and Holm adjustment across the 15 pairs of reported models. "
               "The intervals assume independent events and omit training uncertainty; prior test inspection limits confirmatory interpretation.",
               "", "## Portfolios", "",
               "| k | Cumulative return, no size impact | Sharpe | Cumulative return, 1,000 USDT/asset impact | Sharpe | Target events |",
@@ -398,22 +475,23 @@ def results_report(manifest, values):
               "Each portfolio size also has 10,000 uniform random-selection draws. Asset orders are shared across sizes and both execution scenarios. "
               "Daily annualization uses a zero-filled common calendar and 365 days per year. Random-selection ranges are conditional benchmarks, not event-bootstrap intervals.",
               "", "## Sensitivity and verification", "",
-              f"CatBoost + ES training-subset AUC: mean {values['robust_mean']}, standard deviation {values['robust_std']}, "
+              f"{NAMES[selected]} AUC across 100 seeds: mean {values['robust_mean']}, standard deviation {values['robust_std']}, "
               f"central 80% range [{values['robust_low']}, {values['robust_high']}]. "
-              f"L2: mean {values['lr_mean']}, standard deviation {values['lr_std']}, range [{values['lr_low']}, {values['lr_high']}]. "
-              "Both use 25 random 70% training-event subsets with fixed hyperparameters and validation/test membership.",
+              "Training and evaluation event membership are fixed; each seed controls its inner search and final fit. Feature-importance quantiles use these same 100 CatBoost models.",
               "",
               f"The selected model's early-period AUC is {values['early_auc']} on {values['early_events']} events. "
               "The four-event late period is excluded by the ten-event minimum.",
               "",
-              "[Prediction and resampling replay audit](notebook_rerun_audit.json) independently reconstructs all point metrics, "
-              "10,000 bootstrap draws, 21 paired tests, portfolio returns and target counts, and random selections. "
-              "[Manuscript audit](manuscript_results_audit.json) checks every generated result table and figure against the exports. "
+              "[Seed-sweep audit](test_seed_sweep_results.json) independently verifies all 600 test scores and 15 paired-seed intervals. "
+              "[Prediction and portfolio audit](seed_sweep_manuscript_audit.json) reconstructs the six seed-42 point metrics, "
+              "10,000 event-bootstrap draws, 15 event-bootstrap comparisons, portfolio returns and target counts. "
+              "[Manuscript audit](manuscript_results_audit.json) checks the six-model comparison, its 15-pair adjustment, and every generated result table and figure against the exports. "
               "[Reproduction commands](reproduction.md) regenerate the outputs and both PDFs.",
               "",
-              "Run artifacts: `notebooks/analysis_outputs/paper_cohort_473_l2/` (local, excluded from Git). "
-              "`paper_run/models/` stores all seven fitted models; `paper_run/source_snapshot/` preserves sources used by the execution. "
-              "`test_auc_bootstrap/` contains predictions and exact event draws, and the two portfolio directories contain execution outcomes and exact random selections.", ""]
+              "Manuscript artifacts: `notebooks/analysis_outputs/seed_sweep_paper/` (local, excluded from Git). "
+              "The 600 checkpoints are in `test_seed_sweep_100x25/fits/`; the matching search databases and parameters are in `validation_seed_sweep_100x25/studies/`. "
+              "The manuscript directory contains point metrics, event-bootstrap draws, seed distributions, feature importances and regenerated portfolio curves. "
+              "Its provenance records the model-independent execution outcomes and random selections used for the portfolio replay.", ""]
     return "\n".join(lines)
 
 
@@ -423,7 +501,10 @@ def main():
     args = parser.parse_args()
     path = HERE / "access.tex"
     source = path.read_text()
-    updated, manifest, values = render(source)
+    comparison = prepare(NAMES, check=args.check)
+    compact = prepare_compact_figures(NAMES, MODEL_NAMES, check=args.check)
+    updated, manifest, values = render(strip_layout(source))
+    updated = apply_layout(updated)
     report_path = ROOT / "docs/results.md"
     report_text = results_report(manifest, values)
     if not args.check:
@@ -448,6 +529,8 @@ def main():
               "paper_source_sha256": digest(path), "reproducibility": manifest["reproducibility"],
               "tables": list(TABLES), "table_rows": cells, "key_results": values,
               "input_sha256": INPUTS, "figure_sources": {k: str(v.relative_to(ROOT)) for k, v in FIGURES.items()},
+              "comparison": comparison, "reported_models": list(NAMES), "paired_comparisons": 15,
+              "compact_figure_provenance": compact,
               "previous_submission_used_only_as_highlight_baseline": True}
     # Do not duplicate generated table TeX inside the compact audit summary.
     report["key_results"].pop("validation_table", None)

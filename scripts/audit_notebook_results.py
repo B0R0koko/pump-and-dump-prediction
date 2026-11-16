@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import pickle
 from pathlib import Path
 
 import numpy as np
@@ -102,13 +103,24 @@ def main():
     close(pairs.loc[ordered_p.index, "p_value_holm"], adjusted)
 
     winner = metadata["provenance"]["primary_model"]
+    model_manifest = json.loads((run / "models/manifest.json").read_text())
+    with (run / "models" / model_manifest[winner]["file"]).open("rb") as handle:
+        selected_model = pickle.load(handle)
+    for relative in ("tables/selected_model_analysis.json", "robustness/selected_model_analysis.json"):
+        provenance = json.loads((run / relative).read_text())
+        assert provenance["model"] == winner
+        assert provenance["parameters"] == selected_model.params
+    assert provenance["pipeline"] == "CatboostClassifierPipeline"
+    full_importance = pd.read_csv(run / "tables/selected_model_feature_importances.csv", index_col=0)
+    close(full_importance.reindex(selected_model._model.feature_names_).feature_importance,
+          selected_model._model.feature_importances_)
     membership = pd.read_csv(run / "test_events.csv", index_col=0, parse_dates=["pump_time"])
     early = membership.index[membership.pump_time < pd.Timestamp("2022-06-01")]
     temporal = pd.read_csv(run / "tables/subperiod_metrics.csv", index_col=0)
     close(temporal.loc["early", "topk_percent_auc"], contributions.loc[early, winner].mean())
     assert len(early) == int(temporal.loc["early", "n_pumps"]) == 76
     for filename, table in [
-        ("catboost_topkauc_subset_runs.csv", "robustness_summary.csv"),
+        ("selected_model_subset_runs.csv", "robustness_summary.csv"),
         ("logistic_subset_runs.csv", "logistic_robustness_summary.csv"),
     ]:
         trials = pd.read_csv(run / "robustness" / filename)
@@ -116,7 +128,7 @@ def main():
         assert len(trials) == 25 and trials.train_cross_sections.eq(203).all()
         expected = trials[recorded.index].describe(percentiles=[0.1, 0.25, 0.5, 0.75, 0.9]).T
         close(recorded, expected[recorded.columns])
-    importance = pd.read_csv(run / "robustness/catboost_topkauc_feature_importances.csv")
+    importance = pd.read_csv(run / "robustness/selected_model_feature_importances.csv")
     quantiles = pd.read_csv(run / "tables/feature_importance_quantiles.csv", index_col=0)
     groups = importance.groupby("feature").feature_importance
     for column, q in [("p10", 0.1), ("p25", 0.25), ("p50", 0.5), ("p75", 0.75), ("p90", 0.9)]:
@@ -128,6 +140,10 @@ def main():
     selected = predictions.loc[predictions.model == winner]
     main_metrics = pd.read_csv(run / "tables/portfolio_statistics.csv", index_col=0)
     impact_metrics = pd.read_csv(impact / "model_statistics.csv", index_col=0)
+    plotted_returns = {
+        "no_impact": pd.read_csv(run / "tables/portfolio_returns.csv", index_col=0, parse_dates=True),
+        "impact_1000": pd.read_csv(impact / "daily_returns.csv", index_col=0, parse_dates=True),
+    }
     replayed = {}
     for label, asset_path, random_directory in [
         ("no_impact", run / "random_portfolio/asset_returns.parquet", run / "random_portfolio"),
@@ -159,6 +175,11 @@ def main():
             close(hit_rate, topk.loc[k, winner])
             events = chosen.groupby("event_index")["return"].sum().reindex(range(80), fill_value=0) / k
             times = assets.groupby("event_index", sort=True).pump_time.first()
+            daily = pd.Series(events.to_numpy(), index=pd.DatetimeIndex(times).normalize()).groupby(level=0).sum()
+            recorded_path = plotted_returns[label][f"K={k}"]
+            daily = daily.reindex(recorded_path.index, fill_value=0)
+            close(daily, recorded_path)
+            close(daily.cumsum(), recorded_path.cumsum())
             recorded = (
                 main_metrics.loc[
                     f"{winner.replace('CatBoost classifier + Top@k%AUC early stopping', 'CatBoost + ES')} K={k}"
@@ -181,6 +202,11 @@ def main():
         for position, k in enumerate(sizes):
             for metric, replay in statistics(event_returns[:, :, position].T, times).items():
                 close(random_metrics.loc[k, metric], replay)
+            if k == 5:
+                mean_events = event_returns[:, :, position].mean(axis=0)
+                mean_daily = pd.Series(mean_events, index=pd.DatetimeIndex(times).normalize()).groupby(level=0).sum()
+                random_path = plotted_returns[label]["Random K=5 (mean of 10,000 draws)"]
+                close(mean_daily.reindex(random_path.index, fill_value=0), random_path)
     with (
         np.load(run / "random_portfolio/resampled_assets.npz") as a,
         np.load(impact / "random_portfolio/resampled_assets.npz") as b,
@@ -199,7 +225,11 @@ def main():
         "random_selections_replayed": True,
         "same_predictions_used_throughout": True,
         "annualized_portfolio_statistics_replayed": True,
+        "all_six_daily_pnl_curves_and_random_mean_replayed_with_and_without_impact": True,
         "training_subset_summaries_and_feature_quantiles_recomputed": True,
+        "feature_importance_and_portfolio_model": winner,
+        "full_training_feature_importance_verified_against_checkpoint": True,
+        "training_subset_parameters_match_selected_model": True,
         "temporal_metric_and_l2_grid_choice_verified": True,
         "prediction_sha256": hashlib.sha256((boot / "test_predictions.parquet").read_bytes()).hexdigest(),
     }
